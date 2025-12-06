@@ -94,6 +94,24 @@ process MERGE_READS {
     """
 }
 
+process READ_STATS {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    //publishDir "${params.outdir}/00-basecall", mode: 'copy', pattern: '*readstats.tsv'
+    tag "${reads.simpleName}"
+
+    input:
+        path(reads)
+
+    output:
+        path("*readstats.tsv")
+
+    script:
+    """
+    echo "file\treads\tbases\tn_bases\tmin_len\tmax_len\tn50\tGC_percent\tQ20_percent" > ${reads.simpleName}.readstats.tsv
+    samtools fastq ${reads} | faster2 -ts - >> ${reads.simpleName}.readstats.tsv
+    """
+}
+
 process DORADO_ALIGN {
 
     container 'docker.io/nanoporetech/dorado:latest'
@@ -179,14 +197,14 @@ process REPORT {
     publishDir "${params.outdir}", mode: 'copy', pattern: '*html'
     
     input:
-        path bedtools_hist
+       tuple path(hist), path(readstats)
     output:
         path "*.html"
 
     script:
     """
     
-    bedtools-report.py $bedtools_hist -o coverage-report.html
+    make-report.py --hist $hist --readstats $readstats -o nxf-ontas-report.html
     """
 }
 
@@ -236,23 +254,29 @@ workflow {
 
     // if no bedfile provided, just use the ref to generate one with the fasta entries
     if ( !params.bedfile ) {
-        //placeholder for generating bedfile from reference
+        // generating bedfile from reference
         MAKE_BEDFILE(Channel.fromPath(params.reference, checkIfExists: true))
         ch_bedfile = MAKE_BEDFILE.out
     } else {
         ch_bedfile = Channel.fromPath(params.bedfile, checkIfExists: true)
     }
     
+    ch_reads
+    | READ_STATS \
+    
     ch_ref \
     .combine( ch_reads ) \
     //.view()
     | DORADO_ALIGN \
     | combine( ch_bedfile ) \
-    | (SAMTOOLS_BEDCOV & BEDTOOLS_COV) \
+    | BEDTOOLS_COV \
     
     
     BEDTOOLS_COV.out
     .collect()
+    .toList()
+    .combine( READ_STATS.out.collect().toList() )
+    //.view()
     | REPORT
     
 }

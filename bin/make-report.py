@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Generate an HTML report from coverage histogram files (.hist)
-Usage: python bedtools-report.py sample1.hist [sample2.hist sample3.hist ...] -o output.html
+Generate an HTML report from coverage histogram files (.hist) and readstats files (.readstats.tsv)
+Usage: python bedtools-report.py --hist sample1.hist [sample2.hist ...] --readstats sample1.readstats.tsv [sample2.readstats.tsv ...] -o output.html
 """
 
 import sys
@@ -31,6 +31,29 @@ def parse_hist_file(filepath):
                 })
     return data
 
+def parse_readstats_file(filepath):
+    """Parse a readstats.tsv file and return a dictionary with stats"""
+    with open(filepath, 'r') as f:
+        # Read header
+        header = next(f).strip().split('\t')
+        # Read data line
+        data_line = next(f).strip().split('\t')
+        
+        # Create dictionary from header and data
+        stats = {}
+        for i, col in enumerate(header):
+            if i < len(data_line):
+                # Try to convert to appropriate type
+                value = data_line[i]
+                if col in ['reads', 'bases', 'n_bases', 'min_len', 'max_len', 'n50']:
+                    stats[col] = int(value) if value != '-' else 0
+                elif col in ['GC_percent', 'Q20_percent']:
+                    stats[col] = float(value) if value != '-' else 0.0
+                else:
+                    stats[col] = value
+        
+    return stats
+
 def calculate_cumulative_coverage(gene_data):
     """Calculate cumulative coverage metrics"""
     total_bases = gene_data[0]['total'] if gene_data else 0
@@ -54,7 +77,7 @@ def calculate_cumulative_coverage(gene_data):
     }
 
 
-def generate_html_report(samples_data, output_file):
+def generate_html_report(samples_data, readstats_data, output_file):
     """Generate HTML report from multiple samples"""
     
     # Get unique genes
@@ -78,6 +101,65 @@ def generate_html_report(samples_data, output_file):
             if gene_data:
                 region_totals[gene] = gene_data[0]['total']
                 break
+    
+    # Calculate global totals for new cards
+    total_bases_across_samples = sum(stats.get('bases', 0) for stats in readstats_data.values()) if readstats_data else 0
+    total_reads_across_samples = sum(stats.get('reads', 0) for stats in readstats_data.values()) if readstats_data else 0
+
+    # Generate readstats table HTML if data exists
+    readstats_table_html = ""
+    if readstats_data:
+        readstats_table_html = """
+      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Read Statistics</h3>
+      <div class="table-container" style="margin-bottom: 30px;">
+        <table id="readstatsTable">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="sortReadstatsTable(0)">Sample</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(1)">Reads</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(2)">Bases</th>
+              
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(4)">Min Length</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(5)">Max Length</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(6)">N50</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(7)">GC %</th>
+              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(8)">Q20 %</th>
+            </tr>
+          </thead>
+          <tbody>
+"""
+        
+        for sample_name in sorted(readstats_data.keys()):
+            stats = readstats_data[sample_name]
+            readstats_table_html += f"""
+            <tr data-sample="{sample_name.lower()}"
+                data-reads="{stats.get('reads', 0)}"
+                data-bases="{stats.get('bases', 0)}"
+                data-nbases="{stats.get('n_bases', 0)}"
+                data-minlen="{stats.get('min_len', 0)}"
+                data-maxlen="{stats.get('max_len', 0)}"
+                data-n50="{stats.get('n50', 0)}"
+                data-gc="{stats.get('GC_percent', 0)}"
+                data-q20="{stats.get('Q20_percent', 0)}">
+              <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{stats.get('reads', 0):,}</td>
+              <td style="text-align: right;">{stats.get('bases', 0):,}</td>
+              
+              <td style="text-align: right;">{stats.get('min_len', 0):,}</td>
+              <td style="text-align: right;">{stats.get('max_len', 0):,}</td>
+              <td style="text-align: right;">{stats.get('n50', 0):,}</td>
+              <td style="text-align: right;">{stats.get('GC_percent', 0):.2f}</td>
+              <td style="text-align: right;">{stats.get('Q20_percent', 0):.2f}</td>
+            </tr>
+"""
+        
+        readstats_table_html += """
+          </tbody>
+        </table>
+      </div>
+      
+      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Coverage Statistics</h3>
+"""
     
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -125,7 +207,8 @@ def generate_html_report(samples_data, output_file):
     .content {{ padding: 10px; }}
     .stats {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      /* Adjusted grid template to fit more cards */
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
       gap: 15px;
       margin-bottom: 20px;
     }}
@@ -133,13 +216,13 @@ def generate_html_report(samples_data, output_file):
       /* CHANGED: Use header color */
       background: #374151; 
       color: white;
-      padding: 10px; /* CHANGED: Reduced padding for smaller size */
+      padding: 10px; /* Reduced padding for smaller size */
       border-radius: 8px;
       text-align: center;
     }}
     .stat-card h3 {{ font-size: 0.8em; opacity: 0.9; margin-bottom: 3px; }}
     .stat-card .value {{ 
-      font-size: 1.2em; /* CHANGED: Reduced font size */
+      font-size: 1.2em; /* Reduced font size */
       font-weight: bold; 
     }}
     .controls {{
@@ -293,6 +376,14 @@ def generate_html_report(samples_data, output_file):
     <div class="content">
       <div class="stats">
         <div class="stat-card">
+          <h3>Total Reads</h3>
+          <div class="value">{total_reads_across_samples:,}</div>
+        </div>
+        <div class="stat-card">
+          <h3>Total Bases</h3>
+          <div class="value">{total_bases_across_samples:,}</div>
+        </div>
+        <div class="stat-card">
           <h3>Total Genes/Regions</h3>
           <div class="value">{len(genes)}</div>
         </div>
@@ -308,19 +399,23 @@ def generate_html_report(samples_data, output_file):
       
       <div class="controls">
         <div class="filter-group">
-          
+          <label class="filter-label" for="sampleFilter">Filter Samples:</label>
           <select id="sampleFilter" multiple="multiple" style="width: 100%;">
             {sample_options}
           </select>
         </div>
         <div class="filter-group">
-
+          <label class="filter-label" for="regionFilter">Filter Regions:</label>
           <select id="regionFilter" multiple="multiple" style="width: 100%;">
             {region_options}
           </select>
         </div>
-        <button class="export-btn" onclick="exportToCSV()">Export CSV</button>
+        
+        <button class="export-btn" onclick="exportReadstatsToCSV()">Export Read Summary</button>
+        <button class="export-btn" onclick="exportCoverageToCSV()">Export Coverage</button>
       </div>
+      
+      {readstats_table_html}
       
       <div class="table-container">
         <table id="dataTable">
@@ -400,29 +495,82 @@ def generate_html_report(samples_data, output_file):
   
   <script>
     let sortDirection = {};
+    let readstatsSortDirection = {};
     
-    // --- Select2 Initialization and Filter Binding ---
-    $(document).ready(function() {
-      // Initialize Select2 on the sample filter
-      $('#sampleFilter').select2({
-        placeholder: "Select or type sample names...",
-        allowClear: true,
-        closeOnSelect: false 
-      }).on('change', filterTable); 
+    // Utility function to trigger CSV download
+    function downloadCSV(csvContent, filename) {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // NEW FUNCTION for Read Stats Export
+    function exportReadstatsToCSV() {
+      const table = document.getElementById('readstatsTable');
+      if (!table) {
+        alert('Read Statistics table not found.');
+        return;
+      }
+
+      let csv = [];
       
-      // Initialize Select2 on the region filter
-      $('#regionFilter').select2({
-        placeholder: "Select or type regions...",
-        allowClear: true,
-        closeOnSelect: false 
-      }).on('change', filterTable); 
+      // Headers (mirroring the table columns)
+      const headers = [
+        'Sample', 
+        'Reads', 
+        'Bases', 
+        'Min_Length', 
+        'Max_Length', 
+        'N50', 
+        'GC_Percent', 
+        'Q20_Percent'
+      ];
+      csv.push(headers.join(','));
       
-      // Apply initial filter
-      filterTable();
-    });
-    // -------------------------------------------------
+      // Data rows (only visible ones)
+      const dataRows = table.querySelectorAll('tbody tr');
+      dataRows.forEach(row => {
+        if (row.style.display !== 'none') {
+          // Use data attributes for clean data extraction
+          const cols = [
+            row.getAttribute('data-sample'),
+            row.getAttribute('data-reads'),
+            row.getAttribute('data-bases'),
+            row.getAttribute('data-minlen'),
+            row.getAttribute('data-maxlen'),
+            row.getAttribute('data-n50'),
+            row.getAttribute('data-gc'),
+            row.getAttribute('data-q20'),
+          ];
+          
+          // Escape quotes and wrap in quotes if contains comma
+          const safeCols = cols.map(text => {
+            text = text.trim();
+            // Remove commas from numbers
+            text = text.replace(/,/g, ''); 
+            
+            if (text.includes('"')) {
+              text = '"' + text.replace(/"/g, '""') + '"';
+            }
+            return text;
+          });
+          
+          csv.push(safeCols.join(','));
+        }
+      });
+      
+      const csvContent = csv.join('\\n');
+      downloadCSV(csvContent, 'readstats_report_export.csv');
+    }
     
-    function exportToCSV() {
+    // RENAMED exportToCSV to exportCoverageToCSV
+    function exportCoverageToCSV() {
       const table = document.getElementById('dataTable');
       let csv = [];
       
@@ -432,7 +580,7 @@ def generate_html_report(samples_data, output_file):
         'Chr', 
         'Gene/Region', 
         'Location', 
-        'Region Size', 
+        'Region_Size', 
         'Pct_Ge_1x', 
         'Pct_Ge_10x', 
         'Pct_Ge_20x', 
@@ -449,7 +597,8 @@ def generate_html_report(samples_data, output_file):
             row.getAttribute('data-sample'),
             row.getAttribute('data-chr'),
             row.getAttribute('data-gene'),
-            row.getAttribute('data-location').replace(/,/g, ''), // remove commas from location
+            // Keep original location format (e.g., "1,000-2,000") but remove commas for clean CSV
+            row.getAttribute('data-location').replace(/,/g, ''), 
             row.getAttribute('data-total'),
             row.getAttribute('data-cov1'),
             row.getAttribute('data-cov10'),
@@ -470,17 +619,123 @@ def generate_html_report(samples_data, output_file):
         }
       });
       
-      // Create download
       const csvContent = csv.join('\\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'coverage_report_export' + '.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadCSV(csvContent, 'coverage_report_export.csv');
+    }
+
+    
+    // --- Select2 Initialization and Filter Binding ---
+    $(document).ready(function() {
+      // Initialize Select2 on the sample filter
+      $('#sampleFilter').select2({
+        placeholder: "Select or type sample names...",
+        allowClear: true,
+        closeOnSelect: false 
+      }).on('change', function() {
+          // Trigger filtering for both tables on sample change
+          filterTable();
+          filterReadstatsTable(); 
+      }); 
+      
+      // Initialize Select2 on the region filter
+      $('#regionFilter').select2({
+        placeholder: "Select or type regions...",
+        allowClear: true,
+        closeOnSelect: false 
+      }).on('change', filterTable); // Only Coverage table uses region filter
+      
+      // Apply initial filter
+      filterTable();
+      filterReadstatsTable(); 
+      
+      // Default Sort: Sort both tables by Sample Name (Column 0) on load.
+      // Set initial direction to 'desc' so the toggle makes it 'asc'
+      sortDirection[0] = 'desc'; 
+      readstatsSortDirection[0] = 'desc';
+      
+      // Call sort to apply default 'asc' sort
+      sortTable(0);
+      sortReadstatsTable(0);
+    });
+    // -------------------------------------------------
+    
+    function sortReadstatsTable(columnIndex) {
+      const table = document.getElementById('readstatsTable');
+      if (!table) return;
+      
+      const tbody = table.tBodies[0];
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      
+      // Toggle sort direction
+      readstatsSortDirection[columnIndex] = readstatsSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+      const isAsc = readstatsSortDirection[columnIndex] === 'asc';
+      
+      // Update header styling
+      const headers = table.querySelectorAll('th.sortable');
+      headers.forEach(h => {
+        h.classList.remove('asc', 'desc');
+      });
+      // Check if the current column exists and is a header before adding classes
+      if (headers[columnIndex]) {
+        headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+      }
+      
+      rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        // Corrected index map for readstats columns to data attributes
+        const dataAttrMap = {
+            0: 'sample',
+            1: 'reads',
+            2: 'bases',
+            3: 'minlen', // Column 4 in table
+            4: 'maxlen', // Column 5
+            5: 'n50',    // Column 6
+            6: 'gc',     // Column 7
+            7: 'q20'     // Column 8
+        };
+        
+        const dataKey = dataAttrMap[columnIndex];
+
+        if (!dataKey) {
+            console.warn(`No data attribute defined for readstats column index ${columnIndex}`);
+            return 0;
+        }
+
+        aVal = a.getAttribute('data-' + dataKey);
+        bVal = b.getAttribute('data-' + dataKey);
+        
+        if (columnIndex === 0) { // Sample name (string)
+          return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        } else {
+          aVal = parseFloat(aVal);
+          bVal = parseFloat(bVal);
+          return isAsc ? aVal - bVal : bVal - aVal;
+        }
+      });
+      
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function filterReadstatsTable() {
+        const selectedSamples = $('#sampleFilter').val() || [];
+        const table = document.getElementById('readstatsTable');
+        if (!table) return;
+
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const sample = row.getAttribute('data-sample');
+            
+            // If no samples are selected, show all. Otherwise, only show selected.
+            let sampleMatch = true;
+            if (selectedSamples.length > 0) {
+                sampleMatch = selectedSamples.includes(sample);
+            }
+            
+            row.style.display = sampleMatch ? '' : 'none';
+        }
     }
     
     function sortTable(columnIndex) {
@@ -497,7 +752,10 @@ def generate_html_report(samples_data, output_file):
       headers.forEach(h => {
         h.classList.remove('asc', 'desc');
       });
-      headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+      // Check if the current column exists and is a header before adding classes
+      if (headers[columnIndex]) {
+        headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+      }
       
       rows.sort((a, b) => {
         let aVal, bVal;
@@ -511,25 +769,26 @@ def generate_html_report(samples_data, output_file):
         } else if (columnIndex === 2) { // Gene
           aVal = a.getAttribute('data-gene');
           bVal = b.getAttribute('data-gene');
-        } else if (columnIndex === 3) { // Location
-          // Use the start coordinate for location sort
-          const aLoc = a.getAttribute('data-location').split('-')[0].replace(/,/g, '');
-          const bLoc = b.getAttribute('data-location').split('-')[0].replace(/,/g, '');
-          aVal = parseInt(aLoc);
-          bVal = parseInt(bLoc);
-        } else if (columnIndex === 4) { // Region Size
+        } else if (columnIndex === 3) { // Location (Not sortable - fallback logic not needed since it's not marked sortable in HTML)
+          // Location is not sortable. Fallback to sorting by Sample then Gene for stable order
+          if (a.getAttribute('data-sample') !== b.getAttribute('data-sample')) {
+            return isAsc ? a.getAttribute('data-sample').localeCompare(b.getAttribute('data-sample')) : b.getAttribute('data-sample').localeCompare(a.getAttribute('data-sample'));
+          }
+          aVal = a.getAttribute('data-gene');
+          bVal = b.getAttribute('data-gene');
+        } else if (columnIndex === 4) { // Region Size (data-total)
           aVal = parseFloat(a.getAttribute('data-total'));
           bVal = parseFloat(b.getAttribute('data-total'));
-        } else if (columnIndex === 5) { // ≥1x
+        } else if (columnIndex === 5) { // ≥1x (data-cov1)
           aVal = parseFloat(a.getAttribute('data-cov1'));
           bVal = parseFloat(b.getAttribute('data-cov1'));
-        } else if (columnIndex === 6) { // ≥10x
+        } else if (columnIndex === 6) { // ≥10x (data-cov10)
           aVal = parseFloat(a.getAttribute('data-cov10'));
           bVal = parseFloat(b.getAttribute('data-cov10'));
-        } else if (columnIndex === 7) { // ≥20x
+        } else if (columnIndex === 7) { // ≥20x (data-cov20)
           aVal = parseFloat(a.getAttribute('data-cov20'));
           bVal = parseFloat(b.getAttribute('data-cov20'));
-        } else if (columnIndex === 8) { // ≥30x
+        } else if (columnIndex === 8) { // ≥30x (data-cov30)
           aVal = parseFloat(a.getAttribute('data-cov30'));
           bVal = parseFloat(b.getAttribute('data-cov30'));
         }
@@ -597,24 +856,33 @@ def generate_html_report(samples_data, output_file):
 
 def main():
     parser = argparse.ArgumentParser(description='Generate coverage histogram HTML report')
-    parser.add_argument('samples', nargs='+', help='One or more .hist files')
+    parser.add_argument('--hist', nargs='+', required=True, help='One or more .hist files')
+    parser.add_argument('--readstats', nargs='*', default=[], help='One or more .readstats.tsv files')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
     
     samples_data = {}
+    readstats_data = {}
     
-    for sample_file in args.samples:
-        sample_name = Path(sample_file).stem
+    for sample_file in args.hist:
+        sample_name = Path(sample_file).stem.replace('.hist', '')
         print(f"Loading {sample_file}...")
         samples_data[sample_name] = parse_hist_file(sample_file)
     
+    for readstats_file in args.readstats:
+        sample_name = Path(readstats_file).stem.replace('.readstats', '')
+        print(f"Loading {readstats_file}...")
+        readstats_data[sample_name] = parse_readstats_file(readstats_file)
+    
     print("Generating HTML report...")
-    generate_html_report(samples_data, args.output)
+    generate_html_report(samples_data, readstats_data, args.output)
     
     print(f"\nDone! Open {args.output} in your browser to view the report.")
     print(f"Total samples: {len(samples_data)}")
     print(f"Sample names: {', '.join(samples_data.keys())}")
+    if readstats_data:
+        print(f"Readstats available for: {', '.join(readstats_data.keys())}")
 
 if __name__ == "__main__":
     main()
