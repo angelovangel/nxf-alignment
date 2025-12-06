@@ -9,6 +9,21 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
+def format_si(num):
+    """Format number with SI suffix (K, M, G, T, P)"""
+    if num == 0:
+        return "0"
+    
+    suffixes = ['', ' K', ' M', ' G', ' T', ' P']
+    suffix_index = 0
+    num_float = float(num)
+    
+    while abs(num_float) >= 1000 and suffix_index < len(suffixes) - 1:
+        num_float /= 1000.0
+        suffix_index += 1
+
+    return f"{num_float:.1f}{suffixes[suffix_index]}"
+
 def parse_hist_file(filepath):
     """Parse a .hist file and return list of records"""
     data = []
@@ -105,6 +120,12 @@ def generate_html_report(samples_data, readstats_data, output_file):
     # Calculate global totals for new cards
     total_bases_across_samples = sum(stats.get('bases', 0) for stats in readstats_data.values()) if readstats_data else 0
     total_reads_across_samples = sum(stats.get('reads', 0) for stats in readstats_data.values()) if readstats_data else 0
+    total_bed_size = sum(region_totals.values())
+    
+    # Format numbers using SI suffix
+    reads_formatted = format_si(total_reads_across_samples)
+    bases_formatted = format_si(total_bases_across_samples)
+    bed_formatted = format_si(total_bed_size)
 
     # Generate readstats table HTML if data exists
     readstats_table_html = ""
@@ -312,10 +333,10 @@ def generate_html_report(samples_data, readstats_data, output_file):
       text-align: right;
     }}
     .pct-bar {{
-      /* Kept secondary blue accent for data visualization contrast */
+      /* Match card and title background color with reduced opacity */
       display: inline-block;
       height: 16px;
-      background: #60a5fa; 
+      background: rgba(55, 65, 81, 0.5); 
       border-radius: 2px;
       min-width: 2px;
       vertical-align: middle;
@@ -377,11 +398,11 @@ def generate_html_report(samples_data, readstats_data, output_file):
       <div class="stats">
         <div class="stat-card">
           <h3>Total Reads</h3>
-          <div class="value">{total_reads_across_samples:,}</div>
+          <div class="value">{reads_formatted}</div>
         </div>
         <div class="stat-card">
           <h3>Total Bases</h3>
-          <div class="value">{total_bases_across_samples:,}</div>
+          <div class="value">{bases_formatted}</div>
         </div>
         <div class="stat-card">
           <h3>Total Genes/Regions</h3>
@@ -393,19 +414,17 @@ def generate_html_report(samples_data, readstats_data, output_file):
         </div>
         <div class="stat-card">
           <h3>Total BED size</h3>
-          <div class="value">{sum(region_totals.values()):,}</div>
+          <div class="value">{bed_formatted}</div>
         </div>
       </div>
       
       <div class="controls">
         <div class="filter-group">
-          <label class="filter-label" for="sampleFilter">Filter Samples:</label>
           <select id="sampleFilter" multiple="multiple" style="width: 100%;">
             {sample_options}
           </select>
         </div>
         <div class="filter-group">
-          <label class="filter-label" for="regionFilter">Filter Regions:</label>
           <select id="regionFilter" multiple="multiple" style="width: 100%;">
             {region_options}
           </select>
@@ -628,9 +647,9 @@ def generate_html_report(samples_data, readstats_data, output_file):
     $(document).ready(function() {
       // Initialize Select2 on the sample filter
       $('#sampleFilter').select2({
-        placeholder: "Select or type sample names...",
+        placeholder: "Filter samples...",
         allowClear: true,
-        closeOnSelect: false 
+        closeOnSelect: true 
       }).on('change', function() {
           // Trigger filtering for both tables on sample change
           filterTable();
@@ -639,9 +658,9 @@ def generate_html_report(samples_data, readstats_data, output_file):
       
       // Initialize Select2 on the region filter
       $('#regionFilter').select2({
-        placeholder: "Select or type regions...",
+        placeholder: "Filter regions...",
         allowClear: true,
-        closeOnSelect: false 
+        closeOnSelect: true 
       }).on('change', filterTable); // Only Coverage table uses region filter
       
       // Apply initial filter

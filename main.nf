@@ -148,6 +148,7 @@ process MAKE_BEDFILE {
     """
 }
 
+/*
 process SAMTOOLS_BEDCOV {
     container 'docker.io/aangeloo/nxf-tgs:latest'
 
@@ -170,6 +171,7 @@ process SAMTOOLS_BEDCOV {
     }' >> ${bam.simpleName}.cov.tsv
     """
 }
+*/
 
 process BEDTOOLS_COV {
     container 'docker.io/biocontainers/bedtools:v2.27.1dfsg-4-deb_cv1'
