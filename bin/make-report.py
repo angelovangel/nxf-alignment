@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Generate an HTML report from coverage histogram files (.hist) and readstats files (.readstats.tsv)
-Usage: python bedtools-report.py --hist sample1.hist [sample2.hist ...] --readstats sample1.readstats.tsv [sample2.readstats.tsv ...] -o output.html
+Usage: python bedtools-report.py --hist sample1.hist [sample2.hist ...] --readstats sample1.readstats.tsv [sample2.readstats.tsv ...] -o output.html [--runinfo run_info.csv]
 """
 
 import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
+import csv # Import for CSV reading
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -69,6 +70,22 @@ def parse_readstats_file(filepath):
         
     return stats
 
+def parse_runinfo_csv(filepath):
+    """Parse a run info CSV file and return a list of dictionaries (one per row)"""
+    run_info = []
+    try:
+        with open(filepath, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            # Read all rows into the list
+            for row in reader:
+                run_info.append(row)
+    except FileNotFoundError:
+        print(f"Warning: Run info file not found at {filepath}", file=sys.stderr)
+    except Exception as e:
+        print(f"Error reading run info CSV: {e}", file=sys.stderr)
+        
+    return run_info
+
 def calculate_cumulative_coverage(gene_data):
     """Calculate cumulative coverage metrics"""
     total_bases = gene_data[0]['total'] if gene_data else 0
@@ -92,7 +109,7 @@ def calculate_cumulative_coverage(gene_data):
     }
 
 
-def generate_html_report(samples_data, readstats_data, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, output_file):
     """Generate HTML report from multiple samples"""
     
     # Get unique genes
@@ -127,6 +144,37 @@ def generate_html_report(samples_data, readstats_data, output_file):
     bases_formatted = format_si(total_bases_across_samples)
     bed_formatted = format_si(total_bed_size)
 
+    # Generate run info HTML block with styling matching the .header block and smaller font size
+    run_info_html = ""
+    if run_info:
+        # The <details> block sits inside the .header div, inheriting its dark background.
+        run_info_html += """
+    <details style="padding-top: 5px; margin-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+      <summary style="font-size: 0.8em; cursor: pointer; color: white;">Run Details</summary>
+      <div style="padding-top: 5px; text-align: left; max-width: 500px; margin: 0 auto;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 5px; color: white; border: none; background: inherit;">
+          <tbody>
+    """
+        # Assuming only one row of run info for simplicity, but iterating over all
+        for i, row in enumerate(run_info):
+            if i > 0: # Add separator if there are multiple run info blocks
+                run_info_html += '<tr><td colspan="2" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding: 0;"></td></tr>'
+            for key, value in row.items():
+                # Use clean keys for display
+                display_key = key.replace('_', ' ').title()
+                run_info_html += f"""
+                <tr>
+                  <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; font-weight: 600; color: white; white-space: nowrap; font-size: 0.8em;">{display_key}:</td>
+                  <td style="padding: 3px 0; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; font-size: 0.8em;">{value}</td>
+                </tr>
+"""
+        run_info_html += """
+            </tbody>
+        </table>
+    </div>
+</details>
+"""
+    
     # Generate readstats table HTML if data exists
     readstats_table_html = ""
     if readstats_data:
@@ -187,7 +235,7 @@ def generate_html_report(samples_data, readstats_data, output_file):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NXF-ONTAS Coverage Report</title>
+  <title>NXF-ALIGNMENT Report</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   
@@ -224,6 +272,7 @@ def generate_html_report(samples_data, readstats_data, output_file):
     .header p {{ 
       opacity: 0.9; 
       font-size: 0.8em; 
+      margin-bottom: 0; /* Ensures the run info block starts right after */
     }}
     .content {{ padding: 10px; }}
     .stats {{
@@ -231,6 +280,7 @@ def generate_html_report(samples_data, readstats_data, output_file):
       /* Adjusted grid template to fit more cards */
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
       gap: 15px;
+      margin-top: 20px; /* Adjusted margin to accommodate run info */
       margin-bottom: 20px;
     }}
     .stat-card {{
@@ -328,7 +378,7 @@ def generate_html_report(samples_data, readstats_data, output_file):
       /* Sans-serif for headers */
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     }}
-    tr:hover {{ background: #f8fafc; }}
+    /*tr:hover {{ background: #f8fafc; }}*/
     .coverage-cell {{
       text-align: right;
     }}
@@ -391,9 +441,9 @@ def generate_html_report(samples_data, readstats_data, output_file):
 <body>
   <div class="container">
     <div class="header">
-      <h2>NXF-ONTAS Coverage Report</h2>
+      <h2>NXF-ALIGNMENT Report</h2>
       <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-    </div>
+      {run_info_html} </div>
     <div class="content">
       <div class="stats">
         <div class="stat-card">
@@ -707,18 +757,21 @@ def generate_html_report(samples_data, readstats_data, output_file):
             0: 'sample',
             1: 'reads',
             2: 'bases',
-            3: 'minlen', // Column 4 in table
-            4: 'maxlen', // Column 5
-            5: 'n50',    // Column 6
-            6: 'gc',     // Column 7
-            7: 'q20'     // Column 8
+            // Note: Indices 3 are missing in HTML (n_bases), so indices 4,5,6,7,8 map to min_len onwards
+            4: 'minlen', // Column 4 in table
+            5: 'maxlen', // Column 5
+            6: 'n50',    // Column 6
+            7: 'gc',     // Column 7
+            8: 'q20'     // Column 8
         };
         
         const dataKey = dataAttrMap[columnIndex];
 
         if (!dataKey) {
-            console.warn(`No data attribute defined for readstats column index ${columnIndex}`);
-            return 0;
+            // Treat unmapped columns as non-sortable or use default string sort for safety
+             aVal = a.cells[columnIndex].textContent.toLowerCase().trim();
+             bVal = b.cells[columnIndex].textContent.toLowerCase().trim();
+             return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
         }
 
         aVal = a.getAttribute('data-' + dataKey);
@@ -789,7 +842,7 @@ def generate_html_report(samples_data, readstats_data, output_file):
           aVal = a.getAttribute('data-gene');
           bVal = b.getAttribute('data-gene');
         } else if (columnIndex === 3) { // Location (Not sortable - fallback logic not needed since it's not marked sortable in HTML)
-          // Location is not sortable. Fallback to sorting by Sample then Gene for stable order
+          // Fallback to sorting by Sample then Gene for stable order
           if (a.getAttribute('data-sample') !== b.getAttribute('data-sample')) {
             return isAsc ? a.getAttribute('data-sample').localeCompare(b.getAttribute('data-sample')) : b.getAttribute('data-sample').localeCompare(a.getAttribute('data-sample'));
           }
@@ -877,13 +930,21 @@ def main():
     parser = argparse.ArgumentParser(description='Generate coverage histogram HTML report')
     parser.add_argument('--hist', nargs='+', required=True, help='One or more .hist files')
     parser.add_argument('--readstats', nargs='*', default=[], help='One or more .readstats.tsv files')
+    # NEW ARGUMENT
+    parser.add_argument('--runinfo', type=str, help='Optional CSV file with run metadata (e.g., flowcell_id, run_date)', default=None)
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
     
     samples_data = {}
     readstats_data = {}
-    
+    run_info = [] # Initialize as empty list
+
+    # Load run info if provided
+    if args.runinfo:
+        print(f"Loading run info from {args.runinfo}...")
+        run_info = parse_runinfo_csv(args.runinfo)
+
     for sample_file in args.hist:
         sample_name = Path(sample_file).stem.replace('.hist', '')
         print(f"Loading {sample_file}...")
@@ -895,7 +956,8 @@ def main():
         readstats_data[sample_name] = parse_readstats_file(readstats_file)
     
     print("Generating HTML report...")
-    generate_html_report(samples_data, readstats_data, args.output)
+    # Pass the run_info list to the generate function
+    generate_html_report(samples_data, readstats_data, run_info, args.output)
     
     print(f"\nDone! Open {args.output} in your browser to view the report.")
     print(f"Total samples: {len(samples_data)}")

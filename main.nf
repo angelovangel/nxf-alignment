@@ -5,6 +5,10 @@ if (params.kit && !params.samplesheet) {
     error "If --kit is specified, --samplesheet must also be provided."
 }
 
+if (!params.kit && params.samplesheet) {
+    error "If --samplesheet is provided, --kit must also be specified."
+}
+
 // BASECALL
 
 process DORADO_BASECALL {
@@ -75,6 +79,33 @@ process DORADO_BASECALL_BARCODING {
     ln -s basecall-${params.model}/*/*/*/bam_pass bam_pass
     """
 }
+// get run info from bam header
+process RUN_INFO {
+    // Uses a container with samtools and standard Unix tools
+    container 'docker.io/aangeloo/nxf-tgs:latest' 
+    
+    input:
+        // Expects one BAM file as input
+        path(bam)
+
+    output:
+        // Outputs a CSV file with the extracted info
+        path("run_info.csv"), emit: ch_runinfo
+
+    script:
+    """
+    
+    RG_LINE=\$(samtools view -H ${bam} | grep '^@RG' | head -n 1) 
+    
+    FLOWCELL_ID=\$(echo \$RG_LINE | sed -n 's/.*PU:\\([^[:space:]]*\\).*/\\1/p')
+    BASECALL_MODEL=\$(echo \$RG_LINE | sed -n 's/.*basecall_model=\\([^[:space:]]*\\).*/\\1/p')
+    RUN_DATE=\$(echo "\$RG_LINE" | sed -n 's/.*DT:\\([^T]*\\).*/\\1/p')
+    RUN_ID=\$(echo "\$RG_LINE" | sed -n 's/.*DS:runid=\\([^[:space:]]*\\).*/\\1/p')
+
+    echo "flowcell_id,basecall_model,run_date,run_id" > run_info.csv
+    echo "\$FLOWCELL_ID,\$BASECALL_MODEL,\$RUN_DATE,\$RUN_ID" >> run_info.csv
+    """
+}
 
 process MERGE_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
@@ -97,7 +128,7 @@ process MERGE_READS {
 process READ_STATS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     //publishDir "${params.outdir}/00-basecall", mode: 'copy', pattern: '*readstats.tsv'
-    tag "${reads.simpleName}"
+    tag "${reads.simpleName} - ${reads.extension} file"
 
     input:
         path(reads)
@@ -106,9 +137,15 @@ process READ_STATS {
         path("*readstats.tsv")
 
     script:
+    
     """
     echo "file\treads\tbases\tn_bases\tmin_len\tmax_len\tn50\tGC_percent\tQ20_percent" > ${reads.simpleName}.readstats.tsv
-    samtools fastq ${reads} | faster2 -ts - >> ${reads.simpleName}.readstats.tsv
+    
+    if [[ ${reads.extension} == bam ]]; then
+        samtools fastq ${reads} | faster2 -ts - >> ${reads.simpleName}.readstats.tsv
+    else 
+    faster2 -ts ${reads} >> ${reads.simpleName}.readstats.tsv
+    fi
     """
 }
 
@@ -199,22 +236,21 @@ process REPORT {
     publishDir "${params.outdir}", mode: 'copy', pattern: '*html'
     
     input:
-       tuple path(hist), path(readstats)
+       tuple path(hist), path(readstats), path(runinfo)
     output:
         path "*.html"
 
     script:
     """
-    
-    make-report.py --hist $hist --readstats $readstats -o nxf-ontas-report.html
+    make-report.py --hist $hist --readstats $readstats --runinfo $runinfo -o nxf-alignment-report.html
     """
 }
 
-ch_ref = Channel.fromPath(params.reference, checkIfExists: true)
-ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
 
 workflow basecall {
     ch_pod5 = Channel.fromPath(params.pod5, checkIfExists: true)
+    ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
+
     // if no asfile, use dummy placeholder to still do dorado basecalling without as filtering
     ch_decisionfile = params.asfile ? Channel.fromPath(params.asfile, checkIfExists: true) : Channel.fromPath('EMPTY', type: 'file')
     
@@ -236,7 +272,8 @@ workflow basecall {
 }
 
 workflow {
-    
+    ch_ref = Channel.fromPath(params.reference)
+
     // If 'reads' parameter is provided create a 
     // channel from that path.
     // also possible to pass a folder with reads, every read is one sample
@@ -264,7 +301,11 @@ workflow {
     }
     
     ch_reads
-    | READ_STATS \
+    | READ_STATS
+
+    ch_reads
+    .first() \
+    | RUN_INFO
     
     ch_ref \
     .combine( ch_reads ) \
@@ -278,8 +319,8 @@ workflow {
     .collect()
     .toList()
     .combine( READ_STATS.out.collect().toList() )
+    .combine( RUN_INFO.out )
     //.view()
     | REPORT
     
 }
-
