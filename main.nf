@@ -13,7 +13,7 @@ if (!params.kit && params.samplesheet) {
 
 process DORADO_BASECALL {
 
-    container 'docker.io/nanoporetech/dorado:latest'
+    //container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
     tag "${params.asfile ? 'with' : 'no'} adaptive sampling"
@@ -50,7 +50,7 @@ process DORADO_BASECALL {
 
 process DORADO_BASECALL_BARCODING {
 
-    container 'docker.io/nanoporetech/dorado:latest'
+    //container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
     tag "${params.asfile ? 'with' : 'no'} adaptive sampling"
@@ -299,14 +299,14 @@ workflow {
     } else {
         ch_bedfile = Channel.fromPath(params.bedfile, checkIfExists: true)
     }
-    
-    ch_reads
-    | READ_STATS
 
     ch_reads
     .first() \
     | RUN_INFO
-    
+
+    ch_reads
+    | READ_STATS
+
     ch_ref \
     .combine( ch_reads ) \
     //.view()

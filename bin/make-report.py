@@ -331,6 +331,16 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
         border: 2px solid #e2e8f0 !important;
         border-radius: 6px;
         padding: 5px 10px;
+        width: 100% !important;
+    }}
+    .select2-container .select2-selection--multiple .select2-selection__rendered {{
+        width: 100% !important;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }}
+    .select2-container .select2-selection--multiple .select2-selection__choice {{
+        flex-shrink: 0;
     }}
     .select2-container--default.select2-container--focus .select2-selection--multiple {{
         border-color: #60a5fa !important;
@@ -493,15 +503,14 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
               <th rowspan="2" class="sortable" onclick="sortTable(0)">Sample</th>
               <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
               <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
-              <th rowspan="2">Location</th>
-              <th rowspan="2" class="sortable" onclick="sortTable(4)">Region size</th>
+              <th rowspan="2" class="sortable" onclick="sortTable(3)">Region size</th>
               <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
             </tr>
             <tr>
-              <th class="sortable" onclick="sortTable(5)" style="text-align: right;">≥1x (%)</th>
-              <th class="sortable" onclick="sortTable(6)" style="text-align: right;">≥10x (%)</th>
-              <th class="sortable" onclick="sortTable(7)" style="text-align: right;">≥20x (%)</th>
-              <th class="sortable" onclick="sortTable(8)" style="text-align: right;">≥30x (%)</th>
+              <th class="sortable" onclick="sortTable(4)" style="text-align: right;">≥1x (%)</th>
+              <th class="sortable" onclick="sortTable(5)" style="text-align: right;">≥10x (%)</th>
+              <th class="sortable" onclick="sortTable(6)" style="text-align: right;">≥20x (%)</th>
+              <th class="sortable" onclick="sortTable(7)" style="text-align: right;">≥30x (%)</th>
             </tr>
           </thead>
           <tbody>
@@ -522,7 +531,6 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
             html += f"""
             <tr data-gene="{gene.lower()}" data-sample="{sample_name.lower()}" 
                 data-chr="{location['chr']}"
-                data-location="{location['start']:,}-{location['end']:,}"
                 data-total="{cov_stats['total']}" 
                 data-cov1="{cov_stats['pct_1x']:.1f}" 
                 data-cov10="{cov_stats['pct_10x']:.1f}"
@@ -531,7 +539,6 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
               <td class="sample-col">{sample_name}</td>
               <td>{location['chr']}</td>
               <td><strong>{gene}</strong></td>
-              <td>{location['start']:,}-{location['end']:,}</td>
               <td style="text-align: right;">{cov_stats['total']:,}</td>
               <td class="coverage-cell">
                 {cov_stats['pct_1x']:.1f}%
@@ -648,7 +655,6 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
         'Sample', 
         'Chr', 
         'Gene/Region', 
-        'Location', 
         'Region_Size', 
         'Pct_Ge_1x', 
         'Pct_Ge_10x', 
@@ -666,8 +672,6 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
             row.getAttribute('data-sample'),
             row.getAttribute('data-chr'),
             row.getAttribute('data-gene'),
-            // Keep original location format (e.g., "1,000-2,000") but remove commas for clean CSV
-            row.getAttribute('data-location').replace(/,/g, ''), 
             row.getAttribute('data-total'),
             row.getAttribute('data-cov1'),
             row.getAttribute('data-cov10'),
@@ -841,26 +845,19 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
         } else if (columnIndex === 2) { // Gene
           aVal = a.getAttribute('data-gene');
           bVal = b.getAttribute('data-gene');
-        } else if (columnIndex === 3) { // Location (Not sortable - fallback logic not needed since it's not marked sortable in HTML)
-          // Fallback to sorting by Sample then Gene for stable order
-          if (a.getAttribute('data-sample') !== b.getAttribute('data-sample')) {
-            return isAsc ? a.getAttribute('data-sample').localeCompare(b.getAttribute('data-sample')) : b.getAttribute('data-sample').localeCompare(a.getAttribute('data-sample'));
-          }
-          aVal = a.getAttribute('data-gene');
-          bVal = b.getAttribute('data-gene');
-        } else if (columnIndex === 4) { // Region Size (data-total)
+        } else if (columnIndex === 3) { // Region Size (data-total)
           aVal = parseFloat(a.getAttribute('data-total'));
           bVal = parseFloat(b.getAttribute('data-total'));
-        } else if (columnIndex === 5) { // ≥1x (data-cov1)
+        } else if (columnIndex === 4) { // ≥1x (data-cov1)
           aVal = parseFloat(a.getAttribute('data-cov1'));
           bVal = parseFloat(b.getAttribute('data-cov1'));
-        } else if (columnIndex === 6) { // ≥10x (data-cov10)
+        } else if (columnIndex === 5) { // ≥10x (data-cov10)
           aVal = parseFloat(a.getAttribute('data-cov10'));
           bVal = parseFloat(b.getAttribute('data-cov10'));
-        } else if (columnIndex === 7) { // ≥20x (data-cov20)
+        } else if (columnIndex === 6) { // ≥20x (data-cov20)
           aVal = parseFloat(a.getAttribute('data-cov20'));
           bVal = parseFloat(b.getAttribute('data-cov20'));
-        } else if (columnIndex === 8) { // ≥30x (data-cov30)
+        } else if (columnIndex === 7) { // ≥30x (data-cov30)
           aVal = parseFloat(a.getAttribute('data-cov30'));
           bVal = parseFloat(b.getAttribute('data-cov30'));
         }
