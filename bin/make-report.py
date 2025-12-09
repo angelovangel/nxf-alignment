@@ -360,17 +360,20 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
     }}
     /*tr:hover {{ background: #f8fafc; }}*/
     .coverage-cell {{
-      text-align: right;
+      text-align: left;
     }}
     .pct-bar {{
       /* Match card and title background color with reduced opacity */
-      display: inline-block;
+      display: block;
       height: 16px;
-      background: rgba(55, 65, 81, 0.5); 
+      background: rgba(55, 65, 81, 0.3); 
       border-radius: 2px;
       min-width: 2px;
       vertical-align: middle;
-      margin-left: 5px;
+      margin-left: 20px;
+    }}
+    .pct-bar:hover {{
+      background: rgba(55, 65, 81, 0.5);
     }}
     .sample-col {{
       font-weight: 600;
@@ -477,10 +480,10 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
               <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
             </tr>
             <tr>
-              <th class="sortable" onclick="sortTable(4)" style="text-align: right;">≥1x (%)</th>
-              <th class="sortable" onclick="sortTable(5)" style="text-align: right;">≥10x (%)</th>
-              <th class="sortable" onclick="sortTable(6)" style="text-align: right;">≥20x (%)</th>
-              <th class="sortable" onclick="sortTable(7)" style="text-align: right;">≥30x (%)</th>
+              <th class="sortable" onclick="sortTable(4)" style="text-align: center;">≥1x (%)</th>
+              <th class="sortable" onclick="sortTable(5)" style="text-align: center;">≥10x (%)</th>
+              <th class="sortable" onclick="sortTable(6)" style="text-align: center;">≥20x (%)</th>
+              <th class="sortable" onclick="sortTable(7)" style="text-align: center;">≥30x (%)</th>
             </tr>
           </thead>
           <tbody>
@@ -511,20 +514,16 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
               <td><strong>{gene}</strong></td>
               <td style="text-align: right;">{cov_stats['total']:,}</td>
               <td class="coverage-cell">
-                {cov_stats['pct_1x']:.1f}%
-                <span class="pct-bar" style="width: {cov_stats['pct_1x']*1.5}px;"></span>
+                <span class="pct-bar" style="width: {cov_stats['pct_1x']*1.5}px;">{cov_stats['pct_1x']:.1f}%</span>
               </td>
               <td class="coverage-cell">
-                {cov_stats['pct_10x']:.1f}%
-                <span class="pct-bar" style="width: {cov_stats['pct_10x']*1.5}px;"></span>
+                <span class="pct-bar" style="width: {cov_stats['pct_10x']*1.5}px;">{cov_stats['pct_10x']:.1f}%</span>
               </td>
               <td class="coverage-cell">
-                {cov_stats['pct_20x']:.1f}%
-                <span class="pct-bar" style="width: {cov_stats['pct_20x']*1.5}px;"></span>
+                <span class="pct-bar" style="width: {cov_stats['pct_20x']*1.5}px;">{cov_stats['pct_20x']:.1f}%</span>
               </td>
               <td class="coverage-cell">
-                {cov_stats['pct_30x']:.1f}%
-                <span class="pct-bar" style="width: {cov_stats['pct_30x']*1.5}px;"></span>
+                <span class="pct-bar" style="width: {cov_stats['pct_30x']*1.5}px;">{cov_stats['pct_30x']:.1f}%</span>
               </td>
             </tr>
 """

@@ -1,5 +1,7 @@
-include {DORADO_BASECALL} from './modules/basecalling.nf'
-include {DORADO_BASECALL_BARCODING} from './modules/basecalling.nf'
+include {DORADO_BASECALL; DORADO_BASECALL_BARCODING} from './modules/basecall.nf'
+include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV} from './modules/align.nf'
+include {MERGE_READS; READ_STATS} from './modules/reads.nf'
+include {RUN_INFO} from './modules/runinfo.nf'
 
 
 if (params.help) {
@@ -14,9 +16,6 @@ def showHelp() {
 NXF-ALIGNMENT
 basecal, align, and analyze ONT data
 =============================================
-
-Usage:
-    nextflow run anngelovangel/nxf-alignment [--pod5 <path>] [--reads <path>] --ref <ref.fasta> [options]
 
 Required/important options:
     --ref <path>     Reference FASTA (required unless -entry basecall is used)
@@ -50,130 +49,7 @@ if (!params.kit && params.samplesheet) {
 }
 
 
-// get run info from bam header
-process RUN_INFO {
-    
-    container 'docker.io/aangeloo/nxf-tgs:latest' 
-    
-    input:
-        // Expects one BAM file as input
-        path(bam)
 
-    output:
-        // Outputs a CSV file with the extracted info
-        path("run_info.csv"), emit: ch_runinfo
-
-    script:
-    """
-    
-    RG_LINE=\$(samtools view -H ${bam} | grep '^@RG' | head -n 1) 
-    
-    FLOWCELL_ID=\$(echo \$RG_LINE | sed -n 's/.*PU:\\([^[:space:]]*\\).*/\\1/p')
-    BASECALL_MODEL=\$(echo \$RG_LINE | sed -n 's/.*basecall_model=\\([^[:space:]]*\\).*/\\1/p')
-    RUN_DATE=\$(echo "\$RG_LINE" | sed -n 's/.*DT:\\([^T]*\\).*/\\1/p')
-    RUN_ID=\$(echo "\$RG_LINE" | sed -n 's/.*DS:runid=\\([^[:space:]]*\\).*/\\1/p')
-
-    echo "flowcell_id,basecall_model,run_date,run_id" > run_info.csv
-    echo "\$FLOWCELL_ID,\$BASECALL_MODEL,\$RUN_DATE,\$RUN_ID" >> run_info.csv
-    """
-}
-
-process MERGE_READS {
-    container 'docker.io/aangeloo/nxf-tgs:latest'
-    errorStrategy 'ignore' //because some barcodes defined in the samplesheet might be missing in the data
-    
-    publishDir "$params.outdir/00-basecall/processed", mode: 'copy', pattern: '*{fastq.gz,fastq,bam}'
-
-    input:
-    tuple val(samplename), val(barcode), path(bam_pass)
-    
-    output: 
-    path('*{fastq.gz,fastq,bam}')
-    
-    script:
-    """
-    samtools cat ${bam_pass}/${barcode}/*.bam > ${samplename}.bam
-    """
-}
-
-process READ_STATS {
-    container 'docker.io/aangeloo/nxf-tgs:latest'
-    publishDir "${params.outdir}/00-basecall", mode: 'copy', pattern: '*readstats.tsv'
-    tag "${reads.simpleName} - ${reads.extension} file"
-
-    input:
-        path(reads)
-
-    output:
-        path("*readstats.tsv")
-
-    script:
-    
-    """
-    echo "file\treads\tbases\tn_bases\tmin_len\tmax_len\tn50\tGC_percent\tQ20_percent" > ${reads.simpleName}.readstats.tsv
-    
-    if [[ ${reads.extension} == bam ]]; then
-        samtools fastq ${reads} | faster2 -ts - >> ${reads.simpleName}.readstats.tsv
-    else 
-    faster2 -ts ${reads} >> ${reads.simpleName}.readstats.tsv
-    fi
-    """
-}
-
-process DORADO_ALIGN {
-
-    container 'docker.io/nanoporetech/dorado:latest'
-
-    publishDir "${params.outdir}/01-align", mode: 'copy', pattern: '*{bam,bai}'
-    tag "${reads.simpleName}"
-
-    input:
-        tuple path(ref), path(reads)
-
-    output:
-        path("*.{bam,bai}")
-
-    script:
-    """
-    dorado aligner ${ref} ${reads} | samtools sort -o ${reads.simpleName}.align.bam
-    samtools index ${reads.simpleName}.align.bam
-    """
-}
-
-process MAKE_BEDFILE {
-    container 'docker.io/aangeloo/nxf-tgs:latest'
-    
-    input:
-        path ref
-
-    output:
-        path "fallback.bed"
-
-    script:
-    """
-    samtools faidx ${ref}
-    awk -v OFS='\t' '{print \$1, 0, \$2, \$1}' ${ref}.fai > fallback.bed 
-    """
-}
-
-process BEDTOOLS_COV {
-    container 'docker.io/biocontainers/bedtools:v2.27.1dfsg-4-deb_cv1'
-
-    publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*hist.tsv'
-    tag "${bam.simpleName}"
-
-    input:
-        tuple path(bam), path(bai), path(bed)
-
-    output:
-        path "*hist.tsv"
-
-    script:
-    """
-    echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${bam.simpleName}.hist.tsv
-    bedtools coverage -a ${bed} -b ${bam} -hist >> ${bam.simpleName}.hist.tsv
-    """
-}
 
 
 process REPORT {
