@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nxf-alignment Workflow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            /*background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);*/
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+
+        .entry-point {
+            background: #646465;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+            font-size: 1.125rem;
+            text-align: center;
+            margin: 0 auto 1rem;
+            max-width: 300px;
+        }
+
+        .connector {
+            width: 2px;
+            height: 2rem;
+            background: #cbd5e1;
+            margin: 0 auto;
+        }
+
+        .branches {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .branch-header {
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+
+        .branch-header.blue { background: #3b82f6; }
+        .branch-header.green { background: #10b981; }
+        .branch-header.orange { background: #f97316; }
+
+        .branch-connector {
+            width: 2px;
+            height: 1.5rem;
+            margin: 0 auto;
+        }
+
+        .branch-connector.blue { background: #93c5fd; }
+        .branch-connector.green { background: #6ee7b7; }
+        .branch-connector.orange { background: #fdba74; }
+
+        .branch-card {
+            background: white;
+            border: 2px solid;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            width: 100%;
+        }
+
+        .branch-card.blue { border-color: #3b82f6; }
+        .branch-card.green { border-color: #10b981; }
+        .branch-card.orange { border-color: #f97316; }
+
+        .branch-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .branch-card.blue h3 { color: #1e40af; }
+        .branch-card.green h3 { color: #047857; }
+        .branch-card.orange h3 { color: #c2410c; }
+
+        .branch-card-content {
+            font-size: 0.875rem;
+        }
+
+        .item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .note {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+
+        .section {
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title .icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .info-card {
+            background: white;
+            border: 2px solid #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        .info-card.highlight {
+            border-color: #8b5cf6;
+        }
+
+        .info-card.highlight-blue {
+            border-color: #3b82f6;
+        }
+
+        .info-card-title {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-card.highlight .info-card-title {
+            color: #7c3aed;
+        }
+
+        .info-card.highlight-blue .info-card-title {
+            color: #1e40af;
+        }
+
+        .info-card-content {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .info-card-content div {
+            margin-bottom: 0.25rem;
+        }
+
+        .legend {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #cbd5e1;
+        }
+
+        .legend h3 {
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 0.75rem;
+        }
+
+        .legend ul {
+            list-style: none;
+        }
+
+        .legend li {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend code {
+            background: #e2e8f0;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        @media (max-width: 768px) {
+            .branches, .two-col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>nxf-alignment workflow</h1>
+        <p class="subtitle">Parameter-driven execution paths</p>
+        
+        <!-- Entry Point -->
+        <div class="entry-point">-entry parameter</div>
+        <div class="connector"></div>
+
+        <!-- Three Branches -->
+        <div class="branches">
+            <!-- Branch 1: basecall -->
+            <div class="branch">
+                <div class="branch-header blue">-entry basecall</div>
+                <div class="branch-connector blue"></div>
+                <div class="branch-card blue">
+                    <h3>Basecalling Only</h3>
+                    <div class="branch-card-content">
+                        <div class="item">
+                            <svg class="icon" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                            </svg>
+                            <span>Requires: --pod5</span>
+                        </div>
+                        <div class="note">Optional: --asfile, --model</div>
+                        <div class="note">Barcoded: --kit and --samplesheet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branch 2: report -->
+            <div class="branch">
+                <div class="branch-header green">-entry report</div>
+                <div class="branch-connector green"></div>
+                <div class="branch-card green">
+                    <h3>Basecall + Report</h3>
+                    <div class="branch-card-content">
+                        <div class="item">
+                            <svg class="icon" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                            </svg>
+                            <span>Requires: --pod5</span>
+                        </div>
+                        <div class="note">Optional: --asfile, --model</div>
+                        <div class="note">Barcoded: --kit and --samplesheet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branch 3: default -->
+            <div class="branch">
+                <div class="branch-header orange">Default</div>
+                <div class="branch-connector orange"></div>
+                <div class="branch-card orange">
+                    <h3>Full Pipeline</h3>
+                    <div class="branch-card-content">
+                        <div class="item">
+                            <svg class="icon" fill="none" stroke="#f97316" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Requires: --pod5, --ref</span>
+                        </div>
+                        <div class="note" style="color:#c2410c;">Basecall + Align + Coverage + Report</div>
+                        <div class="note">Optional: --asfile, --model, --bed</div>
+                        <div class="note">Barcoded: --kit and --samplesheet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Legend -->
+        <div class="legend">
+            
+            <ul>
+                <li>• <code>--kit</code> and <code>--samplesheet</code> must be used together</li>
+                <li>• <code>--ref</code> is required for default workflow but not for basecall-only modes</li>
+                <li>• <code>--asfile</code> (adaptive sampling CSV) is optional for filtering reads during basecalling</li>
+            </ul>
+        </div>
+        <div class="legend"> </div>
+        <!-- Read Source Section -->
+        <div class="section">
+            <div class="section-title">
+                <svg class="icon" fill="none" stroke="#f97316" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12m-7 5h7M3 7h.01M3 12h.01M3 17h.01"></path>
+                </svg>
+                Read Source (Default Workflow)
+            </div>
+            <div class="two-col-grid">
+                <div class="info-card">
+                    <div class="info-card-title">If --reads provided:</div>
+                    <div class="info-card-content">
+                        <div>• Skip basecalling</div>
+                        <div>• Use existing BAM/FASTQ</div>
+                        <div>• Can be file or directory</div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">If --reads NOT provided:</div>
+                    <div class="info-card-content">
+                        <div>• Requires --pod5</div>
+                        <div>• Run basecalling first</div>
+                        <div>• Then proceed to alignment</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barcoding Section -->
+        <div class="section">
+            <div class="section-title">
+                <svg class="icon" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Barcoding Options
+            </div>
+            <div class="two-col-grid">
+                <div class="info-card">
+                    <div class="info-card-title">With Barcoding:</div>
+                    <div class="info-card-content">
+                        <div>• Requires both --kit AND --samplesheet</div>
+                        <div>• Runs DORADO_BASECALL_BARCODING</div>
+                        <div>• Merges reads per sample</div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">Without Barcoding:</div>
+                    <div class="info-card-content">
+                        <div>• Standard basecalling</div>
+                        <div>• Runs DORADO_BASECALL</div>
+                        <div>• Single output</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BED File Section -->
+        <div class="section">
+            <div class="section-title">
+                <svg class="icon" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                BED File Handling
+            </div>
+            <div class="two-col-grid">
+                <div class="info-card">
+                    <div class="info-card-title">If --bed provided:</div>
+                    <div class="info-card-content">
+                        <div>Use provided BED file for coverage analysis</div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-title">If --bed NOT provided:</div>
+                    <div class="info-card-content">
+                        <div>Auto-generate BED from reference FASTA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

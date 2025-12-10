@@ -34,7 +34,7 @@ Processing options:
 Output & config:
     --outdir <name>        Output directory name (default: results)
     -profile <name>        Nextflow profile (test)
-    -entry <name>          Workflow entry point (basecall, use for basecalling only)
+    -entry <name>          Workflow entry point (basecall - basecalling only, report - basecalling + report)
 
 """.stripIndent()
 }
@@ -68,7 +68,7 @@ process REPORT {
     """
 }
 
-
+// do basecall only
 workflow basecall {
     ch_pod5 = Channel.fromPath(params.pod5, checkIfExists: true)
     ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
@@ -91,6 +91,22 @@ workflow basecall {
     
     emit: 
     ch_bc = params.kit ? MERGE_READS.out : DORADO_BASECALL.out
+}
+// do basecall + reporting
+workflow report {
+    ch_reads = basecall().ch_bc
+    
+    RUN_INFO(ch_reads.first())
+    READ_STATS(ch_reads)
+
+// no alignment, so an empty file is given to REPORT
+    new File('./work/empty').text = ''
+    Channel.fromPath('./work/empty', type: 'file')
+    .toList()
+    .combine( READ_STATS.out.collect().toList() )
+    .combine( RUN_INFO.out )
+    //.view()
+    | REPORT
 }
 
 workflow {

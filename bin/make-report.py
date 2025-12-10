@@ -122,7 +122,8 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
     region_options = "".join([f'<option value="{gene.lower()}">{gene}</option>' for gene in genes])
     
     # Pre-generate select options for the Samples filter (used by Select2)
-    sample_names = sorted(samples_data.keys())
+    # sample_names = sorted(samples_data.keys())
+    sample_names = sorted(readstats_data.keys())
     sample_options = "".join([f'<option value="{name.lower()}">{name}</option>' for name in sample_names])
     
     # Calculate total bases per region
@@ -446,7 +447,7 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
         </div>
         <div class="stat-card">
           <h3>Samples</h3>
-          <div class="value">{len(samples_data)}</div>
+          <div class="value">{len(readstats_data)}</div>
         </div>
         <div class="stat-card">
           <h3>Total BED size</h3>
@@ -897,7 +898,7 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
 
 def main():
     parser = argparse.ArgumentParser(description='Generate coverage histogram HTML report')
-    parser.add_argument('--hist', nargs='+', required=True, help='One or more .hist files')
+    parser.add_argument('--hist', nargs='+', default=[], help='One or more .hist files')
     parser.add_argument('--readstats', nargs='*', default=[], help='One or more .readstats.tsv files')
     # NEW ARGUMENT
     parser.add_argument('--runinfo', type=str, help='Optional CSV file with run metadata (e.g., flowcell_id, run_date)', default=None)

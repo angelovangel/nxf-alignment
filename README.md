@@ -17,6 +17,8 @@ A Nextflow workflow for basecalling, aligning, and analyzing long-read sequencin
 
 ## Quick Start
 
+See also [workflow diagram](assets/diagram.html) for how parameter use determine the workflow path
+
 #### Basic Workflow (Basecalling + Alignment)
 For an adaptive sampling run, basecalling is done for the accepted reads based on the decision file produced by MinKNOW.
 
@@ -51,14 +53,14 @@ nextflow run main.nf \
 ```
 #### Skip alignment (basecalling only)
 Basecalling (for single sample and barcoded runs) can also be performed without alignment, using the `-entry` parameter.
-
+`-entry basecall` will do basecalling (and evt demultiplexing), `-entry report` will do basecalling + report
 ```bash
 nextflow run main.nf \
     --pod5 /path/to/pod5/dir \
     --model hac \
     --kit SQK-RBK114-96 # for barcoded runs only
     --samplesheet /path/to/samplesheet.csv # for barcoded runs only
-    -entry basecall
+    -entry report
 ```
 
 
