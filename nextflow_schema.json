@@ -68,13 +68,29 @@
           "description": "Dorado basecalling model",
           "fa_icon": "fas fa-microchip",
           "default": "fast",
-          "help_text": "Name of the Dorado model to use for basecalling. Default is 'fast'. For modifications, use for example 'hac,5mCG_5hmCG'"
+          "help_text": "Name of the Dorado model to use for basecalling. Default is 'fast'. For modifications, use for example 'hac,5mCG_5hmCG'. See [Dorado models](https://github.com/nanoporetech/dorado#models)."
         },
         "kit": {
           "type": "string",
           "description": "Barcoding kit name",
           "fa_icon": "fas fa-barcode",
-          "help_text": "Name of the barcoding kit used. Required when run is barcoded."
+          "help_text": "Name of the barcoding kit used. Required when run is barcoded.",
+          "enum": [
+            "SQK-16S024",
+            "SQK-16S114-24",
+            "SQK-NBD114-24",
+            "SQK-NBD114-96",
+            "SQK-PCB114-24",
+            "SQK-RBK114-24",
+            "SQK-RBK114-96",
+            "SQK-RPB114-24",
+            "TWIST-16-UDI",
+            "TWIST-96A-UDI",
+            "VSK-PTC001",
+            "VSK-VMK001",
+            "VSK-VMK004",
+            "VSK-VPS001"
+          ]
         },
         "samplesheet": {
           "type": "string",
