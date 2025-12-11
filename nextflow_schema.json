@@ -85,19 +85,6 @@
           "help_text": "Samplesheet must contain columns 'sample' and 'barcode'. Required when run is barcoded."
         }
       }
-    },
-    "advanced_options": {
-      "title": "Advanced options",
-      "type": "object",
-      "fa_icon": "fas fa-sliders-h",
-      "description": "Less common options for the pipeline.",
-      "properties": {
-        "help": {
-          "type": "boolean",
-          "description": "Display help text",
-          "fa_icon": "fas fa-question-circle"
-        }
-      }
     }
   },
   "allOf": [
@@ -106,9 +93,6 @@
     },
     {
       "$ref": "#/definitions/processing_options"
-    },
-    {
-      "$ref": "#/definitions/advanced_options"
     }
   ]
 }

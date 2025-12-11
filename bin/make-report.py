@@ -109,7 +109,7 @@ def calculate_cumulative_coverage(gene_data):
     }
 
 
-def generate_html_report(samples_data, readstats_data, run_info, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, output_file):
     """Generate HTML report from multiple samples"""
     
     # Get unique genes
@@ -150,9 +150,9 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
     if run_info:
         # The <details> block sits inside the .header div, inheriting its dark background.
         run_info_html += """
-    <details style="padding-top: 5px; margin-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
-      <summary style="font-size: 0.8em; cursor: pointer; color: white;">Run Details</summary>
-      <div style="padding-top: 5px; text-align: left; max-width: 500px; margin: 0 auto;">
+    <details style="padding-top: 5px; margin-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.2); text-align: left;">
+      <summary style="font-size: 0.8em; cursor: pointer; color: white;">Sequencing Run Details</summary>
+      <div style="padding-top: 5px; text-align: left; width: 100%;">
         <table style="width: 100%; border-collapse: collapse; margin-top: 5px; color: white; border: none; background: inherit;">
           <tbody>
     """
@@ -165,11 +165,39 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
                 display_key = key.replace('_', ' ').title()
                 run_info_html += f"""
                 <tr>
-                  <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; font-weight: 600; color: white; white-space: nowrap; font-size: 0.8em;">{display_key}:</td>
+                  <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; font-weight: 600; color: white; white-space: nowrap; font-size: 0.8em; width: 200px;">{display_key}:</td>
                   <td style="padding: 3px 0; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; font-size: 0.8em;">{value}</td>
                 </tr>
 """
         run_info_html += """
+            </tbody>
+        </table>
+    </div>
+</details>
+"""
+    
+    # Generate wf info HTML block (similar style to run_info)
+    wf_info_html = ""
+    if wf_info:
+        wf_info_html += """
+    <details style="padding-top: 5px; margin-top: 5px; text-align: left;">
+      <summary style="font-size: 0.8em; cursor: pointer; color: white;">Workflow Properties</summary>
+      <div style="padding-top: 5px; text-align: left; width: 100%;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 5px; color: white; border: none; background: inherit;">
+          <tbody>
+    """
+        for i, row in enumerate(wf_info):
+            if i > 0:
+                wf_info_html += '<tr><td colspan="2" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding: 0;"></td></tr>'
+            for key, value in row.items():
+                display_key = key.replace('_', ' ').title()
+                wf_info_html += f"""
+                <tr>
+                  <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; font-weight: 600; color: white; white-space: nowrap; font-size: 0.8em; width: 200px;">{display_key}:</td>
+                  <td style="padding: 3px 0; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; font-size: 0.8em;">{value}</td>
+                </tr>
+"""
+        wf_info_html += """
             </tbody>
         </table>
     </div>
@@ -430,7 +458,8 @@ def generate_html_report(samples_data, readstats_data, run_info, output_file):
     <div class="header">
       <h2>NXF-ALIGNMENT Report</h2>
       <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-      {run_info_html} </div>
+      {run_info_html}
+      {wf_info_html} </div>
     <div class="content">
       <div class="stats">
         <div class="stat-card">
@@ -902,6 +931,7 @@ def main():
     parser.add_argument('--readstats', nargs='*', default=[], help='One or more .readstats.tsv files')
     # NEW ARGUMENT
     parser.add_argument('--runinfo', type=str, help='Optional CSV file with run metadata (e.g., flowcell_id, run_date)', default=None)
+    parser.add_argument('--wfinfo', type=str, help='Optional CSV file with workflow properties', default=None)
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
@@ -909,11 +939,16 @@ def main():
     samples_data = {}
     readstats_data = {}
     run_info = [] # Initialize as empty list
+    wf_info = []
 
     # Load run info if provided
     if args.runinfo:
         print(f"Loading run info from {args.runinfo}...")
         run_info = parse_runinfo_csv(args.runinfo)
+
+    if args.wfinfo:
+        print(f"Loading workflow info from {args.wfinfo}...")
+        wf_info = parse_runinfo_csv(args.wfinfo) # Reusing the helper as it's just generic CSV parsing
 
     for sample_file in args.hist:
         sample_name = Path(sample_file).stem.replace('.hist', '')
@@ -926,8 +961,8 @@ def main():
         readstats_data[sample_name] = parse_readstats_file(readstats_file)
     
     print("Generating HTML report...")
-    # Pass the run_info list to the generate function
-    generate_html_report(samples_data, readstats_data, run_info, args.output)
+    # Pass the run_info and wf_info lists to the generate function
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, args.output)
     
     print(f"\nDone! Open {args.output} in your browser to view the report.")
     print(f"Total samples: {len(samples_data)}")

@@ -39,6 +39,16 @@ Output & config:
 """.stripIndent()
 }
 
+// Workflow properties - create CSV content as a string
+def workflow_properties = """\
+CommandLine,UserName,RevisionID,SessionID,RunName
+${workflow.commandLine},${workflow.userName},${workflow.scriptId.take(10)},${workflow.sessionId.toString()},${workflow.runName}
+""".stripIndent()
+
+// Create channel with CSV file
+def ch_wf_properties = Channel.of(workflow_properties)
+    .collectFile(name: 'wf_properties.csv', newLine: false)
+
 
 if (params.kit && !params.samplesheet) {
     error "If --kit is specified, --samplesheet must also be provided."
@@ -58,13 +68,13 @@ process REPORT {
     publishDir "${params.outdir}", mode: 'copy', pattern: '*html'
     
     input:
-       tuple path(hist), path(readstats), path(runinfo)
+       tuple path(hist), path(readstats), path(runinfo), path(wf_props)
     output:
         path "*.html"
 
     script:
     """
-    make-report.py --hist $hist --readstats $readstats --runinfo $runinfo -o nxf-alignment-report.html
+    make-report.py --hist $hist --readstats $readstats --runinfo $runinfo --wfinfo $wf_props -o nxf-alignment-report.html
     """
 }
 
@@ -105,6 +115,7 @@ workflow report {
     .toList()
     .combine( READ_STATS.out.collect().toList() )
     .combine( RUN_INFO.out )
+    .combine( ch_wf_properties )
     //.view()
     | REPORT
 }
@@ -112,8 +123,7 @@ workflow report {
 workflow {
     ch_ref = Channel.fromPath(params.ref)
 
-    // If 'reads' parameter is provided create a 
-    // channel from that path.
+    // If 'reads' parameter is provided create a channel from that path.
     // also possible to pass a folder with reads, every read is one sample
     if (params.reads) {
         
@@ -138,12 +148,8 @@ workflow {
         ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
     }
 
-    ch_reads
-    .first() \
-    | RUN_INFO
-
-    ch_reads
-    | READ_STATS
+    RUN_INFO(ch_reads.first())
+    READ_STATS(ch_reads)
 
     ch_ref \
     .combine( ch_reads ) \
@@ -158,6 +164,7 @@ workflow {
     .toList()
     .combine( READ_STATS.out.collect().toList() )
     .combine( RUN_INFO.out )
+    .combine( ch_wf_properties )
     //.view()
     | REPORT
     
