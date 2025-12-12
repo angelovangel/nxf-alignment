@@ -25,7 +25,7 @@
           "description": "Dorado basecalling model",
           "fa_icon": "fas fa-microchip",
           "default": "fast",
-          "help_text": "Name of the Dorado model to use for basecalling. Default is 'fast'. For modifications, use for example 'hac,5mCG_5hmCG'. See how to use [Dorado models](https://software-docs.nanoporetech.com/dorado/latest/models/selection/)."
+          "help_text": "Name of the Dorado model to use for basecalling. Default is 'fast'. For modifications, use for example 'hac,5mCG_5hmCG'. See how to use [Dorado models here](https://software-docs.nanoporetech.com/dorado/latest/models/selection/)."
         },
         "reads": {
           "type": "string",

@@ -40,6 +40,10 @@ Output & config:
 """.stripIndent()
 }
 
+// create empty runinfo file if not created
+def empty_runinfo = file("${workflow.workDir}/empty_runinfo.csv")
+empty_runinfo.text = ""
+
 // Workflow properties - create CSV content as a string
 def workflow_properties = """\
 CommandLine,UserName,RevisionID,SessionID,RunName
@@ -88,7 +92,7 @@ workflow basecall {
 workflow report {
     ch_reads = basecall().ch_bc
     
-    RUN_INFO(ch_reads.first())
+    RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
 
 // no alignment, so an empty file is given to REPORT
@@ -96,7 +100,7 @@ workflow report {
     Channel.fromPath('./work/empty', type: 'file')
     .toList()
     .combine( READ_STATS.out.collect().toList() )
-    .combine( RUN_INFO.out )
+    .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
     .combine( ch_wf_properties )
     //.view()
     | REPORT
@@ -130,7 +134,7 @@ workflow {
         ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
     }
 
-    RUN_INFO(ch_reads.first())
+    RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
 
     ch_ref \
@@ -145,7 +149,7 @@ workflow {
     .collect()
     .toList()
     .combine( READ_STATS.out.collect().toList() )
-    .combine( RUN_INFO.out )
+    .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
     .combine( ch_wf_properties )
     //.view()
     | REPORT

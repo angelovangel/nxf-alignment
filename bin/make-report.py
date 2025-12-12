@@ -712,7 +712,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, output
 
 def main():
     parser = argparse.ArgumentParser(description='Generate coverage histogram HTML report')
-    parser.add_argument('--hist', nargs='+', default=[], help='One or more .hist files')
+    parser.add_argument('--hist', nargs='+', default=[], help='One or more .hist.tsv files')
     parser.add_argument('--readstats', nargs='*', default=[], help='One or more .readstats.tsv files')
     parser.add_argument('--runinfo', type=str, help='Optional CSV file with run metadata (e.g., flowcell_id, run_date)', default=None)
     parser.add_argument('--wfinfo', type=str, help='Optional CSV file with workflow properties', default=None)
@@ -735,7 +735,7 @@ def main():
 
     for hist_file in args.hist:
         path = Path(hist_file)
-        sample_name = path.name.replace('.hist', '')
+        sample_name = path.name.replace('.hist.tsv', '')
         # 
         print(f"Processing {hist_file} (Sample: {sample_name})...")
         samples_data[sample_name] = parse_hist_file(hist_file)
