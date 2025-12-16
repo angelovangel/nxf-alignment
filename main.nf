@@ -182,16 +182,15 @@ workflow {
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
     | SAMTOOLS_BEDCOV
     
-    //SAMTOOLS_BEDCOV.out.ch_bedcov
-    //.view()
-    
 
     BEDTOOLS_COV.out
     .collect()
     .toList()
     .combine( READ_STATS.out.collect().toList() )
+    // the ones below are single entry channels
     .combine( SAMTOOLS_BEDCOV.out.ch_bedcov.collect().toList() )
     .combine( SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect().toList() )
+    .combine( SAMTOOLS_BEDCOV.out.ch_flagstat.collect().toList() )
     .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
     .combine( ch_wf_properties )
     .combine( REF_STATS.out.ch_ref_stats )

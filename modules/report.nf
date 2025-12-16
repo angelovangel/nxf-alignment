@@ -6,7 +6,7 @@ process REPORT {
     publishDir "${params.outdir}", mode: 'copy', pattern: '*html'
     
     input:
-       tuple path(hist), path(readstats), path(bedcov), path(bedcov_complement), path(runinfo), path(wf_props), path(ref_stats)
+       tuple path(hist), path(readstats), path(bedcov), path(bedcov_complement), path(flagstat), path(runinfo), path(wf_props), path(ref_stats)
     output:
         path "*.html"
 
@@ -17,6 +17,7 @@ process REPORT {
     --readstats $readstats \
     --bedcov $bedcov \
     --bedcov-compl $bedcov_complement \
+    --flagstat $flagstat \
     --runinfo $runinfo \
     --wfinfo $wf_props \
     --refstats $ref_stats \

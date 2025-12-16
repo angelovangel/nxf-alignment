@@ -9,6 +9,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 import csv
+import json
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -89,6 +90,20 @@ def parse_bedcov_file(filepath):
                 except ValueError:
                     continue
     return {'len': total_len, 'cov': total_cov}
+
+def parse_flagstat_file(filepath):
+    """Parse a samtools flagstat JSON file"""
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            qc_passed = data.get('QC-passed reads', {})
+            return {
+                'primary_mapped': qc_passed.get('primary mapped', 0),
+                'primary_mapped_pct': qc_passed.get('primary mapped %', 0.0)
+            }
+    except Exception as e:
+        print(f"Error parsing flagstat file {filepath}: {e}", file=sys.stderr)
+        return {'primary_mapped': 0, 'primary_mapped_pct': 0.0}
 
 def parse_runinfo_csv(filepath):
     """Parse a run info CSV file and return a list of dictionaries (one per row)"""
@@ -260,17 +275,21 @@ def get_css():
         text-overflow: ellipsis;
       }
       .export-btn {
-        background: #374151; 
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
+        background: #ffffff; 
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+        padding: 5px 10px;
+        border-radius: 4px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 0.85em;
+        transition: all 0.2s;
         font-weight: 600;
-        white-space: nowrap; 
       }
-      .export-btn:hover { background: #1f2937; }
+      .export-btn:hover { 
+        background: #f9fafb; 
+        border-color: #d1d5db; 
+        color: #374151; 
+      }
       th.sortable {
         cursor: pointer;
         user-select: none;
@@ -334,7 +353,7 @@ def get_js():
               csv.push(safeCols.join(','));
             }
           });
-          downloadCSV(csv.join('\\n'), 'readstats_report_export.csv');
+          downloadCSV(csv.join('\\n'), 'readstats_export.csv');
         }
         
         function exportCoverageToCSV() {
@@ -358,7 +377,34 @@ def get_js():
               csv.push(safeCols.join(','));
             }
           });
-          downloadCSV(csv.join('\\n'), 'coverage_report_export.csv');
+          downloadCSV(csv.join('\\n'), 'coverage_breadth_export.csv');
+        }
+
+        function exportSamtoolsToCSV() {
+          const table = document.getElementById('samtoolsTable');
+          if (!table) { alert('Coverage table not found.'); return; }
+          let csv = [];
+          const headers = ['Sample', 'Primary_Mapped', 'Primary_Mapped_Pct', 'Bases_On_Target', 'Mean_Target_Coverage', 'Bases_On_Non_Target', 'Mean_Non_Target_Coverage'];
+          csv.push(headers.join(','));
+          const dataRows = table.querySelectorAll('tbody tr');
+          dataRows.forEach(row => {
+            if (row.style.display !== 'none') {
+              const cols = [
+                row.getAttribute('data-sample'), 
+                row.getAttribute('data-pmapped'), row.getAttribute('data-ppct'),
+                row.getAttribute('data-tbases'), row.getAttribute('data-tcov'),
+                row.getAttribute('data-ntbases'), row.getAttribute('data-ntcov')
+              ];
+              const safeCols = cols.map(text => {
+                if (!text) return "";
+                text = text.trim().replace(/,/g, '');
+                if (text.includes('"')) { text = '"' + text.replace(/"/g, '""') + '"'; }
+                return text;
+              });
+              csv.push(safeCols.join(','));
+            }
+          });
+          downloadCSV(csv.join('\\n'), 'coverage_stats_export.csv');
         }
 
         $(document).ready(function() {
@@ -444,7 +490,12 @@ def get_js():
           if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
           
           rows.sort((a, b) => {
-            const dataAttrMap = { 0: 'sample', 1: 'tbases', 2: 'tcov', 3: 'ntbases', 4: 'ntcov' };
+            const dataAttrMap = { 
+                0: 'sample', 
+                1: 'pmapped', 2: 'ppct',
+                3: 'tbases', 4: 'tcov', 
+                5: 'ntbases', 6: 'ntcov' 
+            };
             const dataKey = dataAttrMap[columnIndex];
             if (columnIndex === 0) {
                  const aVal = a.getAttribute('data-sample');
@@ -599,7 +650,10 @@ def render_readstats_table(readstats_data):
         return ""
     
     html = """
-      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Read Statistics</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Read Statistics</h3>
+        <button class="export-btn" onclick="exportReadstatsToCSV()">Export CSV</button>
+      </div>
       <div class="table-container" style="margin-bottom: 30px; position: relative;">
         <table id="readstatsTable">
           <thead>
@@ -656,16 +710,21 @@ def render_samtools_table(samtools_data):
         return ""
 
     html = """
-      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Coverage</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Coverage</h3>
+        <button class="export-btn" onclick="exportSamtoolsToCSV()">Export CSV</button>
+      </div>
       <div class="table-container" style="margin-bottom: 30px; position: relative;">
         <table id="samtoolsTable">
           <thead>
             <tr>
               <th class="sample-col sortable" onclick="sortSamtoolsTable(0)">Sample</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Bases on Target</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Mean Target Coverage</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Non-target</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Non-target Coverage</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Primary Mapped</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Primary Mapped %</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Target</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Target Coverage</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(5)">Bases on Non-target</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(6)">Mean Non-target Coverage</th>
             </tr>
           </thead>
           <tbody>
@@ -675,17 +734,22 @@ def render_samtools_table(samtools_data):
         stats = samtools_data[sample_name]
         target = stats.get('target', {'len': 0, 'cov': 0})
         comp = stats.get('non-target', {'len': 0, 'cov': 0})
+        flagstat = stats.get('flagstat', {'primary_mapped': 0, 'primary_mapped_pct': 0.0})
         
         target_mean = target['cov'] / target['len'] if target['len'] > 0 else 0
         comp_mean = comp['cov'] / comp['len'] if comp['len'] > 0 else 0
 
         html += f"""
             <tr data-sample="{sample_name.lower()}"
+                data-pmapped="{flagstat['primary_mapped']}"
+                data-ppct="{flagstat['primary_mapped_pct']}"
                 data-tbases="{target['cov']}"
                 data-tcov="{target_mean}"
                 data-ntbases="{comp['cov']}"
                 data-ntcov="{comp_mean}">
               <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{flagstat['primary_mapped']:,}</td>
+              <td style="text-align: right;">{flagstat['primary_mapped_pct']:.2f}%</td>
               <td style="text-align: right;">{target['cov']:,}</td>
               <td style="text-align: right;">{target_mean:.2f}</td>
               <td style="text-align: right;">{comp['cov']:,}</td>
@@ -703,7 +767,10 @@ def render_samtools_table(samtools_data):
 def render_coverage_table(samples_data, genes):
     """Render the Coverage Statistics table"""
     html = """
-      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Breadth of Coverage</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Breadth of Coverage</h3>
+        <button class="export-btn" onclick="exportCoverageToCSV()">Export CSV</button>
+      </div>
       <div class="table-container">
         <table id="dataTable">
           <thead>
@@ -711,7 +778,7 @@ def render_coverage_table(samples_data, genes):
               <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
               <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
               <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
-              <th rowspan="2" class="sortable" onclick="sortTable(3)">Region size</th>
+              <th rowspan="2" class="sortable" onclick="sortTable(3)" style="text-align: right;">Region size</th>
               <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
             </tr>
             <tr>
@@ -839,9 +906,6 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
             {region_options}
           </select>
         </div>
-        
-        <button class="export-btn" onclick="exportReadstatsToCSV()">Export Read Summary</button>
-        <button class="export-btn" onclick="exportCoverageToCSV()">Export Depth</button>
       </div>
       
       {readstats_table}
@@ -868,6 +932,7 @@ def main():
     parser.add_argument('--refstats', type=str, help='Optional CSV file with reference stats', default=None)
     parser.add_argument('--bedcov', nargs='*', default=[], help='One or more reads.bedcov.tsv files')
     parser.add_argument('--bedcov-compl', nargs='*', default=[], help='One or more reads.bedcov.compl.tsv files')
+    parser.add_argument('--flagstat', nargs='*', default=[], help='One or more .flagstat.json files')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
@@ -934,6 +999,16 @@ def main():
                  break
         if name not in samtools_stats: samtools_stats[name] = {}
         samtools_stats[name]['non-target'] = parse_bedcov_file(f)
+
+    for f in args.flagstat:
+        name = Path(f).name
+        # Assuming filename format like sample.flagstat.json
+        for suffix in ['.flagstat.json']:
+             if name.endswith(suffix):
+                 name = name[:-len(suffix)]
+                 break
+        if name not in samtools_stats: samtools_stats[name] = {}
+        samtools_stats[name]['flagstat'] = parse_flagstat_file(f)
 
     generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, args.output)
 

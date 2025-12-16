@@ -75,7 +75,7 @@ process SAMTOOLS_BEDCOV {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     tag "${bam.simpleName}"
 
-    publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.tsv'
+    publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.bedcov.tsv'
 
     input:
         tuple path(bam), path(bai), path(bed), path(bedcomplement)
@@ -83,11 +83,13 @@ process SAMTOOLS_BEDCOV {
     output:
         path "*bedcov.tsv", emit: ch_bedcov
         path "*bedcov.compl.tsv", emit: ch_bedcov_complement
+        path "*flagstat.json", emit: ch_flagstat
 
     script:
     """
     samtools bedcov ${bed} ${bam} > ${bam.simpleName}.bedcov.tsv
     samtools bedcov ${bedcomplement} ${bam} > ${bam.simpleName}.bedcov.compl.tsv
+    samtools flagstat -O json ${bam} > ${bam.simpleName}.flagstat.json
     """
 }
 
