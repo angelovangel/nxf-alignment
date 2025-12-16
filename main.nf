@@ -1,5 +1,5 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING} from './modules/basecall.nf'
-include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; REF_STATS} from './modules/align.nf'
+include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -115,7 +115,8 @@ workflow report {
     // Calc ref stats if ref exists, else empty
     if (params.ref) {
         REF_STATS(Channel.fromPath(params.ref))
-        ch_ref_stats = REF_STATS.out
+        ch_ref_stats = REF_STATS.out.ch_ref_stats
+        
     } else {
         ch_ref_stats = Channel.fromPath(empty_refstats)
     }
@@ -176,14 +177,24 @@ workflow {
     | combine( ch_bedfile ) \
     | BEDTOOLS_COV \
     
+    DORADO_ALIGN.out
+    .combine( ch_bedfile )
+    .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
+    | SAMTOOLS_BEDCOV
     
+    //SAMTOOLS_BEDCOV.out.ch_bedcov
+    //.view()
+    
+
     BEDTOOLS_COV.out
     .collect()
     .toList()
     .combine( READ_STATS.out.collect().toList() )
+    .combine( SAMTOOLS_BEDCOV.out.ch_bedcov.collect().toList() )
+    .combine( SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect().toList() )
     .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
     .combine( ch_wf_properties )
-    .combine( REF_STATS.out )
+    .combine( REF_STATS.out.ch_ref_stats )
     //.view()
     | REPORT
     

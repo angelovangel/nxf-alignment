@@ -55,6 +55,42 @@ process BEDTOOLS_COV {
     """
 }
 
+process BEDTOOLS_COMPLEMENT {
+    container 'docker.io/biocontainers/bedtools:v2.27.1dfsg-4-deb_cv1'
+
+    input:
+        path(bed) 
+        path(genome)
+
+    output:
+        path "*complement.bed"
+
+    script:
+    """
+    bedtools complement -i ${bed} -g ${genome} > ${bed.simpleName}.complement.bed
+    """
+}
+
+process SAMTOOLS_BEDCOV {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    tag "${bam.simpleName}"
+
+    publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.tsv'
+
+    input:
+        tuple path(bam), path(bai), path(bed), path(bedcomplement)
+
+    output:
+        path "*bedcov.tsv", emit: ch_bedcov
+        path "*bedcov.compl.tsv", emit: ch_bedcov_complement
+
+    script:
+    """
+    samtools bedcov ${bed} ${bam} > ${bam.simpleName}.bedcov.tsv
+    samtools bedcov ${bedcomplement} ${bam} > ${bam.simpleName}.bedcov.compl.tsv
+    """
+}
+
 process REF_STATS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     tag "${ref.simpleName}"
@@ -63,11 +99,13 @@ process REF_STATS {
         path ref
 
     output:
-        path "ref_stats.csv"
+        path "ref_stats.csv", emit: ch_ref_stats
+        path "ref.genome", emit: ch_genome
 
     script:
     """
     samtools faidx ${ref}
     awk 'BEGIN {sum=0; count=0; print "contigs,bases"} {sum+=\$2; count++} END {print count "," sum}' ${ref}.fai > ref_stats.csv
+    cp ${ref}.fai ref.genome
     """
 }

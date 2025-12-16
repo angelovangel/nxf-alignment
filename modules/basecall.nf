@@ -3,7 +3,7 @@
 
 process DORADO_BASECALL {
 
-    container 'docker.io/nanoporetech/dorado:latest'
+    //container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
     tag "${params.asfile ? 'with' : 'no'} adaptive sampling"

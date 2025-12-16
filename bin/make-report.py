@@ -70,6 +70,26 @@ def parse_readstats_file(filepath):
         
     return stats
 
+def parse_bedcov_file(filepath):
+    """Parse a samtools bedcov file and return total length and coverage"""
+    total_len = 0
+    total_cov = 0
+    with open(filepath, 'r') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            # chr, start, end, [name], coverage
+            # Coverage count is always the last column in default bedcov output
+            if len(parts) >= 4:
+                try:
+                    start = int(parts[1])
+                    end = int(parts[2])
+                    cov = int(parts[-1]) 
+                    total_len += (end - start)
+                    total_cov += cov
+                except ValueError:
+                    continue
+    return {'len': total_len, 'cov': total_cov}
+
 def parse_runinfo_csv(filepath):
     """Parse a run info CSV file and return a list of dictionaries (one per row)"""
     run_info = []
@@ -229,7 +249,16 @@ def get_css():
         margin-left: 20px;
       }
       .pct-bar:hover { background: rgba(55, 65, 81, 0.5); }
-      .sample-col { font-weight: 600; background: #f8fafc; }
+      .sample-col { 
+        font-weight: 600; 
+        background: #f8fafc;
+        width: 100px;
+        min-width: 100px;
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .export-btn {
         background: #374151; 
         color: white;
@@ -269,6 +298,7 @@ def get_js():
     <script>
         let sortDirection = {};
         let readstatsSortDirection = {};
+        let samtoolsSortDirection = {};
         
         function downloadCSV(csvContent, filename) {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -333,17 +363,20 @@ def get_js():
 
         $(document).ready(function() {
           $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
-            .on('change', function() { filterTable(); filterReadstatsTable(); }); 
+            .on('change', function() { filterTable(); filterReadstatsTable(); filterSamtoolsTable(); }); 
           $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
             .on('change', filterTable);
           
           filterTable();
           filterReadstatsTable(); 
+          filterSamtoolsTable();
           
           sortDirection[0] = 'desc'; 
           readstatsSortDirection[0] = 'desc';
+          samtoolsSortDirection[0] = 'desc';
           sortTable(0);
           sortReadstatsTable(0);
+          sortSamtoolsTable(0);
         });
 
         function sortReadstatsTable(columnIndex) {
@@ -384,6 +417,45 @@ def get_js():
                 const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
                 row.style.display = showSample ? '' : 'none';
             });
+        }
+
+        function filterSamtoolsTable() {
+            const selectedSamples = $('#sampleFilter').val() || [];
+            const table = document.getElementById('samtoolsTable');
+            if (!table) return;
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const sample = row.getAttribute('data-sample');
+                const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+                row.style.display = showSample ? '' : 'none';
+            });
+        }
+
+        function sortSamtoolsTable(columnIndex) {
+          const table = document.getElementById('samtoolsTable');
+          if (!table) return;
+          const tbody = table.tBodies[0];
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          samtoolsSortDirection[columnIndex] = samtoolsSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+          const isAsc = samtoolsSortDirection[columnIndex] === 'asc';
+          
+          const headers = table.querySelectorAll('th.sortable');
+          headers.forEach(h => h.classList.remove('asc', 'desc'));
+          if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+          
+          rows.sort((a, b) => {
+            const dataAttrMap = { 0: 'sample', 1: 'tbases', 2: 'tcov', 3: 'ntbases', 4: 'ntcov' };
+            const dataKey = dataAttrMap[columnIndex];
+            if (columnIndex === 0) {
+                 const aVal = a.getAttribute('data-sample');
+                 const bVal = b.getAttribute('data-sample');
+                 return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+            let aVal = parseFloat(a.getAttribute('data-' + dataKey));
+            let bVal = parseFloat(b.getAttribute('data-' + dataKey));
+            return isAsc ? aVal - bVal : bVal - aVal;
+          });
+          rows.forEach(row => tbody.appendChild(row));
         }
         
         function sortTable(columnIndex) {
@@ -532,7 +604,7 @@ def render_readstats_table(readstats_data):
         <table id="readstatsTable">
           <thead>
             <tr>
-              <th class="sortable" onclick="sortReadstatsTable(0)">Sample</th>
+              <th class="sample-col sortable" onclick="sortReadstatsTable(0)">Sample</th>
               <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(1)">Reads</th>
               <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(2)">Bases</th>
               
@@ -575,18 +647,68 @@ def render_readstats_table(readstats_data):
         </table>
       </div>
       
-      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Coverage Statistics</h3>
+    """
+    return html
+
+def render_samtools_table(samtools_data):
+    """Render the Samtools Coverage Statistics table"""
+    if not samtools_data:
+        return ""
+
+    html = """
+      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Coverage</h3>
+      <div class="table-container" style="margin-bottom: 30px; position: relative;">
+        <table id="samtoolsTable">
+          <thead>
+            <tr>
+              <th class="sample-col sortable" onclick="sortSamtoolsTable(0)">Sample</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Bases on Target</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Mean Target Coverage</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Non-target</th>
+              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Non-target Coverage</th>
+            </tr>
+          </thead>
+          <tbody>
+    """
+    
+    for sample_name in sorted(samtools_data.keys()):
+        stats = samtools_data[sample_name]
+        target = stats.get('target', {'len': 0, 'cov': 0})
+        comp = stats.get('non-target', {'len': 0, 'cov': 0})
+        
+        target_mean = target['cov'] / target['len'] if target['len'] > 0 else 0
+        comp_mean = comp['cov'] / comp['len'] if comp['len'] > 0 else 0
+
+        html += f"""
+            <tr data-sample="{sample_name.lower()}"
+                data-tbases="{target['cov']}"
+                data-tcov="{target_mean}"
+                data-ntbases="{comp['cov']}"
+                data-ntcov="{comp_mean}">
+              <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{target['cov']:,}</td>
+              <td style="text-align: right;">{target_mean:.2f}</td>
+              <td style="text-align: right;">{comp['cov']:,}</td>
+              <td style="text-align: right;">{comp_mean:.2f}</td>
+            </tr>
+        """
+        
+    html += """
+          </tbody>
+        </table>
+      </div>
     """
     return html
 
 def render_coverage_table(samples_data, genes):
     """Render the Coverage Statistics table"""
     html = """
+      <h3 style="margin-bottom: 15px; font-size: 1.1em; color: #374151;">Breadth of Coverage</h3>
       <div class="table-container">
         <table id="dataTable">
           <thead>
             <tr>
-              <th rowspan="2" class="sortable" onclick="sortTable(0)">Sample</th>
+              <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
               <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
               <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
               <th rowspan="2" class="sortable" onclick="sortTable(3)">Region size</th>
@@ -645,7 +767,7 @@ def render_coverage_table(samples_data, genes):
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, output_file):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -664,7 +786,13 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
 
     # Options for filters
     region_options = "".join([f'<option value="{gene.lower()}">{gene}</option>' for gene in genes])
-    sample_names = sorted(readstats_data.keys()) if readstats_data else sorted(samples_data.keys())
+    
+    all_sample_names = set()
+    if readstats_data: all_sample_names.update(readstats_data.keys())
+    if samples_data: all_sample_names.update(samples_data.keys())
+    if samtools_stats: all_sample_names.update(samtools_stats.keys())
+    
+    sample_names = sorted(list(all_sample_names))
     sample_options = "".join([f'<option value="{name.lower()}">{name}</option>' for name in sample_names])
 
     # Render Components
@@ -675,7 +803,9 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     wf_info_block = render_details_block("Workflow details", wf_info, add_top_border=False)
     
     stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats)
+    stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats)
     readstats_table = render_readstats_table(readstats_data)
+    samtools_table = render_samtools_table(samtools_stats)
     coverage_table = render_coverage_table(samples_data, genes)
     
     # Assemble HTML
@@ -711,10 +841,11 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
         </div>
         
         <button class="export-btn" onclick="exportReadstatsToCSV()">Export Read Summary</button>
-        <button class="export-btn" onclick="exportCoverageToCSV()">Export Coverage</button>
+        <button class="export-btn" onclick="exportCoverageToCSV()">Export Depth</button>
       </div>
       
       {readstats_table}
+      {samtools_table}
       {coverage_table}
     </div>
   </div>
@@ -735,12 +866,15 @@ def main():
     parser.add_argument('--runinfo', type=str, help='Optional CSV file with run metadata (e.g., flowcell_id, run_date)', default=None)
     parser.add_argument('--wfinfo', type=str, help='Optional CSV file with workflow properties', default=None)
     parser.add_argument('--refstats', type=str, help='Optional CSV file with reference stats', default=None)
+    parser.add_argument('--bedcov', nargs='*', default=[], help='One or more reads.bedcov.tsv files')
+    parser.add_argument('--bedcov-compl', nargs='*', default=[], help='One or more reads.bedcov.compl.tsv files')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
     
     samples_data = {}
     readstats_data = {}
+    samtools_stats = {}
     run_info = [] 
     wf_info = []
     ref_stats = []
@@ -769,9 +903,39 @@ def main():
         # Assuming filename format is sample.readstats.tsv
         sample_name = path.name.replace('.readstats.tsv', '')
         print(f"Processing stats {readstats_file} (Sample: {sample_name})...")
+        print(f"Processing stats {readstats_file} (Sample: {sample_name})...")
         readstats_data[sample_name] = parse_readstats_file(readstats_file)
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, args.output)
+    # Process bedcov files
+    # First, collect all potential samples
+    bedcov_map = {Path(f).name.replace('.batched.reads.bedcov.tsv', '').replace('.reads.bedcov.tsv', '').replace('.bedcov.tsv', ''): f for f in args.bedcov}
+    bedcov_comp_map = {Path(f).name.replace('.batched.reads.bedcov.compl.tsv', '').replace('.reads.bedcov.compl.tsv', '').replace('.bedcov.compl.tsv', ''): f for f in args.bedcov_compl}
+    
+    # Actually, sample naming might be simpler: assuming standard nextflow output naming
+    # If using replace, we should try to match how sample_name was extracted above.
+    
+    # Re-iterate carefully.
+    for f in args.bedcov:
+        # heuristic to remove suffixes
+        name = Path(f).name
+        # Common suffixes in pipeline
+        for suffix in ['.batched.reads.bedcov.tsv', '.reads.bedcov.tsv', '.bedcov.tsv']:
+             if name.endswith(suffix):
+                 name = name[:-len(suffix)]
+                 break
+        if name not in samtools_stats: samtools_stats[name] = {}
+        samtools_stats[name]['target'] = parse_bedcov_file(f)
+        
+    for f in args.bedcov_compl:
+        name = Path(f).name
+        for suffix in ['.batched.reads.bedcov.compl.tsv', '.reads.bedcov.compl.tsv', '.bedcov.compl.tsv']:
+             if name.endswith(suffix):
+                 name = name[:-len(suffix)]
+                 break
+        if name not in samtools_stats: samtools_stats[name] = {}
+        samtools_stats[name]['non-target'] = parse_bedcov_file(f)
+
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, args.output)
 
 if __name__ == "__main__":
     main()
