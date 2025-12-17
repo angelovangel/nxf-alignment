@@ -4,7 +4,6 @@ include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
 
-
 if (params.help) {
         showHelp()
         exit 0
@@ -29,7 +28,6 @@ log.info """
     ===============================
 """.stripIndent()
 
-// 
 def showHelp() {
         log.info """
 =============================================
@@ -76,7 +74,6 @@ ${workflow.commandLine},${workflow.userName},${workflow.scriptId.take(10)},${wor
 def ch_wf_properties = Channel.of(workflow_properties)
     .collectFile(name: 'wf_properties.csv', newLine: false)
 
-
 if (params.kit && !params.samplesheet) {
     error "If --kit is specified, --samplesheet must also be provided."
 }
@@ -84,7 +81,6 @@ if (params.kit && !params.samplesheet) {
 if (!params.kit && params.samplesheet) {
     error "If --samplesheet is provided, --kit must also be specified."
 }
-
 
 // do basecall only
 workflow basecall {
@@ -137,24 +133,17 @@ workflow report {
     
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
-
-    // no alignment, so an empty file is given to REPORT
-    new File('./work/empty.hist.tsv').text = ''
-    new File('./work/empty.bedcov.tsv').text = ''
-    new File('./work/empty.bedcov_compl.tsv').text = ''
-    new File('./work/empty.flagstat.json').text = '{}'
-
-    Channel.fromPath('./work/empty.hist.tsv', type: 'file')
-    .toList()
-    .combine( READ_STATS.out.collect().toList() )
-    .combine( Channel.fromPath('./work/empty.bedcov.tsv').toList() ) // bedcov
-    .combine( Channel.fromPath('./work/empty.bedcov_compl.tsv').toList() ) // bedcov_complement
-    .combine( Channel.fromPath('./work/empty.flagstat.json').toList() ) // flagstat
-    .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
-    .combine( ch_wf_properties )
-    .combine( ch_ref_stats )
-    //.view()
-    | REPORT
+    
+    REPORT(
+        RUN_INFO.out.ifEmpty(empty_runinfo),
+        ch_wf_properties,
+        READ_STATS.out.collect(),
+        ch_ref_stats,
+        Channel.fromPath('./work/empty.hist.tsv', type: 'file'),
+        Channel.fromPath('./work/empty.bedcov.tsv', type: 'file'),
+        Channel.fromPath('./work/empty.bedcov_compl.tsv', type: 'file'),
+        Channel.fromPath('./work/empty.flagstat.json', type: 'file'),
+    )
 }
 
 workflow {
@@ -200,20 +189,15 @@ workflow {
     .combine( ch_bedfile )
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
     | SAMTOOLS_BEDCOV
-    
 
-    BEDTOOLS_COV.out
-    .collect()
-    .toList()
-    .combine( READ_STATS.out.collect().toList() )
-    // the ones below are single entry channels
-    .combine( SAMTOOLS_BEDCOV.out.ch_bedcov.collect().toList() )
-    .combine( SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect().toList() )
-    .combine( SAMTOOLS_BEDCOV.out.ch_flagstat.collect().toList() )
-    .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
-    .combine( ch_wf_properties )
-    .combine( REF_STATS.out.ch_ref_stats )
-    //.view()
-    | REPORT
-    
+    REPORT(
+        RUN_INFO.out.ifEmpty(empty_runinfo),
+        ch_wf_properties,
+        READ_STATS.out.collect(),
+        REF_STATS.out.ch_ref_stats,
+        BEDTOOLS_COV.out.collect(),
+        SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
+        SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
+        SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
+    )  
 }

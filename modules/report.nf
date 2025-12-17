@@ -5,22 +5,31 @@ process REPORT {
 
     publishDir "${params.outdir}", mode: 'copy', pattern: '*html'
     
+    // some inputs are optional, so better as separated inputs
     input:
-       tuple path(hist), path(readstats), path(bedcov), path(bedcov_complement), path(flagstat), path(runinfo), path(wf_props), path(ref_stats)
+        path(runinfo) 
+        path(wf_props)
+        path(readstats)
+        path(ref_stats)
+        path(hist) 
+        path(bedcov)
+        path(bedcov_complement) 
+        path(flagstat)
+        
     output:
         path "*.html"
 
     script:
     """
     make-report.py \
-    --hist $hist \
+    --runinfo $runinfo \
+    --wfinfo $wf_props \
     --readstats $readstats \
+    --refstats $ref_stats \
+    --hist $hist \
     --bedcov $bedcov \
     --bedcov-compl $bedcov_complement \
     --flagstat $flagstat \
-    --runinfo $runinfo \
-    --wfinfo $wf_props \
-    --refstats $ref_stats \
     -o nxf-alignment-report.html
     """
 }
