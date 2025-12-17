@@ -121,16 +121,35 @@ workflow report {
         ch_ref_stats = Channel.fromPath(empty_refstats)
     }
 
-    ch_reads = basecall().ch_bc
+    if (params.reads) {
+        
+        if ( file(params.reads).isDirectory() ) {
+            pattern = "*.{bam,fastq,fastq.gz,fq,fq.gz}"
+            ch_reads = Channel.fromPath(params.reads + "/" + pattern, type: 'file', checkIfExists: true)
+            
+        } else {
+            ch_reads = Channel.fromPath(params.reads, checkIfExists: true)        
+        }
+    } else {
+        // Otherwise, source the channel from the 'basecall' (or basecall + merge_reads) workflow's output.
+        ch_reads = basecall().ch_bc
+    }
     
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
 
     // no alignment, so an empty file is given to REPORT
-    new File('./work/empty').text = ''
-    Channel.fromPath('./work/empty', type: 'file')
+    new File('./work/empty.hist.tsv').text = ''
+    new File('./work/empty.bedcov.tsv').text = ''
+    new File('./work/empty.bedcov_compl.tsv').text = ''
+    new File('./work/empty.flagstat.json').text = '{}'
+
+    Channel.fromPath('./work/empty.hist.tsv', type: 'file')
     .toList()
     .combine( READ_STATS.out.collect().toList() )
+    .combine( Channel.fromPath('./work/empty.bedcov.tsv').toList() ) // bedcov
+    .combine( Channel.fromPath('./work/empty.bedcov_compl.tsv').toList() ) // bedcov_complement
+    .combine( Channel.fromPath('./work/empty.flagstat.json').toList() ) // flagstat
     .combine( RUN_INFO.out.ifEmpty(empty_runinfo) )
     .combine( ch_wf_properties )
     .combine( ch_ref_stats )

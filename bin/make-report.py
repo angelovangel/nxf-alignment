@@ -75,6 +75,8 @@ def parse_bedcov_file(filepath):
     """Parse a samtools bedcov file and return total length and coverage"""
     total_len = 0
     total_cov = 0
+    has_data = False
+    
     with open(filepath, 'r') as f:
         for line in f:
             parts = line.strip().split('\t')
@@ -87,8 +89,14 @@ def parse_bedcov_file(filepath):
                     cov = int(parts[-1]) 
                     total_len += (end - start)
                     total_cov += cov
+                    has_data = True
                 except ValueError:
                     continue
+    
+    # Return None if file had no valid data
+    if not has_data:
+        return None
+    
     return {'len': total_len, 'cov': total_cov}
 
 def parse_flagstat_file(filepath):
@@ -96,6 +104,9 @@ def parse_flagstat_file(filepath):
     try:
         with open(filepath, 'r') as f:
             data = json.load(f)
+            # Skip empty JSON or JSON without expected data
+            if not data or 'QC-passed reads' not in data:
+                return None
             qc_passed = data.get('QC-passed reads', {})
             return {
                 'primary_mapped': qc_passed.get('primary mapped', 0),
@@ -103,7 +114,7 @@ def parse_flagstat_file(filepath):
             }
     except Exception as e:
         print(f"Error parsing flagstat file {filepath}: {e}", file=sys.stderr)
-        return {'primary_mapped': 0, 'primary_mapped_pct': 0.0}
+        return None
 
 def parse_runinfo_csv(filepath):
     """Parse a run info CSV file and return a list of dictionaries (one per row)"""
@@ -766,6 +777,10 @@ def render_samtools_table(samtools_data):
 
 def render_coverage_table(samples_data, genes):
     """Render the Coverage Statistics table"""
+    # Don't render if there's no data or all samples are empty
+    if not samples_data or all(not v for v in samples_data.values()):
+        return ""
+    
     html = """
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Breadth of Coverage</h3>
@@ -968,13 +983,8 @@ def main():
         # Assuming filename format is sample.readstats.tsv
         sample_name = path.name.replace('.readstats.tsv', '')
         print(f"Processing stats {readstats_file} (Sample: {sample_name})...")
-        print(f"Processing stats {readstats_file} (Sample: {sample_name})...")
         readstats_data[sample_name] = parse_readstats_file(readstats_file)
 
-    # Process bedcov files
-    # First, collect all potential samples
-    bedcov_map = {Path(f).name.replace('.batched.reads.bedcov.tsv', '').replace('.reads.bedcov.tsv', '').replace('.bedcov.tsv', ''): f for f in args.bedcov}
-    bedcov_comp_map = {Path(f).name.replace('.batched.reads.bedcov.compl.tsv', '').replace('.reads.bedcov.compl.tsv', '').replace('.bedcov.compl.tsv', ''): f for f in args.bedcov_compl}
     
     # Actually, sample naming might be simpler: assuming standard nextflow output naming
     # If using replace, we should try to match how sample_name was extracted above.
@@ -988,8 +998,10 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
-        if name not in samtools_stats: samtools_stats[name] = {}
-        samtools_stats[name]['target'] = parse_bedcov_file(f)
+        result = parse_bedcov_file(f)
+        if result is not None:
+            if name not in samtools_stats: samtools_stats[name] = {}
+            samtools_stats[name]['target'] = result
         
     for f in args.bedcov_compl:
         name = Path(f).name
@@ -997,8 +1009,10 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
-        if name not in samtools_stats: samtools_stats[name] = {}
-        samtools_stats[name]['non-target'] = parse_bedcov_file(f)
+        result = parse_bedcov_file(f)
+        if result is not None:
+            if name not in samtools_stats: samtools_stats[name] = {}
+            samtools_stats[name]['non-target'] = result
 
     for f in args.flagstat:
         name = Path(f).name
@@ -1007,8 +1021,10 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
-        if name not in samtools_stats: samtools_stats[name] = {}
-        samtools_stats[name]['flagstat'] = parse_flagstat_file(f)
+        result = parse_flagstat_file(f)
+        if result is not None:
+            if name not in samtools_stats: samtools_stats[name] = {}
+            samtools_stats[name]['flagstat'] = result
 
     generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, args.output)
 
