@@ -109,6 +109,7 @@ process REF_STATS {
     """
     samtools faidx ${ref}
     awk 'BEGIN {sum=0; count=0; print "contigs,bases"} {sum+=\$2; count++} END {print count "," sum}' ${ref}.fai > ref_stats.csv
-    cp ${ref}.fai ref.genome
+    sort -k1,1 -k2,2n ${ref}.fai > ref.genome
+    #cp ${ref}.fai ref.genome
     """
 }
