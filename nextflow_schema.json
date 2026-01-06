@@ -111,25 +111,6 @@
         }
       }
     },
-    "other_options": {
-      "title": "Other options",
-      "type": "object",
-      "fa_icon": "fas fa-question-circle",
-      "description": "Output and other options",
-      "help_text": "Output and other options",
-      "required": [
-        "outdir"
-      ],
-      "properties": {
-        "outdir": {
-          "type": "string",
-          "description": "The name of the output directory where the results will be saved",
-          "fa_icon": "fas fa-poll",
-          "default": "output",
-          "help_text": "It is recommended to not change the default output directory"
-        }
-      }
-    },
     "variant_calling_options": {
       "title": "Variant calling options",
       "type": "object",
@@ -161,6 +142,25 @@
           "fa_icon": "fas fa-cog",
           "default": "r1041_e82_400bps_hac_v500",
           "help_text": "The specific Clair3 model name. Only used when --variants is specified. Examples: r1041_e82_400bps_hac_v500, hifi_revio, etc. See available models in the Clair3 documentation."
+        }
+      }
+    },
+    "other_options": {
+      "title": "Other options",
+      "type": "object",
+      "fa_icon": "fas fa-question-circle",
+      "description": "Output and other options",
+      "help_text": "Output and other options",
+      "required": [
+        "outdir"
+      ],
+      "properties": {
+        "outdir": {
+          "type": "string",
+          "description": "The name of the output directory where the results will be saved",
+          "fa_icon": "fas fa-poll",
+          "default": "output",
+          "help_text": "It is recommended to not change the default output directory"
         }
       }
     }

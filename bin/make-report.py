@@ -627,7 +627,7 @@ def render_bed_coverage_table(bed_coverage_data):
                 <th class="sortable" onclick="sortBedcovTable(2)">Gene/Region</th>
                 <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(3)">Start</th>
                 <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(4)">End</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(5)">Size</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(5)">Region Size</th>
                 <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(6)">Bases in Region</th>
                 <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(7)">Mean Coverage</th>
               </tr>
