@@ -100,6 +100,38 @@ def parse_bedcov_file(filepath):
     
     return {'len': total_len, 'cov': total_cov}
 
+def parse_bedcov_per_region(filepath):
+    """Parse a samtools bedcov file and return per-region data"""
+    regions = []
+    with open(filepath, 'r') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            if len(parts) >= 4:
+                try:
+                    chrom = parts[0]
+                    start = int(parts[1])
+                    end = int(parts[2])
+                    # If name is present (parts[3]), use it, otherwise use chr:start-end
+                    # samtools bedcov output format depends on input BED
+                    # Typical BED: chr, start, end, name, ...
+                    # bedcov appends coverage as last column
+                    name = parts[3] if len(parts) > 4 else f"{chrom}:{start}-{end}"
+                    cov = int(parts[-1])
+                    length = end - start
+                    mean_cov = cov / length if length > 0 else 0
+                    regions.append({
+                        'chr': chrom,
+                        'start': start,
+                        'end': end,
+                        'name': name,
+                        'length': length,
+                        'bases': cov,
+                        'mean_cov': mean_cov
+                    })
+                except (ValueError, IndexError):
+                    continue
+    return regions
+
 def parse_flagstat_file(filepath):
     """Parse a samtools flagstat JSON file"""
     try:
@@ -322,26 +354,29 @@ def render_readstats_table(readstats_data):
         return ""
     
     html = """
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Read Statistics</h3>
-        <button class="export-btn" onclick="exportReadstatsToCSV()">Export CSV</button>
-      </div>
-      <div class="table-container" style="margin-bottom: 30px; position: relative;">
-        <table id="readstatsTable">
-          <thead>
-            <tr>
-              <th class="sample-col sortable" onclick="sortReadstatsTable(0)">Sample</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(1)">Reads</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(2)">Bases</th>
-              
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(4)">Min Length</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(5)">Max Length</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(6)">N50</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(7)">GC %</th>
-              <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(8)">Q20 %</th>
-            </tr>
-          </thead>
-          <tbody>
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Read Statistics</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportReadstatsToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="readstatsTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortReadstatsTable(0)">Sample</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(1)">Reads</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(2)">Bases</th>
+                
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(4)">Min Length</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(5)">Max Length</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(6)">N50</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(7)">GC %</th>
+                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(8)">Q20 %</th>
+              </tr>
+            </thead>
+            <tbody>
     """
     
     for sample_name in sorted(readstats_data.keys()):
@@ -372,7 +407,7 @@ def render_readstats_table(readstats_data):
           </tbody>
         </table>
       </div>
-      
+    </details>
     """
     return html
 
@@ -382,24 +417,27 @@ def render_samtools_table(samtools_data):
         return ""
 
     html = """
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Coverage</h3>
-        <button class="export-btn" onclick="exportSamtoolsToCSV()">Export CSV</button>
-      </div>
-      <div class="table-container" style="margin-bottom: 30px; position: relative;">
-        <table id="samtoolsTable">
-          <thead>
-            <tr>
-              <th class="sample-col sortable" onclick="sortSamtoolsTable(0)">Sample</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Primary Mapped</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Primary Mapped %</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Target</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Target Coverage</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(5)">Bases on Non-target</th>
-              <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(6)">Mean Non-target Coverage</th>
-            </tr>
-          </thead>
-          <tbody>
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Coverage</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportSamtoolsToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="samtoolsTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortSamtoolsTable(0)">Sample</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Primary Mapped</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Primary Mapped %</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Target</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Target Coverage</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(5)">Bases on Non-target</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(6)">Mean Non-target Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
     """
     
     for sample_name in sorted(samtools_data.keys()):
@@ -433,6 +471,7 @@ def render_samtools_table(samtools_data):
           </tbody>
         </table>
       </div>
+    </details>
     """
     return html
 
@@ -442,22 +481,25 @@ def render_variants_table(variants_data):
         return ""
 
     html = """
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Variants</h3>
-        <button class="export-btn" onclick="exportVariantsToCSV()">Export CSV</button>
-      </div>
-      <div class="table-container" style="margin-bottom: 30px; position: relative;">
-        <table id="variantsTable">
-          <thead>
-            <tr>
-              <th class="sample-col sortable" onclick="sortVariantsTable(0)">Sample</th>
-              <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">Total Variants</th>
-              <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">PASS Variants</th>
-              <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">SNPs</th>
-              <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">Indels</th>
-            </tr>
-          </thead>
-          <tbody>
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Variants</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportVariantsToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="variantsTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortVariantsTable(0)">Sample</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">Total Variants</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">PASS Variants</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">SNPs</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">Indels</th>
+              </tr>
+            </thead>
+            <tbody>
     """
     
     for sample_name in sorted(variants_data.keys()):
@@ -481,6 +523,7 @@ def render_variants_table(variants_data):
           </tbody>
         </table>
       </div>
+    </details>
     """
     return html
 
@@ -491,28 +534,31 @@ def render_coverage_table(samples_data, genes):
         return ""
     
     html = """
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.1em; color: #374151;">Breadth of Coverage</h3>
-        <button class="export-btn" onclick="exportCoverageToCSV()">Export CSV</button>
-      </div>
-      <div class="table-container">
-        <table id="dataTable">
-          <thead>
-            <tr>
-              <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
-              <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
-              <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
-              <th rowspan="2" class="sortable" onclick="sortTable(3)" style="text-align: right;">Region size</th>
-              <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
-            </tr>
-            <tr>
-              <th class="sortable" onclick="sortTable(4)" style="text-align: center;">≥1x (%)</th>
-              <th class="sortable" onclick="sortTable(5)" style="text-align: center;">≥10x (%)</th>
-              <th class="sortable" onclick="sortTable(6)" style="text-align: center;">≥20x (%)</th>
-              <th class="sortable" onclick="sortTable(7)" style="text-align: center;">≥30x (%)</th>
-            </tr>
-          </thead>
-          <tbody>
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Breadth of Coverage</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportCoverageToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px;">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
+                <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
+                <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
+                <th rowspan="2" class="sortable" onclick="sortTable(3)" style="text-align: right;">Region size</th>
+                <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
+              </tr>
+              <tr>
+                <th class="sortable" onclick="sortTable(4)" style="text-align: center;">≥1x (%)</th>
+                <th class="sortable" onclick="sortTable(5)" style="text-align: center;">≥10x (%)</th>
+                <th class="sortable" onclick="sortTable(6)" style="text-align: center;">≥20x (%)</th>
+                <th class="sortable" onclick="sortTable(7)" style="text-align: center;">≥30x (%)</th>
+              </tr>
+            </thead>
+            <tbody>
     """
     
     for gene in genes:
@@ -555,10 +601,72 @@ def render_coverage_table(samples_data, genes):
           </tbody>
         </table>
       </div>
+    </details>
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, output_file):
+def render_bed_coverage_table(bed_coverage_data):
+    """Render the Bed Coverage (per-region) table"""
+    if not bed_coverage_data:
+        return ""
+
+    html = """
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Bed Coverage</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportBedcovToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="bedcovTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortBedcovTable(0)">Sample</th>
+                <th class="sortable" onclick="sortBedcovTable(1)">Chr</th>
+                <th class="sortable" onclick="sortBedcovTable(2)">Gene/Region</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(3)">Start</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(4)">End</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(5)">Size</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(6)">Bases in Region</th>
+                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(7)">Mean Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
+    """
+
+    for sample_name in sorted(bed_coverage_data.keys()):
+        regions = bed_coverage_data[sample_name]
+        for reg in regions:
+            html += f"""
+                <tr data-sample="{sample_name.lower()}"
+                    data-chr="{reg['chr'].lower()}"
+                    data-gene="{reg['name'].lower()}"
+                    data-start="{reg['start']}"
+                    data-end="{reg['end']}"
+                    data-length="{reg['length']}"
+                    data-bases="{reg['bases']}"
+                    data-meancov="{reg['mean_cov']}">
+                  <td class="sample-col">{sample_name}</td>
+                  <td>{reg['chr']}</td>
+                  <td><strong>{reg['name']}</strong></td>
+                  <td style="text-align: right;">{reg['start']:,}</td>
+                  <td style="text-align: right;">{reg['end']:,}</td>
+                  <td style="text-align: right;">{reg['length']:,}</td>
+                  <td style="text-align: right;">{reg['bases']:,}</td>
+                  <td style="text-align: right;">{reg['mean_cov']:.2f}</td>
+                </tr>
+            """
+
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, output_file):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -583,6 +691,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     if samples_data: all_sample_names.update(samples_data.keys())
     if samtools_stats: all_sample_names.update(samtools_stats.keys())
     if variants_data: all_sample_names.update(variants_data.keys())
+    if bed_coverage_data: all_sample_names.update(bed_coverage_data.keys())
     
     sample_names = sorted(list(all_sample_names))
     sample_options = "".join([f'<option value="{name.lower()}">{name}</option>' for name in sample_names])
@@ -595,11 +704,11 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     wf_info_block = render_details_block("Workflow details", wf_info, add_top_border=False)
     
     stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats)
-    stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats)
     readstats_table = render_readstats_table(readstats_data)
     samtools_table = render_samtools_table(samtools_stats)
     variants_table = render_variants_table(variants_data)
     coverage_table = render_coverage_table(samples_data, genes)
+    bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     
     # Assemble HTML
     html = f"""<!DOCTYPE html>
@@ -636,6 +745,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       
       {readstats_table}
       {samtools_table}
+      {bed_coverage_table}
       {variants_table}
       {coverage_table}
     </div>
@@ -669,6 +779,7 @@ def main():
     readstats_data = {}
     samtools_stats = {}
     variants_data = {}
+    bed_coverage_data = {}
     run_info = [] 
     wf_info = []
     ref_stats = []
@@ -720,10 +831,18 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
+        
+        # Summary data
         result = parse_bedcov_file(f)
         if result is not None:
             if name not in samtools_stats: samtools_stats[name] = {}
             samtools_stats[name]['target'] = result
+            
+        # Per-region data
+        regions = parse_bedcov_per_region(f)
+        if regions:
+            if name not in bed_coverage_data: bed_coverage_data[name] = []
+            bed_coverage_data[name].extend(regions)
         
     for f in args.bedcov_compl:
         name = Path(f).name
@@ -748,7 +867,7 @@ def main():
             if name not in samtools_stats: samtools_stats[name] = {}
             samtools_stats[name]['flagstat'] = result
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, args.output)
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, args.output)
 
 if __name__ == "__main__":
     main()

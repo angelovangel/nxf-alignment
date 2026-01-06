@@ -1,7 +1,7 @@
-let sortDirection = {};
 let readstatsSortDirection = {};
 let samtoolsSortDirection = {};
 let variantsSortDirection = {};
+let bedcovSortDirection = {};
 
 function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -117,25 +117,68 @@ function exportVariantsToCSV() {
     downloadCSV(csv.join('\n'), 'variants_export.csv');
 }
 
+function exportBedcovToCSV() {
+    const table = document.getElementById('bedcovTable');
+    if (!table) { alert('Bed Coverage table not found.'); return; }
+    let csv = [];
+    const headers = ['Sample', 'Chr', 'Gene/Region', 'Start', 'End', 'Size', 'Bases_in_Region', 'Mean_Coverage'];
+    csv.push(headers.join(','));
+    const dataRows = table.querySelectorAll('tbody tr');
+    dataRows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const cols = [
+                row.getAttribute('data-sample'),
+                row.getAttribute('data-chr'),
+                row.getAttribute('data-gene'),
+                row.getAttribute('data-start'),
+                row.getAttribute('data-end'),
+                row.getAttribute('data-length'),
+                row.getAttribute('data-bases'),
+                row.getAttribute('data-meancov')
+            ];
+            const safeCols = cols.map(text => {
+                if (!text) return "";
+                text = text.trim().replace(/,/g, '');
+                if (text.includes('"')) { text = '"' + text.replace(/"/g, '""') + '"'; }
+                return text;
+            });
+            csv.push(safeCols.join(','));
+        }
+    });
+    downloadCSV(csv.join('\n'), 'bed_coverage_export.csv');
+}
+
 $(document).ready(function () {
     $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
-        .on('change', function () { filterTable(); filterReadstatsTable(); filterSamtoolsTable(); filterVariantsTable(); });
+        .on('change', function () {
+            filterTable();
+            filterReadstatsTable();
+            filterSamtoolsTable();
+            filterVariantsTable();
+            filterBedcovTable();
+        });
     $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
-        .on('change', filterTable);
+        .on('change', function () {
+            filterTable();
+            filterBedcovTable();
+        });
 
     filterTable();
     filterReadstatsTable();
     filterSamtoolsTable();
     filterVariantsTable();
+    filterBedcovTable();
 
     sortDirection[0] = 'desc';
     readstatsSortDirection[0] = 'desc';
     samtoolsSortDirection[0] = 'desc';
     variantsSortDirection[0] = 'desc';
+    bedcovSortDirection[0] = 'desc';
     sortTable(0);
     sortReadstatsTable(0);
     sortSamtoolsTable(0);
     sortVariantsTable(0);
+    sortBedcovTable(0);
 });
 
 function sortReadstatsTable(columnIndex) {
@@ -303,6 +346,59 @@ function sortVariantsTable(columnIndex) {
         let aVal = parseFloat(a.getAttribute('data-' + dataKey));
         let bVal = parseFloat(b.getAttribute('data-' + dataKey));
         return isAsc ? aVal - bVal : bVal - aVal;
+    });
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function filterBedcovTable() {
+    const selectedSamples = $('#sampleFilter').val() || [];
+    const selectedRegions = $('#regionFilter').val() || [];
+    const table = document.getElementById('bedcovTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const sample = row.getAttribute('data-sample');
+        const region = row.getAttribute('data-gene');
+        const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+        const showRegion = selectedRegions.length === 0 || selectedRegions.includes(region);
+        row.style.display = (showSample && showRegion) ? '' : 'none';
+    });
+}
+
+function sortBedcovTable(columnIndex) {
+    const table = document.getElementById('bedcovTable');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    bedcovSortDirection[columnIndex] = bedcovSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+    const isAsc = bedcovSortDirection[columnIndex] === 'asc';
+
+    const headers = table.querySelectorAll('th.sortable');
+    headers.forEach(h => h.classList.remove('asc', 'desc'));
+    if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+
+    rows.sort((a, b) => {
+        const dataAttrMap = {
+            0: 'sample',
+            1: 'chr',
+            2: 'gene',
+            3: 'start',
+            4: 'end',
+            5: 'length',
+            6: 'bases',
+            7: 'meancov'
+        };
+        const dataKey = dataAttrMap[columnIndex];
+
+        if ([0, 1, 2].includes(columnIndex)) {
+            const aVal = a.getAttribute('data-' + dataKey);
+            const bVal = b.getAttribute('data-' + dataKey);
+            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        } else {
+            let aVal = parseFloat(a.getAttribute('data-' + dataKey));
+            let bVal = parseFloat(b.getAttribute('data-' + dataKey));
+            return isAsc ? aVal - bVal : bVal - aVal;
+        }
     });
     rows.forEach(row => tbody.appendChild(row));
 }
