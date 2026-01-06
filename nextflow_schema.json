@@ -129,6 +129,40 @@
           "help_text": "It is recommended to not change the default output directory"
         }
       }
+    },
+    "variant_calling_options": {
+      "title": "Variant calling options",
+      "type": "object",
+      "fa_icon": "fas fa-dna",
+      "description": "Options for variant calling using Clair3.",
+      "properties": {
+        "variants": {
+          "type": "boolean",
+          "description": "Enable variant calling with Clair3",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable variant calling on the aligned reads using Clair3."
+        },
+        "clair3_platform": {
+          "type": "string",
+          "description": "Clair3 platform to use",
+          "fa_icon": "fas fa-microchip",
+          "default": "ont",
+          "enum": [
+            "ont",
+            "hifi",
+            "ilmn"
+          ],
+          "help_text": "The platform for which the Clair3 model was trained. Only used when --variants is specified."
+        },
+        "clair3_model": {
+          "type": "string",
+          "description": "Clair3 model to use",
+          "fa_icon": "fas fa-cog",
+          "default": "r1041_e82_400bps_hac_v500",
+          "help_text": "The specific Clair3 model name. Only used when --variants is specified. Examples: r1041_e82_400bps_hac_v500, hifi_revio, etc. See available models in the Clair3 documentation."
+        }
+      }
     }
   },
   "allOf": [
@@ -137,6 +171,9 @@
     },
     {
       "$ref": "#/definitions/alignment_options"
+    },
+    {
+      "$ref": "#/definitions/variant_calling_options"
     },
     {
       "$ref": "#/definitions/other_options"
