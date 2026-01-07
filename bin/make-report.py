@@ -746,8 +746,8 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {readstats_table}
       {samtools_table}
       {bed_coverage_table}
-      {variants_table}
       {coverage_table}
+      {variants_table}
     </div>
   </div>
   {js_block}

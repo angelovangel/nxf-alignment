@@ -29,8 +29,8 @@ process CLAIR3 {
     --threads=8 \
     --output="clair3_output"
 
-    mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.variants.vcf
-    mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.variants.vcf.tbi
+    mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.variants.vcf.gz
+    mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.variants.vcf.gz.tbi
     """ 
 }
 
