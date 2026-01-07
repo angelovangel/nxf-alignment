@@ -72,14 +72,18 @@ def empty_refstats = file("${workflow.workDir}/empty_refstats.csv")
 empty_refstats.text = ""
 
 // Workflow properties - create CSV content as a string
+def as_status = params.asfile ? "Yes" : "No"
 def workflow_properties = """\
-CommandLine,UserName,RevisionID,SessionID,RunName
-${workflow.commandLine},${workflow.userName},${workflow.scriptId.take(10)},${workflow.sessionId.toString()},${workflow.runName}
+CommandLine,UserName,RevisionID,SessionID,RunName,AdaptiveSampling
+"${workflow.commandLine}","${workflow.userName}","${workflow.scriptId.take(10)}","${workflow.sessionId.toString()}","${workflow.runName}","${as_status}"
 """.stripIndent()
 
 // Create channel with CSV file
 def ch_wf_properties = Channel.of(workflow_properties)
     .collectFile(name: 'wf_properties.csv', newLine: false)
+
+// if no asfile, use dummy placeholder to still do dorado basecalling without as filtering
+def ch_asfile = params.asfile ? Channel.fromPath(params.asfile, checkIfExists: true) : Channel.fromPath('EMPTY', type: 'file')
 
 if (params.kit && !params.samplesheet) {
     error "If --kit is specified, --samplesheet must also be provided."
@@ -94,11 +98,8 @@ workflow basecall {
     ch_pod5 = Channel.fromPath(params.pod5, checkIfExists: true)
     ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
 
-    // if no asfile, use dummy placeholder to still do dorado basecalling without as filtering
-    ch_decisionfile = params.asfile ? Channel.fromPath(params.asfile, checkIfExists: true) : Channel.fromPath('EMPTY', type: 'file')
-    
     if (params.kit) {
-        DORADO_BASECALL_BARCODING(ch_decisionfile, ch_pod5)  
+        DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
         
         ch_samplesheet
         .splitCsv(header:true)
@@ -107,7 +108,7 @@ workflow basecall {
         .combine( DORADO_BASECALL_BARCODING.out.ch_bam_pass )
         | MERGE_READS 
     } else {
-        DORADO_BASECALL(ch_decisionfile, ch_pod5)
+        DORADO_BASECALL(ch_asfile, ch_pod5)
     }
     
     emit: 
@@ -149,6 +150,7 @@ workflow report {
         Channel.fromPath("empty_bedcov_compl", type: 'file'),
         Channel.fromPath("empty_flagstat", type: 'file'),
         Channel.fromPath("empty_variants", type: 'file'),
+        ch_asfile
     )
 }
 
@@ -214,6 +216,7 @@ workflow {
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
-        params.variants ? VCF_STATS.out.collect() : Channel.fromPath("empty_variants", type: 'file')
+        params.variants ? VCF_STATS.out.collect() : Channel.fromPath("empty_variants", type: 'file'),
+        ch_asfile
     )  
 }

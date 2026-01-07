@@ -217,6 +217,24 @@ def parse_bcftools_query(filepath):
         print(f"Error parsing query file {filepath}: {e}", file=sys.stderr)
         return None
 
+def parse_as_file(filepath):
+    """Parse adaptive sampling decision file and return accepted/total counts."""
+    accepted = 0
+    total = 0
+    try:
+        with open(filepath, 'r') as f:
+            # Skip header
+            next(f, None)
+            for line in f:
+                total += 1
+                parts = line.strip().split(',')
+                if len(parts) >= 2 and parts[1] == 'sequence':
+                    accepted += 1
+        return accepted, total
+    except Exception as e:
+        print(f"Error parsing adaptive sampling file {filepath}: {e}", file=sys.stderr)
+        return None
+
 def parse_runinfo_csv(filepath):
     """Parse a run info CSV file and return a list of dictionaries (one per row)"""
     run_info = []
@@ -317,11 +335,22 @@ def render_details_block(title, info_list, add_top_border=False):
     """
     return html
 
-def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats):
+def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats, wf_info, as_counts=None):
     """Render the top statistics cards"""
     total_bases = sum(stats.get('bases', 0) for stats in readstats_data.values()) if readstats_data else 0
     total_reads = sum(stats.get('reads', 0) for stats in readstats_data.values()) if readstats_data else 0
     total_bed_size = sum(region_totals.values())
+    
+    # Adaptive sampling check from wf_info or as_counts
+    as_status = "No"
+    if as_counts:
+        accepted, total = as_counts
+        as_status = f"{format_si(accepted)} / {format_si(total)}"
+    elif wf_info:
+        for row in wf_info:
+            if 'AdaptiveSampling' in row:
+                as_status = row['AdaptiveSampling']
+                break
     
     # Ref stats extraction
     ref_contigs = 0
@@ -368,6 +397,10 @@ def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_s
         <div class="stat-card">
           <h3>Total BED size</h3>
           <div class="value">{bed_fmt}</div>
+        </div>
+        <div class="stat-card">
+          <h3>Adaptive Sampling</h3>
+          <div class="value" style="word-break: break-all;">{as_status}</div>
         </div>
       </div>
     """
@@ -694,7 +727,7 @@ def render_bed_coverage_table(bed_coverage_data):
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, as_counts, output_file):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -731,7 +764,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     run_info_block = render_details_block("Sequencing run details", run_info, add_top_border=True)
     wf_info_block = render_details_block("Workflow details", wf_info, add_top_border=False)
     
-    stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats)
+    stats_cards = render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats, wf_info, as_counts)
     readstats_table = render_readstats_table(readstats_data)
     samtools_table = render_samtools_table(samtools_stats)
     variants_table = render_variants_table(variants_data)
@@ -799,6 +832,7 @@ def main():
     parser.add_argument('--bedcov-compl', nargs='*', default=[], help='One or more reads.bedcov.compl.tsv files')
     parser.add_argument('--flagstat', nargs='*', default=[], help='One or more .flagstat.json files')
     parser.add_argument('--vcf-query', nargs='*', default=[], help='One or more .query files from bcftools query')
+    parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
@@ -811,6 +845,11 @@ def main():
     run_info = [] 
     wf_info = []
     ref_stats = []
+    as_counts = None
+
+    if args.asfile:
+        print(f"Parsing adaptive sampling file {args.asfile}...")
+        as_counts = parse_as_file(args.asfile)
 
     if args.runinfo:
         print(f"Loading run info from {args.runinfo}...")
@@ -895,7 +934,7 @@ def main():
             if name not in samtools_stats: samtools_stats[name] = {}
             samtools_stats[name]['flagstat'] = result
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, args.output)
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, as_counts, args.output)
 
 if __name__ == "__main__":
     main()

@@ -12,7 +12,7 @@ process CLAIR3 {
     tuple path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.variants.vcf"), path("${bam.simpleName}.variants.vcf.tbi")
+    tuple path("${bam.simpleName}.variants.vcf.gz"), path("${bam.simpleName}.variants.vcf.gz.tbi")
 
     script:
     def model = "${params.clair3_model}"

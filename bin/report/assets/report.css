@@ -61,11 +61,12 @@ body {
 .stat-card h3 {
     font-size: 0.8em;
     opacity: 0.9;
+    font-weight: 300;
     margin-bottom: 3px;
 }
 
 .stat-card .value {
-    font-size: 1.2em;
+    font-size: 1em;
     font-weight: bold;
 }
 
