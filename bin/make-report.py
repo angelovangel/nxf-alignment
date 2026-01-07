@@ -155,7 +155,20 @@ def parse_bcftools_query(filepath):
         'total': 0,
         'snp': 0,
         'indel': 0,
-        'pass': 0
+        'pass': 0,
+        'ts': 0,
+        'tv': 0
+    }
+    
+    transitions = {
+        ('A', 'G'), ('G', 'A'),
+        ('C', 'T'), ('T', 'C')
+    }
+    transversions = {
+        ('A', 'C'), ('C', 'A'),
+        ('A', 'T'), ('T', 'A'),
+        ('G', 'C'), ('C', 'G'),
+        ('G', 'T'), ('T', 'G')
     }
     
     try:
@@ -166,8 +179,8 @@ def parse_bcftools_query(filepath):
                     continue
                 
                 # Format: CHROM POS REF ALT TYPE FILTER
-                # ref = parts[2]
-                # alt = parts[3]
+                ref = parts[2].upper()
+                alt = parts[3].upper()
                 var_type = parts[4]
                 filter_status = parts[5]
 
@@ -179,14 +192,26 @@ def parse_bcftools_query(filepath):
                 
                 if filter_status == 'PASS':
                     stats['pass'] += 1
-                
-                if var_type == 'SNP':
-                    stats['snp'] += 1
-                elif var_type == 'INDEL':
-                    stats['indel'] += 1
-                # OTHER types are counted in total but not specifically as snp/indel here, 
-                # or could be mapped to one. Assuming basic types for now.
                     
+                    if var_type == 'SNP':
+                        stats['snp'] += 1
+                        # Calculate Ts/Tv for PASS SNPs
+                        # Single ALT assumption for basic Ts/Tv
+                        # If multiple ALTs (e.g. A,G), take the first one or split
+                        alts = alt.split(',')
+                        for single_alt in alts:
+                            pair = (ref, single_alt)
+                            if pair in transitions:
+                                stats['ts'] += 1
+                            elif pair in transversions:
+                                stats['tv'] += 1
+
+                    elif (var_type == 'INDEL' or var_type == 'SNP,INDEL'):
+                        stats['indel'] += 1
+                    
+        # Calculate Ts/Tv ratio
+        stats['ts_tv_ratio'] = stats['ts'] / stats['tv'] if stats['tv'] > 0 else 0.0
+            
         return stats
     except Exception as e:
         print(f"Error parsing query file {filepath}: {e}", file=sys.stderr)
@@ -497,6 +522,7 @@ def render_variants_table(variants_data):
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">PASS Variants</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">SNPs</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">Indels</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(5)">Ts/Tv Ratio</th>
               </tr>
             </thead>
             <tbody>
@@ -510,12 +536,14 @@ def render_variants_table(variants_data):
                 data-total="{stats['total']}"
                 data-pass="{stats['pass']}"
                 data-snp="{stats['snp']}"
-                data-indel="{stats['indel']}">
+                data-indel="{stats['indel']}"
+                data-tstv="{stats.get('ts_tv_ratio', 0.0)}">
               <td class="sample-col">{sample_name}</td>
               <td style="text-align: right;">{stats['total']:,}</td>
               <td style="text-align: right;">{stats['pass']:,}</td>
               <td style="text-align: right;">{stats['snp']:,}</td>
               <td style="text-align: right;">{stats['indel']:,}</td>
+              <td style="text-align: right;">{stats.get('ts_tv_ratio', 0.0):.2f}</td>
             </tr>
         """
         

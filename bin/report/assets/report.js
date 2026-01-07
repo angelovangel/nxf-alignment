@@ -95,7 +95,7 @@ function exportVariantsToCSV() {
     const table = document.getElementById('variantsTable');
     if (!table) { alert('Variants table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Total_Variants', 'PASS_Variants', 'SNPs', 'Indels'];
+    const headers = ['Sample', 'Total_Variants', 'PASS_Variants', 'SNPs', 'Indels', 'Ts/Tv_Ratio'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -103,7 +103,8 @@ function exportVariantsToCSV() {
             const cols = [
                 row.getAttribute('data-sample'),
                 row.getAttribute('data-total'), row.getAttribute('data-pass'),
-                row.getAttribute('data-snp'), row.getAttribute('data-indel')
+                row.getAttribute('data-snp'), row.getAttribute('data-indel'),
+                row.getAttribute('data-tstv')
             ];
             const safeCols = cols.map(text => {
                 if (!text) return "";
@@ -335,7 +336,8 @@ function sortVariantsTable(columnIndex) {
         const dataAttrMap = {
             0: 'sample',
             1: 'total', 2: 'pass',
-            3: 'snp', 4: 'indel'
+            3: 'snp', 4: 'indel',
+            5: 'tstv'
         };
         const dataKey = dataAttrMap[columnIndex];
         if (columnIndex === 0) {
