@@ -322,7 +322,7 @@ def render_details_block(title, info_list, add_top_border=False):
             display_key = key.replace('_', ' ').title()
             html += f"""
             <tr>
-              <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; font-weight: 600; color: white; white-space: nowrap; font-size: 0.8em; width: 200px;">{display_key}:</td>
+              <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; white-space: nowrap; font-size: 0.8em; width: 180px;">{display_key}:</td>
               <td style="padding: 3px 0; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; font-size: 0.8em;">{value}</td>
             </tr>
             """

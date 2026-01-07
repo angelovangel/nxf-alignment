@@ -74,7 +74,7 @@ empty_refstats.text = ""
 // Workflow properties - create CSV content as a string
 def as_status = params.asfile ? "Yes" : "No"
 def workflow_properties = """\
-CommandLine,UserName,RevisionID,SessionID,RunName,AdaptiveSampling
+CommandLine,User Name,Revision ID,Session ID,Run Name,Adaptive Sampling
 "${workflow.commandLine}","${workflow.userName}","${workflow.scriptId.take(10)}","${workflow.sessionId.toString()}","${workflow.runName}","${as_status}"
 """.stripIndent()
 
