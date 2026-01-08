@@ -73,9 +73,19 @@ empty_refstats.text = ""
 
 // Workflow properties - create CSV content as a string
 def as_status = params.asfile ? "Yes" : "No"
+def git_commit = "Unknown"
+try {
+    def git_proc = "git -C ${workflow.projectDir} rev-parse HEAD".execute()
+    git_proc.waitFor()
+    if (git_proc.exitValue() == 0) {
+        git_commit = git_proc.text.trim().take(7)
+    }
+} catch (Exception e) {
+    log.warn "Failed to get git commit: ${e.message}"
+}
 def workflow_properties = """\
-CommandLine,User Name,Revision ID,Session ID,Run Name,Adaptive Sampling
-"${workflow.commandLine}","${workflow.userName}","${workflow.scriptId.take(10)}","${workflow.sessionId.toString()}","${workflow.runName}","${as_status}"
+CommandLine,User Name,Revision ID,Session ID,Run Name,Adaptive Sampling,Git Commit
+"${workflow.commandLine}","${workflow.userName}","${workflow.scriptId.take(10)}","${workflow.sessionId.toString()}","${workflow.runName}","${as_status}","${git_commit}"
 """.stripIndent()
 
 // Create channel with CSV file

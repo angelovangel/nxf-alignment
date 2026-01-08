@@ -63,6 +63,10 @@ body {
     opacity: 0.9;
     font-weight: 300;
     margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
 }
 
 .stat-card .value {
@@ -79,27 +83,6 @@ body {
 
 .filter-group {
     flex-grow: 1;
-}
-
-.filter-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 400;
-    font-size: 0.9em;
-}
-
-.filter-box {
-    padding: 10px;
-    width: 100%;
-    border: 2px solid #374151;
-    background-color: #374151;
-    border-radius: 6px;
-    font-size: 16px;
-}
-
-.filter-box:focus {
-    outline: none;
-    border-color: #374151;
 }
 
 .filter-group .select2-container {
@@ -271,4 +254,75 @@ th.sortable.desc::after {
     margin-bottom: 0 !important;
     border: none;
     border-radius: 0;
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+[data-tooltip]::before {
+    content: attr(data-tooltip);
+    bottom: 125%;
+    padding: 8px 12px;
+    background: #374151;
+    color: white;
+    font-size: 0.9em;
+    font-weight: 400;
+    border-radius: 6px;
+    white-space: normal;
+    width: 200px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    line-height: 1.4;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-tooltip]::after {
+    content: '';
+    bottom: 115%;
+    border-width: 6px 6px 0 6px;
+    border-style: solid;
+    border-color: #374151 transparent transparent transparent;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+    visibility: visible;
+    opacity: 1;
+}
+
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    cursor: help;
+    transition: all 0.2s;
+    font-weight: 600;
+    color: white;
+}
+
+.help-icon:hover {
+    background: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.6);
 }

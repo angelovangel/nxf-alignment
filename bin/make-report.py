@@ -348,8 +348,8 @@ def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_s
         as_status = f"{format_si(accepted)} / {format_si(total)}"
     elif wf_info:
         for row in wf_info:
-            if 'AdaptiveSampling' in row:
-                as_status = row['AdaptiveSampling']
+            if 'Adaptive Sampling' in row:
+                as_status = row['Adaptive Sampling']
                 break
     
     # Ref stats extraction
@@ -370,36 +370,36 @@ def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_s
 
     html = f"""
       <div class="stats">
-      <div class="stat-card">
-          <h3>Samples</h3>
+        <div class="stat-card">
+          <h3><span class="help-icon" data-tooltip="Number of samples processed in this run.">ⓘ</span> Samples</h3>
           <div class="value">{sample_count}</div>
         </div>
         <div class="stat-card">
-          <h3>Total Reads</h3>
+          <h3><span class="help-icon" data-tooltip="Total number of sequencing reads across all samples.">ⓘ</span> Total Reads</h3>
           <div class="value">{reads_fmt}</div>
         </div>
         <div class="stat-card">
-          <h3>Total Bases</h3>
+          <h3><span class="help-icon" data-tooltip="Total number of base pairs sequenced across all samples.">ⓘ</span> Total Bases</h3>
           <div class="value">{bases_fmt}</div>
         </div>
         <div class="stat-card">
-          <h3>Ref Size</h3>
+          <h3><span class="help-icon" data-tooltip="Total size of the reference genome.">ⓘ</span> Ref Size</h3>
           <div class="value">{ref_bases_fmt}</div>
         </div>
         <div class="stat-card">
-          <h3>Ref Contigs</h3>
+          <h3><span class="help-icon" data-tooltip="Number of contigs (chromosomes/scaffolds) in the reference.">ⓘ</span> Ref Contigs</h3>
           <div class="value">{ref_contigs}</div>
         </div>
         <div class="stat-card">
-          <h3>BED Genes/Regions</h3>
+          <h3><span class="help-icon" data-tooltip="Number of regions defined in the target BED file.">ⓘ</span> BED Genes/Regions</h3>
           <div class="value">{genes_count}</div>
         </div>
         <div class="stat-card">
-          <h3>Total BED size</h3>
+          <h3><span class="help-icon" data-tooltip="Total size of the target regions in the BED file.">ⓘ</span> Total BED size</h3>
           <div class="value">{bed_fmt}</div>
         </div>
         <div class="stat-card">
-          <h3>Adaptive Sampling</h3>
+          <h3><span class="help-icon" data-tooltip="Read statistics (accepted / total reads) from adaptive sampling.">ⓘ</span> Adaptive Sampling</h3>
           <div class="value" style="word-break: break-all;">{as_status}</div>
         </div>
       </div>
