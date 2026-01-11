@@ -142,6 +142,28 @@
           "fa_icon": "fas fa-cog",
           "default": "r1041_e82_400bps_hac_v500",
           "help_text": "The specific Clair3 model name. Only used when --variants is specified. Examples: r1041_e82_400bps_hac_v500, hifi_revio, etc. See available models in the Clair3 documentation."
+        },
+        "annotate": {
+          "type": "boolean",
+          "description": "Enable variant annotation with snpEff",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable variant annotation on the variant calls using snpEff. Only used when --variants is specified."
+        },
+        "anno_db": {
+          "type": "string",
+          "description": "snpEff database to use",
+          "fa_icon": "fas fa-database",
+          "default": "hg38",
+          "enum": [
+            "hg38",
+            "hg19",
+            "mm10",
+            "mm39",
+            "rn5",
+            "rn6"
+          ],
+          "help_text": "The snpEff database to use. Use the same database version as the reference genome used in alignment. Check snpEff documentation for available databases (we do not support custom databases)."
         }
       }
     },

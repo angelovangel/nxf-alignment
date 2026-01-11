@@ -404,3 +404,67 @@ function sortBedcovTable(columnIndex) {
     });
     rows.forEach(row => tbody.appendChild(row));
 }
+
+function initVariantCharts(sampleId, qualityLabels, qualityData, indelLabels, indelData) {
+    const qualityCtx = document.getElementById('qualityChart_' + sampleId).getContext('2d');
+    new Chart(qualityCtx, {
+        type: 'bar',
+        data: {
+            labels: qualityLabels,
+            datasets: [{
+                label: 'Quality Score Count',
+                data: qualityData,
+                backgroundColor: '#3b82f6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Quality Score Distribution' },
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true },
+                x: {
+                    ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
+                }
+            }
+        }
+    });
+
+    const indelCtx = document.getElementById('indelChart_' + sampleId).getContext('2d');
+    new Chart(indelCtx, {
+        type: 'bar',
+        data: {
+            labels: indelLabels,
+            datasets: [{
+                label: 'InDel Length Count',
+                data: indelData,
+                backgroundColor: '#3b82f6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'InDel Length Distribution' },
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true },
+                x: {
+                    ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
+                }
+            }
+        }
+    });
+}

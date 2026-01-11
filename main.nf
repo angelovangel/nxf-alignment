@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
-include {CLAIR3; VCF_STATS} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_STATS; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -213,8 +213,13 @@ workflow {
         .combine( ch_ref )
         .combine( ch_bedfile )
         //.view()
-        | CLAIR3
+        | VCF_CLAIR3
         | VCF_STATS
+    }
+
+    if (params.variants && params.annotate) {
+        VCF_CLAIR3.out | VCF_ANNOTATE
+        VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
     }
     
     REPORT(
