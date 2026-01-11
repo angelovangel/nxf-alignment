@@ -56,7 +56,7 @@ process VCF_STATS {
 }
 
 process VCF_ANNOTATE {
-    container 'quay.io/biocontainers/snpeff:5.2--hdfd78af_1'
+    container 'docker.io/dceoy/snpeff:latest'
     containerOptions '--entrypoint ""' 
     errorStrategy 'ignore'
     
