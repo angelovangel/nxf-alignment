@@ -23,6 +23,21 @@ def format_si(num):
         suffix_index += 1
     return f"{num_float:.1f}{suffixes[suffix_index]}"
 
+def fmt_n(val):
+    """Format large numbers with commas"""
+    try:
+        return f"{int(str(val).replace(',', '')):,.0f}"
+    except (ValueError, TypeError):
+        return str(val)
+
+def fmt_p(val):
+    """Format percentages to 2 decimal places"""
+    try:
+        s = str(val).replace('%', '').strip()
+        return f"{float(s):.2f}%"
+    except (ValueError, TypeError):
+        return str(val)
+
 def parse_snpeff_csv(filepath):
     """Parse a snpEff stats.csv file"""
     data = {
@@ -250,6 +265,137 @@ def render_summary_cards(all_data):
     """
     return html
 
+def render_header_details(all_data):
+    """Render details block for the header using summary data from the first sample"""
+    if not all_data:
+        return ""
+    
+    # Get summary from the first sample
+    first_sample = list(all_data.values())[0]
+    summary = first_sample.get('summary', {})
+    
+    # Fields to display
+    display_fields = ["SnpEff_version", "Genome", "Date", "Command_line_arguments"]
+    
+    html = """
+    <details style="padding-top: 5px; margin-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.2); text-align: left;">
+      <summary style="font-size: 0.8em; cursor: pointer; color: white;">SnpEff Details</summary>
+      <div style="padding-top: 5px; text-align: left; width: 100%;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 5px; color: white; border: none; background: inherit;">
+          <tbody>
+    """
+    
+    for key in display_fields:
+        if key in summary:
+            display_key = key.replace('_', ' ').title()
+            value = summary[key]
+            html += f"""
+            <tr>
+              <td style="padding: 3px 10px 3px 0; font-weight: 500; border: none; background: inherit; font-family: 'Courier New', monospace; color: white; white-space: nowrap; font-size: 0.8em; width: 180px;">{display_key}:</td>
+              <td style="padding: 3px 0; border: none; background: inherit; color: rgba(255, 255, 255, 0.8); font-size: 0.8em;">{value}</td>
+            </tr>
+            """
+            
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
+def render_aggregate_tables(all_data):
+    """Render consolidated tables for Effects, Regions, and Impacts"""
+    sections = {
+        'count_by_effects': 'Effects by Type',
+        'count_by_region': 'Effects by Region',
+        'effects_impact': 'Effects by Impact'
+    }
+    
+    
+    html = ""
+    
+    # Abbreviations for Effects by Type
+    effect_abbr = {
+        '3_prime_UTR_variant': "3' UTR",
+        '5_prime_UTR_premature_start_codon_gain_variant': "5' UTR Stop+",
+        '5_prime_UTR_variant': "5' UTR",
+        'disruptive_inframe_deletion': 'Dis. Inframe Del',
+        'disruptive_inframe_insertion': 'Dis. Inframe Ins',
+        'downstream_gene_variant': 'Downstream',
+        'intergenic_region': 'Intergenic',
+        'intron_variant': 'Intron',
+        'missense_variant': 'Missense',
+        'non_coding_transcript_exon_variant': 'NC Exon',
+        'sequence_feature': 'Seq Feat',
+        'splice_acceptor_variant': 'Splice Acc',
+        'splice_donor_variant': 'Splice Don',
+        'splice_region_variant': 'Splice Reg',
+        'stop_gained': 'Stop Gained',
+        'stop_lost': 'Stop Lost',
+        'stop_retained_variant': 'Stop Retained',
+        'structural_interaction_variant': 'Struct Int',
+        'synonymous_variant': 'Synonymous',
+        'upstream_gene_variant': 'Upstream',
+        'start_lost': 'Start Lost',
+        'initiator_codon_variant': 'Init Codon'
+    }
+
+    for key, title in sections.items():
+        # Collect all unique columns (types)
+        all_types = set()
+        for sample, data in all_data.items():
+            for item in data.get(key, []):
+                all_types.add(item['type'])
+        sorted_types = sorted(list(all_types))
+        
+        if not sorted_types:
+            continue
+            
+        header_row = ""
+        for t in sorted_types:
+            if key == 'count_by_effects':
+                display_text = effect_abbr.get(t, t.replace('_', ' ').title())
+                header_row += f"<th title='{t}'>{display_text}</th>"
+            else:
+                display_text = t.replace('_', ' ').title()
+                header_row += f"<th title='{t}'>{display_text}</th>"
+
+        html += f"""
+        <details class="collapsible-section" open>
+            <summary><h3>{title}</h3></summary>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sample</th>
+                            {header_row}
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        
+        for sample, data in sorted(all_data.items()):
+            # Create a lookup for this sample's counts
+            counts = {item['type']: item['count'] for item in data.get(key, [])}
+            
+            html += f"<tr><td><strong>{sample}</strong></td>"
+            for t in sorted_types:
+                val = counts.get(t, 0)
+                # Calculate max for this column across all samples for heatmap?
+                # User asked for heatmap on percentages only previously. 
+                # For this consolidated table, showing raw counts is standard.
+                html += f"<td>{fmt_n(val)}</td>"
+            html += "</tr>"
+            
+        html += """
+                    </tbody>
+                </table>
+            </div>
+        </details>
+        """
+    return html
+
 def render_main_table(all_data):
     html = """
     <details class="collapsible-section" open>
@@ -280,103 +426,21 @@ def render_main_table(all_data):
         html += f"""
         <tr>
             <td><strong>{sample}</strong></td>
-            <td>{data['summary'].get('Number_of_variants_processed', '0')}</td>
-            <td>{v_types.get('SNP', 0):,}</td>
-            <td>{v_types.get('INS', 0):,}</td>
-            <td>{v_types.get('DEL', 0):,}</td>
+            <td>{fmt_n(data['summary'].get('Number_of_variants_processed', 0))}</td>
+            <td>{fmt_n(v_types.get('SNP', 0))}</td>
+            <td>{fmt_n(v_types.get('INS', 0))}</td>
+            <td>{fmt_n(v_types.get('DEL', 0))}</td>
             <td>{data['tstv'].get('Ts_Tv_ratio', 'N/A')}</td>
-            <td>{data['zygosity'].get('Het', '0')}</td>
-            <td>{data['zygosity'].get('Hom', '0')}</td>
-            <td>{f_class.get('MISSENSE', 0):,}</td>
-            <td>{f_class.get('NONSENSE', 0):,}</td>
-            <td>{f_class.get('SILENT', 0):,}</td>
+            <td>{fmt_n(data['zygosity'].get('Het', 0))}</td>
+            <td>{fmt_n(data['zygosity'].get('Hom', 0))}</td>
+            <td>{fmt_n(f_class.get('MISSENSE', 0))}</td>
+            <td>{fmt_n(f_class.get('NONSENSE', 0))}</td>
+            <td>{fmt_n(f_class.get('SILENT', 0))}</td>
             <td>{data['summary'].get('Missense_Silent_ratio', 'N/A')}</td>
         </tr>"""
     html += "</tbody></table></div></details>"
     return html
 
-def render_detailed_section(sample, data):
-    # Effects Table
-    effects_rows = "".join([f"<tr><td>{e['type']}</td><td>{e['count']:,}</td><td>{e['percent']}</td></tr>" for e in data['count_by_effects']])
-    regions_rows = "".join([f"<tr><td>{e['type']}</td><td>{e['count']:,}</td><td>{e['percent']}</td></tr>" for e in data['count_by_region']])
-    impacts_rows = "".join([f"<tr><td class='impact-{e['type']}'>{e['type']}</td><td>{e['count']:,}</td><td>{e['percent']}</td></tr>" for e in data['effects_impact']])
-    
-    # Base Changes Matrix
-    base_html = "<table class='base-matrix'><thead><tr><th>Ref \\ Alt</th>"
-    base_html += "".join([f"<th>{b}</th>" for b in data.get('base_header', [])])
-    base_html += "</tr></thead><tbody>"
-    for row in data['base_changes']:
-        base_html += f"<tr><td class='ref-col'>{row['ref']}</td>"
-        base_html += "".join([f"<td>{c:,}</td>" for c in row['counts']])
-        base_html += "</tr>"
-    base_html += "</tbody></table>"
-
-    safe_sample = sample.replace("-", "_").replace(".", "_").replace(" ", "_")
-
-    html = f"""
-    <details class="collapsible-section" open>
-        <summary><h3>Details for Sample: {sample}</h3></summary>
-        <div style="padding: 20px;">
-            <div class="grid-2">
-                <div class="collapsible-section">
-                    <summary style="background: #374151; color: white;">Quality & InDel Distributions</summary>
-                    <div style="padding: 15px; background: #f8fafc; border-radius: 8px;">
-                        <div style="height: 200px; margin-bottom: 20px;">
-                            <canvas id="qualityChart_{safe_sample}"></canvas>
-                        </div>
-                        <div style="height: 200px;">
-                            <canvas id="indelChart_{safe_sample}"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="collapsible-section">
-                    <summary style="background: #374151; color: white;">Base Changes (Ref vs Alt)</summary>
-                    <div style="padding: 10px;">{base_html}</div>
-                </div>
-            </div>
-
-            <div class="grid-2" style="margin-top: 20px;">
-                <div class="collapsible-section">
-                    <summary style="background: #374151; color: white;">Effects by Type</summary>
-                    <div class="table-container"><table><thead><tr><th>Effect</th><th>Count</th><th>%</th></tr></thead><tbody>{effects_rows}</tbody></table></div>
-                </div>
-                <div class="collapsible-section">
-                    <summary style="background: #374151; color: white;">Effects by Region</summary>
-                    <div class="table-container"><table><thead><tr><th>Region</th><th>Count</th><th>%</th></tr></thead><tbody>{regions_rows}</tbody></table></div>
-                </div>
-            </div>
-            
-            <div class="grid-2" style="margin-top: 20px;">
-                <div class="collapsible-section">
-                    <summary style="background: #374151; color: white;">Effects by Impact</summary>
-                    <div class="table-container"><table><thead><tr><th>Impact</th><th>Count</th><th>%</th></tr></thead><tbody>{impacts_rows}</tbody></table></div>
-                </div>
-                <div class="collapsible-section" style="margin-bottom: 0;">
-                    <summary style="background: #374151; color: white;">Change Rate by Chromosome</summary>
-                    <div class="table-container">
-                        <table><thead><tr><th>Chr</th><th>Length</th><th>Changes</th><th>Rate (1 / bp)</th></tr></thead>
-                        <tbody>
-                            {"".join([f"<tr><td>{c['chr']}</td><td>{c['length']:,}</td><td>{c['changes']:,}</td><td>{c['rate']:,}</td></tr>" for c in data['change_rate_by_chr']])}
-                        </tbody></table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </details>
-
-    <script>
-    (function() {{
-        initVariantCharts(
-            '{safe_sample}', 
-            {json.dumps(data['quality_dist']['values'])}, 
-            {json.dumps(data['quality_dist']['counts'])},
-            {json.dumps(data['indel_lengths']['values'])}, 
-            {json.dumps(data['indel_lengths']['counts'])}
-        );
-    }})();
-    </script>
-    """
-    return html
 
 def main():
     parser = argparse.ArgumentParser(description="Generate HTML report from snpEff stats CSV")
@@ -397,9 +461,10 @@ def main():
     css_block = get_css()
     js_block = get_js()
     stats_cards = render_summary_cards(all_data)
+    header_details = render_header_details(all_data)
     summary_table = render_main_table(all_data)
+    aggregate_tables = render_aggregate_tables(all_data)
     
-    detailed_sections = "".join([render_detailed_section(s, d) for s, d in sorted(all_data.items())])
     
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -416,11 +481,12 @@ def main():
         <div class="header">
             <div class="header-main"><h2>Variant Annotation Report</h2></div>
             <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            {header_details}
         </div>
         <div class="content">
             {stats_cards}
             {summary_table}
-            {detailed_sections}
+            {aggregate_tables}
         </div>
     </div>
 </body>

@@ -56,11 +56,11 @@ process VCF_STATS {
 }
 
 process VCF_ANNOTATE {
-    container 'docker.io/dceoy/snpeff:latest'
+    container 'quay.io/biocontainers/snpeff:5.2--hdfd78af_1'
     containerOptions '--entrypoint ""' 
     errorStrategy 'ignore'
     
-    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    publishDir "${params.outdir}/04-annotations", mode: 'copy'
     tag "${vcf.simpleName}"
 
     input:
@@ -80,7 +80,7 @@ process VCF_ANNOTATE {
 }
 
 process VCF_ANNOTATE_REPORT {
-    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    publishDir "${params.outdir}/04-annotations", mode: 'copy'
     errorStrategy 'ignore'
 
     input:
