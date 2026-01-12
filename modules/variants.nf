@@ -36,7 +36,7 @@ process VCF_CLAIR3 {
 }
 
 process VCF_DEEPVARIANT {
-    container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
+    //container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
     publishDir "${params.outdir}/03-variants", mode: 'copy'
     tag "${bam.simpleName}"
 

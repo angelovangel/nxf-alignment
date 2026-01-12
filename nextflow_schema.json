@@ -115,14 +115,25 @@
       "title": "Variant calling options",
       "type": "object",
       "fa_icon": "fas fa-dna",
-      "description": "Options for variant calling using Clair3.",
+      "description": "Options for variant calling using Clair3 or DeepVariant.",
       "properties": {
         "variants": {
           "type": "boolean",
-          "description": "Enable variant calling with Clair3",
+          "description": "Enable variant calling with Clair3 or DeepVariant",
           "fa_icon": "fas fa-check-square",
           "default": false,
-          "help_text": "Set to true to enable variant calling on the aligned reads using Clair3."
+          "help_text": "Set to true to enable variant calling on the aligned reads using Clair3 or DeepVariant."
+        },
+        "variant_caller": {
+          "type": "string",
+          "description": "Variant caller to use",
+          "fa_icon": "fas fa-cog",
+          "default": "clair3",
+          "enum": [
+            "clair3",
+            "deepvariant"
+          ],
+          "help_text": "Variant caller to use. Clair3 is recommended for ONT data."
         },
         "clair3_platform": {
           "type": "string",
@@ -142,6 +153,20 @@
           "fa_icon": "fas fa-cog",
           "default": "r1041_e82_400bps_hac_v500",
           "help_text": "The specific Clair3 model name. Only used when --variants is specified. Examples: r1041_e82_400bps_hac_v500, hifi_revio, etc. See available models in the Clair3 documentation."
+        },
+        "deepvariant_model": {
+          "type": "string",
+          "description": "DeepVariant model to use",
+          "fa_icon": "fas fa-cog",
+          "default": "ONT_R104",
+          "enum": [
+            "ONT_R104",
+            "WGS",
+            "WES",
+            "PACBIO",
+            "HYBRID_PACBIO_ILLUMINA"
+          ],
+          "help_text": "The specific DeepVariant model name."
         },
         "annotate": {
           "type": "boolean",
