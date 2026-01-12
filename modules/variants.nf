@@ -35,6 +35,29 @@ process VCF_CLAIR3 {
     """ 
 }
 
+process VCF_DEEPVARIANT {
+    container 'docker.io/google/deepvariant:1.10.0-beta'
+    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    tag "${bam.simpleName}"
+
+    input:
+    tuple path(bam), path(bai), path(ref), path(bedfile)
+
+    output:
+    tuple path("${bam.simpleName}.vcf.gz"), path("${bam.simpleName}.vcf.gz.tbi")
+
+    script:
+    """
+    samtools faidx $ref
+
+    /opt/deepvariant/bin/run_deepvariant \
+    --model_type=${params.deepvariant_model} \
+    --ref=$ref \
+    --reads=$bam \
+    --output_vcf=${bam.simpleName}.vcf.gz
+    """ 
+}
+
 process VCF_STATS {
     
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
@@ -50,7 +73,7 @@ process VCF_STATS {
 
     script:
     """
-    bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\n' $vcf > ${vcf.simpleName}.query
+    bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\n' $vcf > ${vcf.simpleName}.query
 
     """
 }

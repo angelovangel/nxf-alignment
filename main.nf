@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_STATS; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -17,18 +17,22 @@ log.info """
     Profile         : ${workflow.profile}
     Container Engine: ${workflow.containerEngine ?: 'local'}
     
-    pod5            : ${params.pod5}
-    reads           : ${params.reads}
-    asfile          : ${params.asfile}
-    model           : ${params.model}
-    ref             : ${params.ref}
-    bed             : ${params.bed}
-    kit             : ${params.kit}
-    samplesheet     : ${params.samplesheet}
-    variants        : ${params.variants}
-    clair3_platform : ${params.clair3_platform}
-    clair3_model    : ${params.clair3_model}
-    outdir          : ${params.outdir}
+    pod5              : ${params.pod5}
+    reads             : ${params.reads}
+    asfile            : ${params.asfile}
+    model             : ${params.model}
+    ref               : ${params.ref}
+    bed               : ${params.bed}
+    kit               : ${params.kit}
+    samplesheet       : ${params.samplesheet}
+    variants          : ${params.variants}
+    variant_caller    : ${params.variant_caller}
+    deepvariant_model : ${params.deepvariant_model}
+    clair3_platform   : ${params.clair3_platform}
+    clair3_model      : ${params.clair3_model}
+    annotate          : ${params.annotate}
+    anno_db           : ${params.anno_db}
+    outdir            : ${params.outdir}
     ===============================
 """.stripIndent()
 
@@ -52,9 +56,13 @@ Processing options:
     --kit <name>           Barcoding kit name (required with --samplesheet)
     --samplesheet <file>   CSV with columns: sample,barcode (required with --kit)
     --bed <file>           BED file with regions (auto-generated from reference if omitted)
-    --variants             Enable variant calling with Clair3
-    --clair3_platform      Clair3 platform to use, only when --variants is specified (default: ONT)
-    --clair3_model <name>  Clair3 model to use, only when --variants is specified (default: r1041_e82_400bps_hac_v500)
+    --variants             Enable variant calling
+    --variant_caller       Variant caller to use, only when --variants is specified (default: clair3, options: clair3, deepvariant)
+    --deepvariant_model    DeepVariant model to use, only when --variants and --variant_caller deepvariant is specified (default: ONT_R104)
+    --clair3_platform      Clair3 platform to use, only when --variants and --variant_caller clair3 is specified (default: ONT)
+    --clair3_model         Clair3 model to use, only when --variants and --variant_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
+    --annotate             Enable variant annotation with snpEff (use only with --variants)
+    --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
 
 Output & config:
     --outdir <name>        Output directory name (default: results)
@@ -206,20 +214,27 @@ workflow {
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
     | SAMTOOLS_BEDCOV
 
-    // test clair3
-    // test clair3
+    // Variant Calling Logic
     if (params.variants) {
-        DORADO_ALIGN.out
-        .combine( ch_ref )
-        .combine( ch_bedfile )
-        //.view()
-        | VCF_CLAIR3
-        | VCF_STATS
-    }
+        
+        ch_vc_input = DORADO_ALIGN.out
+            .combine( ch_ref )
+            .combine( ch_bedfile )
+        
+        if (params.variant_caller == 'deepvariant') {
+             ch_vc_input | VCF_DEEPVARIANT
+             ch_vcf = VCF_DEEPVARIANT.out
+        } else {
+             ch_vc_input | VCF_CLAIR3
+             ch_vcf = VCF_CLAIR3.out
+        }
+        
+        ch_vcf | VCF_STATS
 
-    if (params.variants && params.annotate) {
-        VCF_CLAIR3.out | VCF_ANNOTATE
-        VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
+        if (params.annotate) {
+            ch_vcf | VCF_ANNOTATE
+            VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
+        }
     }
     
     REPORT(

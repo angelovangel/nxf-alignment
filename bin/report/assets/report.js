@@ -95,15 +95,18 @@ function exportVariantsToCSV() {
     const table = document.getElementById('variantsTable');
     if (!table) { alert('Variants table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Total_Variants', 'PASS_Variants', 'SNPs', 'Indels', 'Ts/Tv_Ratio'];
+    const headers = ['Sample', 'PASS_Variants', 'SNPs', 'Indels', 'High_Qual_Variants', 'High_Qual_SNPs', 'High_Qual_Indels', 'Ts/Tv_Ratio'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
         if (row.style.display !== 'none') {
             const cols = [
                 row.getAttribute('data-sample'),
-                row.getAttribute('data-total'), row.getAttribute('data-pass'),
+                row.getAttribute('data-pass'),
                 row.getAttribute('data-snp'), row.getAttribute('data-indel'),
+                row.getAttribute('data-highqual'),
+                row.getAttribute('data-hqsnp'),
+                row.getAttribute('data-hqindel'),
                 row.getAttribute('data-tstv')
             ];
             const safeCols = cols.map(text => {
@@ -335,9 +338,11 @@ function sortVariantsTable(columnIndex) {
     rows.sort((a, b) => {
         const dataAttrMap = {
             0: 'sample',
-            1: 'total', 2: 'pass',
-            3: 'snp', 4: 'indel',
-            5: 'tstv'
+            1: 'pass',
+            2: 'snp', 3: 'indel',
+            4: 'highqual',
+            5: 'hqsnp', 6: 'hqindel',
+            7: 'tstv'
         };
         const dataKey = dataAttrMap[columnIndex];
         if (columnIndex === 0) {

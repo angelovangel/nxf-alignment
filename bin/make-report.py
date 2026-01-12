@@ -156,6 +156,9 @@ def parse_bcftools_query(filepath):
         'snp': 0,
         'indel': 0,
         'pass': 0,
+        'high_qual': 0,
+        'high_qual_snp': 0,
+        'high_qual_indel': 0,
         'ts': 0,
         'tv': 0
     }
@@ -175,14 +178,15 @@ def parse_bcftools_query(filepath):
         with open(filepath, 'r') as f:
             for line in f:
                 parts = line.strip().split('\t')
-                if len(parts) < 6:
+                if len(parts) < 7:
                     continue
                 
-                # Format: CHROM POS REF ALT TYPE FILTER
+                # Format: CHROM POS REF ALT TYPE FILTER QUAL
                 ref = parts[2].upper()
                 alt = parts[3].upper()
                 var_type = parts[4]
                 filter_status = parts[5]
+                qual_str = parts[6]
 
                 # Skip non-variants
                 if var_type == 'REF':
@@ -190,14 +194,26 @@ def parse_bcftools_query(filepath):
                 
                 stats['total'] += 1
                 
+                # Check Quality
+                is_high_qual = False
+                try:
+                    if qual_str != '.' and float(qual_str) >= 20:
+                        stats['high_qual'] += 1
+                        is_high_qual = True
+                except ValueError:
+                    pass
+                
+                if var_type == 'SNP':
+                    if is_high_qual: stats['high_qual_snp'] += 1
+                elif (var_type == 'INDEL' or var_type == 'SNP,INDEL'):
+                    if is_high_qual: stats['high_qual_indel'] += 1
+
                 if filter_status == 'PASS':
                     stats['pass'] += 1
                     
                     if var_type == 'SNP':
                         stats['snp'] += 1
                         # Calculate Ts/Tv for PASS SNPs
-                        # Single ALT assumption for basic Ts/Tv
-                        # If multiple ALTs (e.g. A,G), take the first one or split
                         alts = alt.split(',')
                         for single_alt in alts:
                             pair = (ref, single_alt)
@@ -551,11 +567,13 @@ def render_variants_table(variants_data):
             <thead>
               <tr>
                 <th class="sample-col sortable" onclick="sortVariantsTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">Total Variants</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">PASS Variants</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">SNPs</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">Indels</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(5)">Ts/Tv Ratio</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">PASS Variants</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">SNPs</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">Indels</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">High Qual (≥Q20)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(5)">High Qual SNPs</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(6)">High Qual Indels</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(7)">Ts/Tv Ratio</th>
               </tr>
             </thead>
             <tbody>
@@ -566,16 +584,20 @@ def render_variants_table(variants_data):
         
         html += f"""
             <tr data-sample="{sample_name.lower()}"
-                data-total="{stats['total']}"
                 data-pass="{stats['pass']}"
                 data-snp="{stats['snp']}"
                 data-indel="{stats['indel']}"
+                data-highqual="{stats['high_qual']}"
+                data-hqsnp="{stats['high_qual_snp']}"
+                data-hqindel="{stats['high_qual_indel']}"
                 data-tstv="{stats.get('ts_tv_ratio', 0.0)}">
               <td class="sample-col">{sample_name}</td>
-              <td style="text-align: right;">{stats['total']:,}</td>
               <td style="text-align: right;">{stats['pass']:,}</td>
               <td style="text-align: right;">{stats['snp']:,}</td>
               <td style="text-align: right;">{stats['indel']:,}</td>
+              <td style="text-align: right;">{stats['high_qual']:,}</td>
+              <td style="text-align: right;">{stats['high_qual_snp']:,}</td>
+              <td style="text-align: right;">{stats['high_qual_indel']:,}</td>
               <td style="text-align: right;">{stats.get('ts_tv_ratio', 0.0):.2f}</td>
             </tr>
         """

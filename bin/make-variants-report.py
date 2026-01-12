@@ -4,12 +4,10 @@ Generate an HTML report from snpEff stats CSV files.
 Usage: python make-variants-report.py csv1.stats.csv [csv2.stats.csv ...] -o output.html
 """
 
-import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
 import csv
-import json
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -30,27 +28,17 @@ def fmt_n(val):
     except (ValueError, TypeError):
         return str(val)
 
-def fmt_p(val):
-    """Format percentages to 2 decimal places"""
-    try:
-        s = str(val).replace('%', '').strip()
-        return f"{float(s):.2f}%"
-    except (ValueError, TypeError):
-        return str(val)
+
 
 def parse_snpeff_csv(filepath):
     """Parse a snpEff stats.csv file"""
     data = {
         'summary': {},
-        'change_rate_by_chr': [],
         'variant_types': [],
         'effects_impact': [],
         'functional_class': [],
         'count_by_effects': [],
         'count_by_region': [],
-        'quality_dist': { 'values': [], 'counts': [] },
-        'indel_lengths': { 'values': [], 'counts': [] },
-        'base_changes': [], # Matrix
         'tstv': {},
         'zygosity': {}
     }
@@ -67,9 +55,6 @@ def parse_snpeff_csv(filepath):
             if line.startswith("# Summary table"):
                 current_section = "summary"
                 continue
-            elif line.startswith("# Change rate by chromosome"):
-                current_section = "change_rate"
-                continue
             elif line.startswith("# Variantss by type"):
                 current_section = "variant_types"
                 continue
@@ -85,22 +70,20 @@ def parse_snpeff_csv(filepath):
             elif line.startswith("# Count by genomic region"):
                 current_section = "count_by_region"
                 continue
-            elif line.startswith("# Quality"):
-                current_section = "quality"
-                continue
-            elif line.startswith("# InDel lengths"):
-                current_section = "indel_lengths"
-                continue
-            elif line.startswith("# Base changes"):
-                current_section = "base_changes"
-                continue
             elif line.startswith("# Ts/Tv summary"):
                 current_section = "tstv"
                 continue
             elif line.startswith("# Hom/Het table"):
                 current_section = "zygosity"
                 continue
-            elif line.startswith("# Codon change table") or line.startswith("# Amino acid change table"):
+            elif any(line.startswith(p) for p in [
+                "# Change rate by chromosome", 
+                "# Quality", 
+                "# InDel lengths", 
+                "# Base changes", 
+                "# Codon change table", 
+                "# Amino acid change table"
+            ]):
                 current_section = "ignore"
                 continue
 
@@ -117,16 +100,7 @@ def parse_snpeff_csv(filepath):
                         try: data['summary']['Missense_Silent_ratio'] = parts[1].strip()
                         except: pass
 
-            elif current_section == "change_rate":
-                if len(row) >= 4 and row[0].strip() not in ["Chromosome", ""]:
-                    try:
-                        data['change_rate_by_chr'].append({
-                            'chr': row[0].strip(),
-                            'length': int(row[1].strip()),
-                            'changes': int(row[2].strip()),
-                            'rate': float(row[3].strip())
-                        })
-                    except ValueError: pass
+
 
             elif current_section == "variant_types":
                 if len(row) >= 2 and row[0].strip() not in ["Type", ""]:
@@ -182,28 +156,7 @@ def parse_snpeff_csv(filepath):
                         })
                     except ValueError: pass
 
-            elif current_section == "quality":
-                if row[0].strip() == "Values":
-                    data['quality_dist']['values'] = [v.strip() for v in row[1:]]
-                elif row[0].strip() == "Count":
-                    data['quality_dist']['counts'] = [int(v.strip()) for v in row[1:]]
 
-            elif current_section == "indel_lengths":
-                if row[0].strip() == "Values":
-                    data['indel_lengths']['values'] = [v.strip() for v in row[1:]]
-                elif row[0].strip() == "Count":
-                    data['indel_lengths']['counts'] = [int(v.strip()) for v in row[1:]]
-
-            elif current_section == "base_changes":
-                if row[0].strip() == "base":
-                    data['base_header'] = [r.strip() for r in row[1:] if r.strip()]
-                elif len(row) > 1 and row[0].strip() in ["A", "C", "G", "T"]:
-                    try:
-                        data['base_changes'].append({
-                            'ref': row[0].strip(),
-                            'counts': [int(v.strip()) for v in row[1:] if v.strip()]
-                        })
-                    except ValueError: pass
 
             elif current_section == "tstv":
                 if len(row) >= 2:
@@ -228,15 +181,6 @@ def get_css():
     <style>
 {css_content}
     .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
-    .impact-HIGH {{ color: #dc2626; font-weight: bold; font-family: 'Inter', sans-serif; }}
-    .impact-MODERATE {{ color: #ea580c; font-family: 'Inter', sans-serif; }}
-    .impact-LOW {{ color: #16a34a; font-family: 'Inter', sans-serif; }}
-    .impact-MODIFIER {{ color: #64748b; font-family: 'Inter', sans-serif; }}
-    .base-matrix {{ border-collapse: collapse; margin: 10px 0; font-family: monospace; }}
-    .base-matrix td, .base-matrix th {{ padding: 8px; border: 1px solid #e2e8f0; text-align: right; }}
-    .base-matrix th {{ background: #f8fafc; }}
-    .base-matrix .ref-col {{ font-weight: bold; background: #f8fafc; text-align: center; }}
-    .dist-bar {{ display: inline-block; height: 10px; background: #374151; border-radius: 2px; }}
     </style>
     """
 
@@ -473,7 +417,7 @@ def main():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Variant Annotation Report</title>
     {css_block}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     {js_block}
 </head>
 <body>

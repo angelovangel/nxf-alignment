@@ -8,7 +8,8 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **Alignment**: Aligns reads to a reference genome using Dorado aligner (modifications are preserved, ONT or HiFi data)
 - **Coverage Analysis**: Calculates per-region coverage statistics with thresholds (1x, 10x, 20x, 30x)
 - **Variant Calling**: Uses Clair3 for variant calling (ONT or HiFi data)
-- **Interactive HTML Report**: Generates an interactive report with read statistics, coverage and variants metrics
+- **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
+- **Interactive HTML Report**: Generates an interactive report with read statistics, coverage, variants and annotations metrics
 
 ## Requirements
 
@@ -30,7 +31,8 @@ nextflow run angelovangel/nxf-alignment \
   --model hac \
   --bed /path/to/regions.bed # optional, if provided the report contains coverage analysis per region from bed file 
   --ref /path/to/ref.fasta \
-  --variants
+  --variants \
+  --annotate
 ```
 #### Barcoded run (Basecalling + Alignment)
 For a barcoded run, provide a [samplesheet](#sample-sheet-barcoded-runs) and kit name
@@ -52,7 +54,8 @@ nextflow run angelovangel/nxf-alignment \
   --reads /path/to/reads.bam \ # can be also a directory with reads
   --ref /path/to/ref.fasta \
   --bedfile /path/to/regions.bed \
-  --variants
+  --variants \
+  --annotate
 ```
 #### Skip alignment (basecalling only)
 Basecalling (for single sample and barcoded runs) can also be performed without alignment, using the `-entry` parameter.
@@ -87,6 +90,13 @@ nextflow run angelovangel/nxf-alignment \
 | `kit` | string | null | Barcoding kit name (e.g., `SQK-NBD111-96`). Required for barcoded runs |
 | `samplesheet` | path | null | Sample sheet CSV with columns: `sample`, `barcode`. Required for barcoded runs |
 | `bed` | path | null | BED file with target regions (auto-generated from reference if not provided) |
+| `variants` | boolean | false | Perform variant calling using Clair3 or DeepVariant |
+| `variant_caller` | string | `clair3` | Variant caller to use (`clair3` or `deepvariant`, use only with `--variants`) |
+| `clair3_platform` | string | `ont` | Platform to use for Clair3 (`ont` or `hifi`) |
+| `clair3_model` | string | `r1041_e82_400bps_hac_v500` | Model to use for Clair3 |
+| `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
+| `annotate` | boolean | false | Annotate variants using snpEff (use only with `--variants`) |
+| `anno_db` | string | `hg38` | Database to use for annotation |
 
 #### Profiles
 Predefined set of parameters for common use cases, use with `-profile`:
