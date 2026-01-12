@@ -54,8 +54,8 @@ process VCF_DEEPVARIANT {
     --model_type=${params.deepvariant_model} \
     --ref=$ref \
     --reads=$bam \
-    --output_vcf=${bam.simpleName}.vcf.gz
-    --num_shards=8
+    --output_vcf=${bam.simpleName}.vcf.gz \
+    --num_shards=${task.cpus}
     """ 
 }
 
