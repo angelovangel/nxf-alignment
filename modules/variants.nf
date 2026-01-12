@@ -27,7 +27,7 @@ process VCF_CLAIR3 {
     --bed_fn=$bedfile \
     --platform=$platform \
     --model_path="/opt/models/$model" \
-    --threads=8 \
+    --threads=${task.cpus} \
     --output="clair3_output"
 
     mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.vcf.gz
@@ -99,7 +99,7 @@ process VCF_ANNOTATE {
     # download snpEff database here
     mkdir -p ./snpeff_data
 
-    SnpSift filter "QUAL >= ${params.anno_filterQ}" $vcf > filtered.vcf
+    SnpSift filter "(QUAL >= ${params.anno_filterQ})" $vcf > filtered.vcf
     snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
     
     """

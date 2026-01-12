@@ -97,6 +97,7 @@ nextflow run angelovangel/nxf-alignment \
 | `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
 | `annotate` | boolean | false | Annotate variants using snpEff (use only with `--variants`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
+| `anno_filterQ` | int | `20` | Filter out variants with quality lower than this before annotation |
 
 #### Profiles
 Predefined set of parameters for common use cases, use with `-profile`:
