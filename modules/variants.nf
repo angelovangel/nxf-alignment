@@ -98,7 +98,9 @@ process VCF_ANNOTATE {
     """
     # download snpEff database here
     mkdir -p ./snpeff_data
-    snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} $vcf > ${vcf.simpleName}.ann.vcf
+
+    SnpSift filter "QUAL >= ${params.anno_filterQ}" $vcf > filtered.vcf
+    snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
     
     """
 }

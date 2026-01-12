@@ -32,6 +32,7 @@ log.info """
     clair3_model      : ${params.clair3_model}
     annotate          : ${params.annotate}
     anno_db           : ${params.anno_db}
+    anno_filterQ      : ${params.anno_filterQ}
     outdir            : ${params.outdir}
     ===============================
 """.stripIndent()
@@ -63,6 +64,7 @@ Processing options:
     --clair3_model         Clair3 model to use, only when --variants and --variant_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
     --annotate             Enable variant annotation with snpEff (use only with --variants)
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
+    --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
 
 Output & config:
     --outdir <name>        Output directory name (default: results)
