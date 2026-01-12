@@ -55,6 +55,7 @@ process VCF_DEEPVARIANT {
     --ref=$ref \
     --reads=$bam \
     --output_vcf=${bam.simpleName}.vcf.gz
+    --num_shards=8
     """ 
 }
 
