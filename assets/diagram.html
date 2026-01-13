@@ -14,7 +14,6 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            /*background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);*/
             padding: 2rem;
             min-height: 100vh;
         }
@@ -353,8 +352,9 @@
                             </svg>
                             <span>Requires: --pod5 (or --reads), --ref</span>
                         </div>
-                        <div class="note" style="color:#c2410c;">Basecall + Align + Variants + Coverage + Report</div>
-                        <div class="note">Optional: --asfile, --model, --bed, --variants</div>
+                        <div class="note" style="color:#c2410c;">Basecall + Align + Coverage + Variants + Annotation +
+                            Report</div>
+                        <div class="note">Optional: --asfile, --model, --bed, --variants, --annotate</div>
                         <div class="note">Barcoded: --kit and --samplesheet</div>
                     </div>
                 </div>
@@ -366,14 +366,17 @@
             <ul>
                 <li>• <code>--kit</code> and <code>--samplesheet</code> must be used together (for ONT barcoded runs)
                 </li>
-                <li>• <code>--ref</code> is required for default workflow but not for basecall-only modes</li>
+                <li>• <code>--ref</code> is required for most workflows but can be auto-skipped in
+                    <code>-entry basecall</code>
+                </li>
                 <li>• <code>--model</code> dorado basecalling model (default is 'fast')</li>
                 <li>• <code>--asfile</code> (adaptive sampling CSV) is optional for filtering reads during basecalling
-                <li>• <code>--variants</code> enables Clair3 variant calling</li>
-                <li>• <code>--clair3_platform</code> ont, hifi, ilmn (only when --variants is used)</li>
-                <li>• <code>--clair3_model</code> see list of models <a
-                        href="https://github.com/HKU-BAL/Clair3?tab=readme-ov-file#pre-trained-models">here</a> (only
-                    when --variants is used)</li>
+                <li>• <code>--variants</code> enables variant calling via <b>Clair3</b> or <b>DeepVariant</b></li>
+                <li>• <code>--variant_caller</code> choose between <code>clair3</code> (default) or
+                    <code>deepvariant</code>
+                </li>
+                <li>• <code>--annotate</code> enables variant annotation with <b>snpEff</b></li>
+                <li>• <code>--anno_filterQ</code> filter variants by quality before annotation (default: 20)</li>
             </ul>
         </div>
         <div class="legend"> </div>
@@ -470,22 +473,23 @@
                         d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
                     </path>
                 </svg>
-                Variant Calling (Clair3)
+                Variant Calling & Annotation
             </div>
             <div class="two-col-grid">
                 <div class="info-card">
-                    <div class="info-card-title">If --variants provided:</div>
+                    <div class="info-card-title">Detection options (--variants):</div>
                     <div class="info-card-content">
-                        <div>• Runs Clair3 variant calling</div>
-                        <div>• Requires --ref and --bed (or auto-bed)</div>
-                        <div>• Outputs VCF and statistics</div>
+                        <div>• <b>Clair3</b>: Standard ONT variant caller</div>
+                        <div>• <b>DeepVariant</b>: High-accuracy caller (Google)</div>
+                        <div>• Select via <code>--variant_caller</code></div>
                     </div>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-title">Configuration Options:</div>
+                    <div class="info-card-title">Annotation options (--annotate):</div>
                     <div class="info-card-content">
-                        <div>• <code>--clair3_platform</code>: ont (default)</div>
-                        <div>• <code>--clair3_model</code>: r1041_e82_400bps_hac_v500...</div>
+                        <div>• <b>snpEff</b>: Functional variant annotation</div>
+                        <div>• <b>anno_filterQ</b>: Pre-filter variants by quality</div>
+                        <div>• Generates interactive HTML report</div>
                     </div>
                 </div>
             </div>
