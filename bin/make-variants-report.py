@@ -40,7 +40,9 @@ def parse_snpeff_csv(filepath):
         'count_by_effects': [],
         'count_by_region': [],
         'tstv': {},
-        'zygosity': {}
+        'tstv': {},
+        'zygosity': {},
+        'quality': []
     }
     
     current_section = None
@@ -78,13 +80,16 @@ def parse_snpeff_csv(filepath):
                 continue
             elif any(line.startswith(p) for p in [
                 "# Change rate by chromosome", 
-                "# Quality", 
                 "# InDel lengths", 
                 "# Base changes", 
                 "# Codon change table", 
                 "# Amino acid change table"
             ]):
                 current_section = "ignore"
+                continue
+            
+            elif line.startswith("# Quality"):
+                current_section = "quality"
                 continue
 
             if current_section == "ignore":
@@ -166,6 +171,25 @@ def parse_snpeff_csv(filepath):
                 if len(row) >= 2 and row[0].strip() not in ["Sample_names", ""]:
                     data['zygosity'][row[0].strip()] = row[1].strip()
 
+            elif current_section == "quality":
+                if len(row) >= 2:
+                    key = row[0].strip()
+                    if key == "Values":
+                        # Parse quality scores from comma-separated list
+                        quality_scores = [int(x.strip()) for x in row[1:] if x.strip()]
+                        data['_quality_scores'] = quality_scores
+                    elif key == "Count":
+                        # Parse counts from comma-separated list
+                        quality_counts = [int(x.strip()) for x in row[1:] if x.strip()]
+                        # Combine with scores if available
+                        if '_quality_scores' in data:
+                            scores = data.pop('_quality_scores')
+                            for score, count in zip(scores, quality_counts):
+                                data['quality'].append({
+                                    'score': score,
+                                    'count': count
+                                })
+
     return data
 
 def get_css():
@@ -181,6 +205,23 @@ def get_css():
     <style>
 {css_content}
     .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
+    .quality-sparkline {{ width: 400px; height: 40px; }}
+    .jqstooltip {{ 
+        background-color: rgba(0, 0, 0, 0.9) !important;
+        border: 1px solid white !important;
+        color: white !important;
+        padding: 8px !important;
+        border-radius: 2px !important;
+        font-size: 12px !important;
+        z-index: 10000 !important;
+        white-space: nowrap !important;
+        min-width: auto !important;
+        width: auto !important;
+        height: auto !important;
+        max-width: none !important;
+        overflow: visible !important;
+        box-sizing: content-box !important;
+    }}
     </style>
     """
 
@@ -193,10 +234,29 @@ def get_js():
         js_content = ""
     return f"""
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
     <script>{js_content}</script>
+    <script>
+    $(document).ready(function() {{
+        $('.quality-sparkline').each(function() {{
+            var data = $(this).data('values').split(',').map(Number);
+            var labels = $(this).data('labels').split(',');
+            $(this).sparkline(data, {{
+                type: 'bar',
+                barColor: '#4a90e2',
+                height: '40px',
+                barWidth: 8,
+                barSpacing: 2,
+                tooltipFormatter: function(sparkline, options, fields) {{
+                    return labels[fields[0].offset];
+                }}
+            }});
+        }});
+    }});
+    </script>
     """
 
-def render_summary_cards(all_data):
+def render_summary_cards(all_data, filter_q=None):
     total_variants = sum(int(d['summary'].get('Number_of_variants_processed', '0')) for d in all_data.values())
     total_effects = sum(int(d['summary'].get('Number_of_effects', '0')) for d in all_data.values())
     
@@ -205,6 +265,12 @@ def render_summary_cards(all_data):
         <div class="stat-card"><h3>Samples</h3><div class="value">{len(all_data)}</div></div>
         <div class="stat-card"><h3>Total Variants</h3><div class="value">{format_si(total_variants)}</div></div>
         <div class="stat-card"><h3>Total Effects</h3><div class="value">{format_si(total_effects)}</div></div>
+    """
+    
+    if filter_q:
+        html += f'<div class="stat-card"><h3>Variants Filter</h3><div class="value">≥ {filter_q}</div></div>'
+        
+    html += """
     </div>
     """
     return html
@@ -385,11 +451,57 @@ def render_main_table(all_data):
     html += "</tbody></table></div></details>"
     return html
 
+def render_quality_table(all_data):
+    html = """
+    <details class="collapsible-section" open>
+        <summary><h3>Quality Distribution</h3></summary>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sample</th>
+                        <th>Mean Quality</th>
+                        <th>Quality Distribution (Sparkline)</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+    for sample, data in sorted(all_data.items()):
+        quality_data = data.get('quality', [])
+        if not quality_data:
+            mean_q = "N/A"
+            sparkline = "No Data"
+        else:
+            total_count = sum(d['count'] for d in quality_data)
+            weighted_sum = sum(d['score'] * d['count'] for d in quality_data)
+            mean_q = f"{weighted_sum / total_count:.1f}" if total_count > 0 else "0"
+            
+            # Sparkline generation
+            max_count = max(d['count'] for d in quality_data) if quality_data else 1
+            # Sort by score to ensure correct order
+            sorted_q = sorted(quality_data, key=lambda x: x['score'])
+            
+            # Prepare data for jQuery Sparklines
+            values = ','.join(str(item['count']) for item in sorted_q)
+            labels = ','.join(f"Q{item['score']}: {item['count']}" for item in sorted_q)
+            sparkline = f'<span class="quality-sparkline" data-values="{values}" data-labels="{labels}"></span>'
+
+        html += f"""
+        <tr>
+            <td><strong>{sample}</strong></td>
+            <td>{mean_q}</td>
+            <td>{sparkline}</td>
+        </tr>"""
+        
+    html += "</tbody></table></div></details>"
+    return html
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generate HTML report from snpEff stats CSV")
     parser.add_argument("csv_files", nargs="+", help="One or more snpEff stats CSV files")
     parser.add_argument("-o", "--output", default="variants_report.html", help="Output HTML file")
+    parser.add_argument("--filterQ", help="Quality threshold used for filtering")
     args = parser.parse_args()
     
     all_data = {}
@@ -404,9 +516,10 @@ def main():
 
     css_block = get_css()
     js_block = get_js()
-    stats_cards = render_summary_cards(all_data)
+    stats_cards = render_summary_cards(all_data, args.filterQ)
     header_details = render_header_details(all_data)
     summary_table = render_main_table(all_data)
+    quality_table = render_quality_table(all_data)
     aggregate_tables = render_aggregate_tables(all_data)
     
     
@@ -430,6 +543,7 @@ def main():
         <div class="content">
             {stats_cards}
             {summary_table}
+            {quality_table}
             {aggregate_tables}
         </div>
     </div>

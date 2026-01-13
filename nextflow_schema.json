@@ -152,7 +152,17 @@
           "description": "Clair3 model to use",
           "fa_icon": "fas fa-cog",
           "default": "r1041_e82_400bps_hac_v500",
-          "help_text": "The specific Clair3 model name. Only used when --variants is specified. Examples: r1041_e82_400bps_hac_v500, hifi_revio, etc. See available models in the Clair3 documentation."
+          "enum": [
+            "r1041_e82_400bps_hac_v410",
+            "r1041_e82_400bps_hac_v500",
+            "1041_e82_400bps_sup_v410",
+            "r1041_e82_400bps_sup_v500",
+            "1041_e82_400bps_sup_v430_bacteria_finetuned",
+            "hifi_revio",
+            "hifi_sequel2",
+            "ilmn"
+          ],
+          "help_text": "The specific Clair3 model name. Only used when --variants is specified. See available models in the Clair3 documentation."
         },
         "deepvariant_model": {
           "type": "string",
@@ -189,6 +199,13 @@
             "rn6"
           ],
           "help_text": "The snpEff database to use. Use the same database version as the reference genome used in alignment. Check snpEff documentation for available databases (we do not support custom databases)."
+        },
+        "anno_filterQ": {
+          "type": "integer",
+          "description": "Filter variants before annotation",
+          "fa_icon": "fas fa-filter",
+          "default": 20,
+          "help_text": "Filter out variants with quality score lower than this before annotation."
         }
       }
     },

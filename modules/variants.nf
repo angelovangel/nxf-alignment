@@ -85,7 +85,7 @@ process VCF_ANNOTATE {
     errorStrategy 'ignore'
     
     publishDir "${params.outdir}/04-annotations", mode: 'copy'
-    tag "${vcf.simpleName}"
+    tag "${vcf.simpleName} (filterQ >= ${params.anno_filterQ})"
 
     input:
     tuple path(vcf), path(vcf_tbi)
@@ -99,7 +99,7 @@ process VCF_ANNOTATE {
     # download snpEff database here
     mkdir -p ./snpeff_data
 
-    SnpSift filter "(QUAL >= ${params.anno_filterQ})" $vcf > filtered.vcf
+    SnpSift filter "(QUAL>=${params.anno_filterQ})" $vcf > filtered.vcf
     snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
     
     """
@@ -117,7 +117,7 @@ process VCF_ANNOTATE_REPORT {
 
     script:
     """
-    make-variants-report.py $ann_stats -o variants_annotation_report.html
+    make-variants-report.py $ann_stats -o variants_annotation_report.html --filterQ ${params.anno_filterQ}
     """
 }
     
