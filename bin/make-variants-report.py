@@ -8,6 +8,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 import csv
+import math
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -42,7 +43,8 @@ def parse_snpeff_csv(filepath):
         'tstv': {},
         'tstv': {},
         'zygosity': {},
-        'quality': []
+        'quality': [],
+        'indel_lengths': []
     }
     
     current_section = None
@@ -80,7 +82,6 @@ def parse_snpeff_csv(filepath):
                 continue
             elif any(line.startswith(p) for p in [
                 "# Change rate by chromosome", 
-                "# InDel lengths", 
                 "# Base changes", 
                 "# Codon change table", 
                 "# Amino acid change table"
@@ -90,6 +91,10 @@ def parse_snpeff_csv(filepath):
             
             elif line.startswith("# Quality"):
                 current_section = "quality"
+                continue
+            
+            elif line.startswith("# InDel lengths"):
+                current_section = "indel_lengths"
                 continue
 
             if current_section == "ignore":
@@ -190,6 +195,22 @@ def parse_snpeff_csv(filepath):
                                     'count': count
                                 })
 
+            elif current_section == "indel_lengths":
+                if len(row) >= 2:
+                    key = row[0].strip()
+                    if key == "Values":
+                        indel_values = [int(x.strip()) for x in row[1:] if x.strip()]
+                        data['_indel_values'] = indel_values
+                    elif key == "Count":
+                        indel_counts = [int(x.strip()) for x in row[1:] if x.strip()]
+                        if '_indel_values' in data:
+                            values = data.pop('_indel_values')
+                            for val, count in zip(values, indel_counts):
+                                data['indel_lengths'].append({
+                                    'length': val,
+                                    'count': count
+                                })
+
     return data
 
 def get_css():
@@ -238,7 +259,7 @@ def get_js():
     <script>{js_content}</script>
     <script>
     $(document).ready(function() {{
-        $('.quality-sparkline').each(function() {{
+        $('.quality-sparkline, .indel-sparkline').each(function() {{
             var data = $(this).data('values').split(',').map(Number);
             var labels = $(this).data('labels').split(',');
             $(this).sparkline(data, {{
@@ -268,7 +289,7 @@ def render_summary_cards(all_data, filter_q=None):
     """
     
     if filter_q:
-        html += f'<div class="stat-card"><h3>Variants Filter</h3><div class="value">≥ {filter_q}</div></div>'
+        html += f'<div class="stat-card"><h3>Variants QUAL Filter</h3><div class="value">≥ {filter_q}</div></div>'
         
     html += """
     </div>
@@ -461,7 +482,8 @@ def render_quality_table(all_data):
                     <tr>
                         <th>Sample</th>
                         <th>Mean Quality</th>
-                        <th>Quality Distribution (Sparkline)</th>
+                        <th>Median Quality</th>
+                        <th>Quality Distribution</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -473,13 +495,24 @@ def render_quality_table(all_data):
             sparkline = "No Data"
         else:
             total_count = sum(d['count'] for d in quality_data)
-            weighted_sum = sum(d['score'] * d['count'] for d in quality_data)
-            mean_q = f"{weighted_sum / total_count:.1f}" if total_count > 0 else "0"
+            # correct Phred mean: average of probabilities, then back to Phred
+            total_prob = sum(d['count'] * (10 ** (d['score'] / -10.0)) for d in quality_data)
+            avg_prob = total_prob / total_count if total_count > 0 else 1.0
+            mean_q = f"{-10 * math.log10(avg_prob):.1f}" if avg_prob > 0 else "0"
             
-            # Sparkline generation
-            max_count = max(d['count'] for d in quality_data) if quality_data else 1
             # Sort by score to ensure correct order
             sorted_q = sorted(quality_data, key=lambda x: x['score'])
+
+            # Median calculation
+            median_q = "N/A"
+            if total_count > 0:
+                midpoint = total_count / 2
+                cumulative = 0
+                for item in sorted_q:
+                    cumulative += item['count']
+                    if cumulative >= midpoint:
+                        median_q = str(item['score'])
+                        break
             
             # Prepare data for jQuery Sparklines
             values = ','.join(str(item['count']) for item in sorted_q)
@@ -490,12 +523,46 @@ def render_quality_table(all_data):
         <tr>
             <td><strong>{sample}</strong></td>
             <td>{mean_q}</td>
+            <td>{median_q}</td>
             <td>{sparkline}</td>
         </tr>"""
         
     html += "</tbody></table></div></details>"
     return html
 
+
+def render_indel_lengths_table(all_data):
+    html = """
+    <details class="collapsible-section" open>
+        <summary><h3>InDel Lengths Distribution</h3></summary>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sample</th>
+                        <th>InDel Lengths Distribution</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+    for sample, data in sorted(all_data.items()):
+        lengths_data = data.get('indel_lengths', [])
+        if not lengths_data:
+            sparkline = "No Data"
+        else:
+            sorted_len = sorted(lengths_data, key=lambda x: x['length'])
+            # Prepare data for jQuery Sparklines
+            values = ','.join(str(item['count']) for item in sorted_len)
+            labels = ','.join(f"Length {item['length']}: {item['count']}" for item in sorted_len)
+            sparkline = f'<span class="indel-sparkline" data-values="{values}" data-labels="{labels}"></span>'
+
+        html += f"""
+        <tr>
+            <td><strong>{sample}</strong></td>
+            <td>{sparkline}</td>
+        </tr>"""
+    html += "</tbody></table></div></details>"
+    return html
 
 def main():
     parser = argparse.ArgumentParser(description="Generate HTML report from snpEff stats CSV")
@@ -514,39 +581,38 @@ def main():
         print("No data found.")
         return
 
-    css_block = get_css()
-    js_block = get_js()
-    stats_cards = render_summary_cards(all_data, args.filterQ)
     header_details = render_header_details(all_data)
+    summary_cards = render_summary_cards(all_data, args.filterQ)
     summary_table = render_main_table(all_data)
     quality_table = render_quality_table(all_data)
+    indel_lengths_table = render_indel_lengths_table(all_data)
     aggregate_tables = render_aggregate_tables(all_data)
     
-    
-    html_content = f"""<!DOCTYPE html>
+    html_content = f"""
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Variant Annotation Report</title>
-    {css_block}
-
-    {js_block}
+    {get_css()}
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-main"><h2>Variant Annotation Report</h2></div>
+            <div class="header-main"><h1>Variant Annotation Report</h1></div>
             <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             {header_details}
         </div>
+        
         <div class="content">
-            {stats_cards}
+            {summary_cards}
             {summary_table}
             {quality_table}
+            {indel_lengths_table}
             {aggregate_tables}
         </div>
     </div>
+    {get_js()}
 </body>
 </html>
 """
