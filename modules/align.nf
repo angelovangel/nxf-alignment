@@ -11,15 +11,13 @@ process DORADO_ALIGN {
         tuple path(ref), path(reads)
 
     output:
-        path("*.{bam,bai}")
+        path("**.{bam,bai}")
 
     script:
     """
-    # dorado aligner -o outputs sorted indexed bam, but with ONT folder structure (version??)
+    # dorado aligner -o outputs sorted indexed bam, but with ONT folder structure or not (version??)
     dorado aligner -o align_out -t ${task.cpus} ${ref} ${reads}
 
-    ln -s align_out/*.bam ${reads.simpleName}.align.bam
-    ln -s align_out/*.bam.bai ${reads.simpleName}.align.bam.bai
     """
 }
 
