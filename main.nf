@@ -146,7 +146,7 @@ workflow report {
 
     if (params.reads) {
         if ( file(params.reads).isDirectory() ) {
-            pattern = "*.{bam,fastq,fastq.gz,fq,fq.gz}"
+            pattern = "*.{bam,fasta,fastq,fastq.gz,fq,fq.gz}"
             ch_reads = Channel.fromPath(params.reads + "/" + pattern, type: 'file', checkIfExists: true)
         } else {
             ch_reads = Channel.fromPath(params.reads, checkIfExists: true)        
@@ -182,7 +182,7 @@ workflow {
     // also possible to pass a folder with reads, every read is one sample
     if (params.reads) {        
         if ( file(params.reads).isDirectory() ) {
-            pattern = "*.{bam,fastq,fastq.gz,fq,fq.gz}"
+            pattern = "*.{bam,fasta,fastq,fastq.gz,fq,fq.gz}"
             ch_reads = Channel.fromPath(params.reads + "/" + pattern, type: 'file', checkIfExists: true)           
         } else {
             ch_reads = Channel.fromPath(params.reads, checkIfExists: true)        

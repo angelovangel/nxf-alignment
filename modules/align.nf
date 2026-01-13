@@ -15,8 +15,11 @@ process DORADO_ALIGN {
 
     script:
     """
-    dorado aligner ${ref} ${reads} | samtools sort -o ${reads.simpleName}.align.bam
-    samtools index ${reads.simpleName}.align.bam
+    # dorado aligner -o outputs sorted indexed bam, but with ONT folder structure (version??)
+    dorado aligner -o align_out -t ${task.cpus} ${ref} ${reads}
+
+    ln -s align_out/*.bam ${reads.simpleName}.align.bam
+    ln -s align_out/*.bam.bai ${reads.simpleName}.align.bam.bai
     """
 }
 
