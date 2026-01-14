@@ -7,7 +7,7 @@ process VCF_CLAIR3 {
 
     publishDir "${params.outdir}/03-variants", mode: 'copy'
     errorStrategy 'ignore'
-    tag "${bam.simpleName} ${task.cpus} cpus"
+    tag "${bam.simpleName}, ${task.cpus} cpus"
 
     input:
     tuple path(bam), path(bai), path(ref), path(bedfile)

@@ -80,7 +80,7 @@ process DORADO_CORRECT {
         path bam
 
     output:
-        path "*.corr.fasta"
+        path "*.corr.fasta", emit: ch_corr_fasta
         path "*.log"
 
     script:

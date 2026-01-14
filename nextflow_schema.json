@@ -27,6 +27,13 @@
           "default": "fast",
           "help_text": "Name of the Dorado model to use for basecalling. Default is 'fast'. For modifications, use for example 'hac,5mCG_5hmCG'. See how to use [Dorado models here](https://software-docs.nanoporetech.com/dorado/latest/models/selection/)."
         },
+        "herro": {
+          "type": "boolean",
+          "description": "Enable HERRO read correction",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable HERRO read correction. The corrected reads will be in 00-basecall, but will NOT be used in alignment."
+        },
         "reads": {
           "type": "string",
           "format": "path",
