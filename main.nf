@@ -1,4 +1,4 @@
-include {DORADO_BASECALL; DORADO_BASECALL_BARCODING} from './modules/basecall.nf'
+include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
@@ -18,6 +18,7 @@ log.info """
     Container Engine: ${workflow.containerEngine ?: 'local'}
     
     pod5              : ${params.pod5}
+    herro             : ${params.herro}
     reads             : ${params.reads}
     asfile            : ${params.asfile}
     model             : ${params.model}
@@ -45,7 +46,7 @@ basecal, align, and analyze ONT data
 =============================================
 
 Required/important options:
-    --ref <path>     Reference FASTA (required unless -entry basecall is used)
+    --ref <path>           Reference FASTA (required unless -entry basecall is used)
 
 Input options:
     --pod5 <dir>           Directory with POD5 files (use when basecalling)
@@ -54,9 +55,10 @@ Input options:
 
 Processing options:
     --model <name>         Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'
-    --kit <name>           Barcoding kit name (required with --samplesheet)
-    --samplesheet <file>   CSV with columns: sample,barcode (required with --kit)
-    --bed <file>           BED file with regions (auto-generated from reference if omitted)
+    --herro                Enable herro correction (default: false). The corrected reads will be in 00-basecall, but will NOT be used in alignment.
+    --kit                  Barcoding kit name (required with --samplesheet)
+    --samplesheet          CSV with columns: sample,barcode (required with --kit)
+    --bed                  BED file with regions (auto-generated from reference if omitted)
     --variants             Enable variant calling
     --variant_caller       Variant caller to use, only when --variants is specified (default: clair3, options: clair3, deepvariant)
     --deepvariant_model    DeepVariant model to use, only when --variants and --variant_caller deepvariant is specified (default: ONT_R104)
@@ -67,9 +69,9 @@ Processing options:
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
 
 Output & config:
-    --outdir <name>        Output directory name (default: results)
-    -profile <name>        Nextflow profile (standard, test, singularity)
-    -entry <name>          Workflow entry point (basecall - basecalling only, report - basecalling + report)
+    --outdir               Output directory name (default: results)
+    -profile               Nextflow profile (standard, test, singularity)
+    -entry                 Workflow entry point (basecall - basecalling only, report - basecalling + report)
 
 """.stripIndent()
 }
@@ -127,8 +129,16 @@ workflow basecall {
         .map { row -> tuple( row.sample, row.barcode ) }
         .combine( DORADO_BASECALL_BARCODING.out.ch_bam_pass )
         | MERGE_READS 
+
+        if (params.herro) {
+            DORADO_CORRECT(MERGE_READS.out)
+        }
     } else {
         DORADO_BASECALL(ch_asfile, ch_pod5)
+        // as an extra, do herro correction, the corrected reads are not used downstream
+        if (params.herro) {
+            DORADO_CORRECT(DORADO_BASECALL.out)
+        }
     }
     
     emit: 

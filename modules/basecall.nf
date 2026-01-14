@@ -6,7 +6,7 @@ process DORADO_BASECALL {
     container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
-    tag "${params.asfile ? 'with' : 'no'} adaptive sampling"
+    tag "${params.model}, ${params.asfile ? 'with' : 'no'} adaptive sampling"
     input:
         path decisionfile
         path pod5
@@ -42,8 +42,8 @@ process DORADO_BASECALL_BARCODING {
 
     container 'docker.io/nanoporetech/dorado:latest'
 
-    publishDir "${params.outdir}/00-basecall", mode: 'copy'
-    tag "${params.asfile ? 'with' : 'no'} adaptive sampling"
+    //publishDir "${params.outdir}/00-basecall", mode: 'copy'
+    tag "${params.model}, ${params.asfile ? 'with' : 'no'} adaptive sampling"
 
     input:
         path decisionfile
@@ -67,5 +67,24 @@ process DORADO_BASECALL_BARCODING {
     # the folder with barcodes is basecall-sup/folder1/folder2/folder3/bam_pass
     [ -d "basecall-${params.model}" ] || { echo "Basecalling output folder empty!" >&2; exit 1; }
     ln -s basecall-${params.model}/*/*/*/bam_pass bam_pass
+    """
+}
+
+process DORADO_CORRECT {
+    container 'docker.io/nanoporetech/dorado:latest'
+
+    publishDir "${params.outdir}/00-basecall", mode: 'copy'
+
+    input:
+        path bam
+
+    output:
+        path "*.corr.fasta"
+        path "*.log"
+
+    script:
+    """
+    samtools fastq ${bam} > reads.fastq
+    dorado correct reads.fastq > ${bam.baseName}.corr.fasta 2> ${bam.baseName}.dorado-correct.log
     """
 }
