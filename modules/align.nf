@@ -1,23 +1,28 @@
 #!/usr/bin/env nextflow
 
 process DORADO_ALIGN {
-
     container 'docker.io/nanoporetech/dorado:latest'
 
-    publishDir "${params.outdir}/01-align", mode: 'copy', pattern: '*{bam,bai}'
-    tag "${reads.simpleName}"
+    publishDir "${params.outdir}/01-align", mode: 'copy', pattern: "*.align.bam*"
+    tag "${reads.simpleName}, ${task.cpus} cpus"
 
     input:
         tuple path(ref), path(reads)
 
     output:
-        path("**.{bam,bai}")
+        tuple path("*.align.bam"), path("*.align.bam.bai")
 
     script:
     """
-    # dorado aligner -o outputs sorted indexed bam, but with ONT folder structure or not (version??)
+    # -o outputs sorted indexed bam, but with ONT folder structure or not (version??)
     dorado aligner -o align_out -t ${task.cpus} ${ref} ${reads}
 
+    find align_out -name "*.bam" -exec mv {} ${reads.simpleName}.align.bam \\;
+    find align_out -name "*.bai" -exec mv {} ${reads.simpleName}.align.bam.bai \\;
+
+    if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
+        samtools index ${reads.simpleName}.align.bam
+    fi
     """
 }
 

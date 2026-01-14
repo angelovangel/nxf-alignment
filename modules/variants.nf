@@ -7,7 +7,7 @@ process VCF_CLAIR3 {
 
     publishDir "${params.outdir}/03-variants", mode: 'copy'
     errorStrategy 'ignore'
-    tag "${bam.simpleName}"
+    tag "${bam.simpleName} ${task.cpus} cpus"
 
     input:
     tuple path(bam), path(bai), path(ref), path(bedfile)
@@ -38,7 +38,7 @@ process VCF_CLAIR3 {
 process VCF_DEEPVARIANT {
     //container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
     publishDir "${params.outdir}/03-variants", mode: 'copy'
-    tag "${bam.simpleName}"
+    tag "${bam.simpleName} ${task.cpus} cpus"
 
     input:
     tuple path(bam), path(bai), path(ref), path(bedfile)
