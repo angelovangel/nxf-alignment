@@ -3,7 +3,8 @@
 process MERGE_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     errorStrategy 'ignore' //because some barcodes defined in the samplesheet might be missing in the data
-    
+    tag "${barcode} == ${samplename}"
+
     publishDir "$params.outdir/00-basecall/processed", mode: 'copy', pattern: '*{fastq.gz,fastq,bam}'
 
     input:

@@ -14,8 +14,8 @@ if (params.help) {
 log.info """
     NXF-ALIGNMENT Execution Summary
     ===============================
-    Profile         : ${workflow.profile}
-    Container Engine: ${workflow.containerEngine ?: 'local'}
+    Profile           : ${workflow.profile}
+    Container Engine  : ${workflow.containerEngine ?: 'local'}
     
     pod5              : ${params.pod5}
     herro             : ${params.herro}

@@ -72,6 +72,7 @@ process DORADO_BASECALL_BARCODING {
 
 process DORADO_CORRECT {
     container 'docker.io/nanoporetech/dorado:latest'
+    tag "${bam.simpleName}"
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
 
