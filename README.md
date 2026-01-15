@@ -11,6 +11,7 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
 - **Interactive HTML Report**: Generates an interactive report with read statistics, coverage, variants and annotations metrics
 
+>Note: You can also import this workflow in EPI2ME, see [EPI2ME documentation](https://epi2me.nanoporetech.com/)
 ## Requirements
 
 - **Nextflow** >= 23.04

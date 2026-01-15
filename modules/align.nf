@@ -94,8 +94,8 @@ process SAMTOOLS_BEDCOV {
 
     script:
     """
-    samtools bedcov ${bed} ${bam} > ${bam.simpleName}.bedcov.tsv
-    samtools bedcov ${bedcomplement} ${bam} > ${bam.simpleName}.bedcov.compl.tsv
+    samtools bedcov -c ${bed} ${bam} > ${bam.simpleName}.bedcov.tsv
+    samtools bedcov -c ${bedcomplement} ${bam} > ${bam.simpleName}.bedcov.compl.tsv
     samtools flagstat -O json ${bam} > ${bam.simpleName}.flagstat.json
     """
 }

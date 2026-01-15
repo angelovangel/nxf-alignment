@@ -87,7 +87,8 @@ def parse_bedcov_file(filepath):
                 try:
                     start = int(parts[1])
                     end = int(parts[2])
-                    cov = int(parts[-1]) 
+                    # Last two columns are bases, reads
+                    cov = int(parts[-2]) 
                     total_len += (end - start)
                     total_cov += cov
                     has_data = True
@@ -112,13 +113,15 @@ def parse_bedcov_per_region(filepath):
                     start = int(parts[1])
                     end = int(parts[2])
                     # If name is present (parts[3]), use it, otherwise use chr:start-end
-                    # samtools bedcov output format depends on input BED
-                    # Typical BED: chr, start, end, name, ...
-                    # bedcov appends coverage as last column
                     name = parts[3] if len(parts) > 4 else f"{chrom}:{start}-{end}"
-                    cov = int(parts[-1])
+                    
+                    # Last two columns are always bases, reads
+                    cov = int(parts[-2])
+                    reads = int(parts[-1])
+                    
                     length = end - start
                     mean_cov = cov / length if length > 0 else 0
+                    read_len = cov / reads if reads > 0 else 0
                     regions.append({
                         'chr': chrom,
                         'start': start,
@@ -126,7 +129,9 @@ def parse_bedcov_per_region(filepath):
                         'name': name,
                         'length': length,
                         'bases': cov,
-                        'mean_cov': mean_cov
+                        'reads': reads,
+                        'mean_cov': mean_cov,
+                        'read_len': read_len
                     })
                 except (ValueError, IndexError):
                     continue
@@ -624,21 +629,31 @@ def render_coverage_table(samples_data, genes):
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportCoverageToCSV()">Export CSV</button>
           </div>
         </summary>
-        <div class="table-container" style="margin-bottom: 30px;">
-          <table id="dataTable">
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="dataTable" class="fixed-table">
+            <colgroup>
+              <col style="width: 180px;">
+              <col style="width: 80px;">
+              <col style="width: 200px;">
+              <col style="width: 120px;">
+              <col>
+              <col>
+              <col>
+              <col>
+            </colgroup>
             <thead>
               <tr>
                 <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
-                <th rowspan="2" class="sortable" onclick="sortTable(1)">Chr</th>
-                <th rowspan="2" class="sortable" onclick="sortTable(2)">Gene/Region</th>
-                <th rowspan="2" class="sortable" onclick="sortTable(3)" style="text-align: right;">Region size</th>
+                <th rowspan="2" class="chr-col sortable" onclick="sortTable(1)">Chr</th>
+                <th rowspan="2" class="gene-col sortable" onclick="sortTable(2)">Gene/Region</th>
+                <th rowspan="2" class="size-col sortable" onclick="sortTable(3)">Region size</th>
                 <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
               </tr>
               <tr>
-                <th class="sortable" onclick="sortTable(4)" style="text-align: center;">≥1x (%)</th>
-                <th class="sortable" onclick="sortTable(5)" style="text-align: center;">≥10x (%)</th>
-                <th class="sortable" onclick="sortTable(6)" style="text-align: center;">≥20x (%)</th>
-                <th class="sortable" onclick="sortTable(7)" style="text-align: center;">≥30x (%)</th>
+                <th class="breadth-col sortable" onclick="sortTable(4)">≥1x (%)</th>
+                <th class="breadth-col sortable" onclick="sortTable(5)">≥10x (%)</th>
+                <th class="breadth-col sortable" onclick="sortTable(6)">≥20x (%)</th>
+                <th class="breadth-col sortable" onclick="sortTable(7)">≥30x (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -661,21 +676,21 @@ def render_coverage_table(samples_data, genes):
                 data-cov10="{cov_stats['pct_10x']:.1f}"
                 data-cov20="{cov_stats['pct_20x']:.1f}"
                 data-cov30="{cov_stats['pct_30x']:.1f}">
-              <td class="sample-col">{sample_name}</td>
-              <td>{location['chr']}</td>
-              <td><strong>{gene}</strong></td>
-              <td style="text-align: right;">{cov_stats['total']:,}</td>
-              <td class="coverage-cell">
-                <span class="pct-bar" style="width: {cov_stats['pct_1x']*1.5}px;">{cov_stats['pct_1x']:.1f}%</span>
+                <td class="sample-col">{sample_name}</td>
+                <td class="chr-col">{location['chr']}</td>
+                <td class="gene-col"><strong>{gene}</strong></td>
+                <td class="size-col">{cov_stats['total']:,}</td>
+              <td class="coverage-cell breadth-col">
+                <span class="pct-bar" style="width: {cov_stats['pct_1x'] * 0.9}%;">{cov_stats['pct_1x']:.1f}%</span>
               </td>
-              <td class="coverage-cell">
-                <span class="pct-bar" style="width: {cov_stats['pct_10x']*1.5}px;">{cov_stats['pct_10x']:.1f}%</span>
+              <td class="coverage-cell breadth-col">
+                <span class="pct-bar" style="width: {cov_stats['pct_10x'] * 0.9}%;">{cov_stats['pct_10x']:.1f}%</span>
               </td>
-              <td class="coverage-cell">
-                <span class="pct-bar" style="width: {cov_stats['pct_20x']*1.5}px;">{cov_stats['pct_20x']:.1f}%</span>
+              <td class="coverage-cell breadth-col">
+                <span class="pct-bar" style="width: {cov_stats['pct_20x'] * 0.9}%;">{cov_stats['pct_20x']:.1f}%</span>
               </td>
-              <td class="coverage-cell">
-                <span class="pct-bar" style="width: {cov_stats['pct_30x']*1.5}px;">{cov_stats['pct_30x']:.1f}%</span>
+              <td class="coverage-cell breadth-col">
+                <span class="pct-bar" style="width: {cov_stats['pct_30x'] * 0.9}%;">{cov_stats['pct_30x']:.1f}%</span>
               </td>
             </tr>
             """
@@ -693,6 +708,16 @@ def render_bed_coverage_table(bed_coverage_data):
     if not bed_coverage_data:
         return ""
 
+    # Find max mean coverage for scaling bars
+    max_mean_cov = 0
+    for sample_regions in bed_coverage_data.values():
+        for reg in sample_regions:
+            if reg['mean_cov'] > max_mean_cov:
+                max_mean_cov = reg['mean_cov']
+    
+    # Ensure we don't divide by zero
+    max_mean_cov = max_mean_cov if max_mean_cov > 0 else 1
+
     html = """
       <details class="collapsible-section" open>
         <summary>
@@ -702,17 +727,27 @@ def render_bed_coverage_table(bed_coverage_data):
           </div>
         </summary>
         <div class="table-container" style="margin-bottom: 30px; position: relative;">
-          <table id="bedcovTable">
+          <table id="bedcovTable" class="fixed-table">
+            <colgroup>
+              <col style="width: 180px;">
+              <col style="width: 80px;">
+              <col style="width: 200px;">
+              <col style="width: 120px;">
+              <col style="width: 130px;">
+              <col style="width: 120px;">
+              <col style="width: 120px;">
+              <col>
+            </colgroup>
             <thead>
               <tr>
                 <th class="sample-col sortable" onclick="sortBedcovTable(0)">Sample</th>
-                <th class="sortable" onclick="sortBedcovTable(1)">Chr</th>
-                <th class="sortable" onclick="sortBedcovTable(2)">Gene/Region</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(3)">Start</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(4)">End</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(5)">Region Size</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(6)">Bases in Region</th>
-                <th style="text-align: right;" class="sortable" onclick="sortBedcovTable(7)">Mean Coverage</th>
+                <th class="chr-col sortable" onclick="sortBedcovTable(1)">Chr</th>
+                <th class="gene-col sortable" onclick="sortBedcovTable(2)">Gene/Region</th>
+                <th class="size-col sortable" onclick="sortBedcovTable(3)">Region Size</th>
+                <th class="bases-col sortable" onclick="sortBedcovTable(4)">Bases in Region</th>
+                <th class="reads-col sortable" onclick="sortBedcovTable(5)">Reads in Region</th>
+                <th class="readlen-col sortable" onclick="sortBedcovTable(6)">Mean Read Len</th>
+                <th class="meancov-col sortable" onclick="sortBedcovTable(7)">Mean Coverage</th>
               </tr>
             </thead>
             <tbody>
@@ -721,6 +756,8 @@ def render_bed_coverage_table(bed_coverage_data):
     for sample_name in sorted(bed_coverage_data.keys()):
         regions = bed_coverage_data[sample_name]
         for reg in regions:
+            # Scale bar width to 90% of cell width max
+            bar_pct = (reg['mean_cov'] / max_mean_cov) * 90
             html += f"""
                 <tr data-sample="{sample_name.lower()}"
                     data-chr="{reg['chr'].lower()}"
@@ -729,15 +766,19 @@ def render_bed_coverage_table(bed_coverage_data):
                     data-end="{reg['end']}"
                     data-length="{reg['length']}"
                     data-bases="{reg['bases']}"
+                    data-reads="{reg['reads']}"
+                    data-readlen="{reg['read_len']}"
                     data-meancov="{reg['mean_cov']}">
                   <td class="sample-col">{sample_name}</td>
-                  <td>{reg['chr']}</td>
-                  <td><strong>{reg['name']}</strong></td>
-                  <td style="text-align: right;">{reg['start']:,}</td>
-                  <td style="text-align: right;">{reg['end']:,}</td>
-                  <td style="text-align: right;">{reg['length']:,}</td>
-                  <td style="text-align: right;">{reg['bases']:,}</td>
-                  <td style="text-align: right;">{reg['mean_cov']:.2f}</td>
+                  <td class="chr-col">{reg['chr']}</td>
+                  <td class="gene-col"><strong>{reg['name']}</strong></td>
+                  <td class="size-col">{reg['length']:,}</td>
+                  <td class="bases-col">{reg['bases']:,}</td>
+                  <td class="reads-col">{reg['reads']:,}</td>
+                  <td class="readlen-col">{reg['read_len']:.0f}</td>
+                  <td class="coverage-cell meancov-col">
+                    <span class="pct-bar" style="width: {bar_pct}%;">{reg['mean_cov']:.2f}</span>
+                  </td>
                 </tr>
             """
 
@@ -838,6 +879,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {variants_table}
     </div>
   </div>
+  <button onclick="scrollToTop()" id="backToTop" title="Go to top">↑</button>
   {js_block}
 </body>
 </html>

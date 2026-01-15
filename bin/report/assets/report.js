@@ -1,3 +1,4 @@
+let sortDirection = {};
 let readstatsSortDirection = {};
 let samtoolsSortDirection = {};
 let variantsSortDirection = {};
@@ -125,7 +126,7 @@ function exportBedcovToCSV() {
     const table = document.getElementById('bedcovTable');
     if (!table) { alert('Bed Coverage table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Chr', 'Gene/Region', 'Start', 'End', 'Size', 'Bases_in_Region', 'Mean_Coverage'];
+    const headers = ['Sample', 'Chr', 'Gene/Region', 'Size', 'Bases_in_Region', 'Reads_in_Region', 'Mean_Read_Len', 'Mean_Coverage'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -134,10 +135,10 @@ function exportBedcovToCSV() {
                 row.getAttribute('data-sample'),
                 row.getAttribute('data-chr'),
                 row.getAttribute('data-gene'),
-                row.getAttribute('data-start'),
-                row.getAttribute('data-end'),
                 row.getAttribute('data-length'),
                 row.getAttribute('data-bases'),
+                row.getAttribute('data-reads'),
+                row.getAttribute('data-readlen'),
                 row.getAttribute('data-meancov')
             ];
             const safeCols = cols.map(text => {
@@ -389,10 +390,10 @@ function sortBedcovTable(columnIndex) {
             0: 'sample',
             1: 'chr',
             2: 'gene',
-            3: 'start',
-            4: 'end',
-            5: 'length',
-            6: 'bases',
+            3: 'length',
+            4: 'bases',
+            5: 'reads',
+            6: 'readlen',
             7: 'meancov'
         };
         const dataKey = dataAttrMap[columnIndex];
@@ -471,5 +472,24 @@ function initVariantCharts(sampleId, qualityLabels, qualityData, indelLabels, in
                 }
             }
         }
+    });
+}
+
+// Back to Top functionality
+window.onscroll = function () {
+    const btn = document.getElementById("backToTop");
+    if (btn) {
+        if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+            btn.style.display = "block";
+        } else {
+            btn.style.display = "none";
+        }
+    }
+};
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
     });
 }
