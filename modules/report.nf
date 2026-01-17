@@ -16,6 +16,7 @@ process REPORT {
         path(bedcov_complement) 
         path(flagstat)
         path(variants)
+        path(sv_variants)
         path(as_file)
         
     output:
@@ -29,6 +30,7 @@ process REPORT {
     def bedcov_compl_arg = bedcov_complement.name.contains('empty_bedcov_compl') ? '' : "--bedcov-compl ${bedcov_complement}"
     def flagstat_arg = flagstat.name.contains('empty_flagstat') ? '' : "--flagstat ${flagstat}"
     def variants_arg = variants.name.contains('empty_variants') ? '' : "--vcf-query ${variants}"
+    def sv_variants_arg = sv_variants.name.contains('empty_sv_variants') ? '' : "--sv-vcf ${sv_variants}"
     def asfile_arg = as_file.name.contains('EMPTY') ? '' : "--asfile ${as_file}"
     """
     make-report.py \
@@ -41,6 +43,7 @@ process REPORT {
         $bedcov_compl_arg \
         $flagstat_arg \
         $variants_arg \
+        $sv_variants_arg \
         $asfile_arg \
         -o nxf-alignment-report.html
     """

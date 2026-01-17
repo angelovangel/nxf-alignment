@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -26,11 +26,12 @@ log.info """
     bed               : ${params.bed}
     kit               : ${params.kit}
     samplesheet       : ${params.samplesheet}
-    variants          : ${params.variants}
+    snp               : ${params.snp}
     variant_caller    : ${params.variant_caller}
     deepvariant_model : ${params.deepvariant_model}
     clair3_platform   : ${params.clair3_platform}
     clair3_model      : ${params.clair3_model}
+    sv                : ${params.sv}
     annotate          : ${params.annotate}
     anno_db           : ${params.anno_db}
     anno_filterQ      : ${params.anno_filterQ}
@@ -59,12 +60,13 @@ Processing options:
     --kit                  Barcoding kit name (required with --samplesheet)
     --samplesheet          CSV with columns: sample,barcode (required with --kit)
     --bed                  BED file with regions (auto-generated from reference if omitted)
-    --variants             Enable variant calling
-    --variant_caller       Variant caller to use, only when --variants is specified (default: clair3, options: clair3, deepvariant)
-    --deepvariant_model    DeepVariant model to use, only when --variants and --variant_caller deepvariant is specified (default: ONT_R104)
-    --clair3_platform      Clair3 platform to use, only when --variants and --variant_caller clair3 is specified (default: ONT)
-    --clair3_model         Clair3 model to use, only when --variants and --variant_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
-    --annotate             Enable variant annotation with snpEff (use only with --variants)
+    --snp                  Enable SNP/small INDEL variant calling
+    --variant_caller       Variant caller to use, only when --snp is specified (default: clair3, options: clair3, deepvariant)
+    --deepvariant_model    DeepVariant model to use, only when --snp and --variant_caller deepvariant is specified (default: ONT_R104)
+    --clair3_platform      Clair3 platform to use, only when --snp and --variant_caller clair3 is specified (default: ONT)
+    --clair3_model         Clair3 model to use, only when --snp and --variant_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
+    --sv                   Enable structural variant calling with sniffles2
+    --annotate             Enable variant annotation with snpEff
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
 
@@ -76,12 +78,22 @@ Output & config:
 """.stripIndent()
 }
 
-// create empty runinfo file if not created
-def empty_runinfo = file("${workflow.workDir}/empty_runinfo.csv")
-empty_runinfo.text = ""
+// create empty placeholder files if not exist
+["runinfo", "refstats", "hist", "bedcov", "bedcov_compl", "flagstat", "variants", "sv_variants"].each { name ->
+    def f = file("${workflow.workDir}/empty_${name}" + (name.contains("info") || name.contains("stats") ? ".csv" : ""))
+    if (!f.exists()) f.text = ""
+    // assign to variables for easy reference
+    if (name == "runinfo") empty_runinfo = f
+    if (name == "refstats") empty_refstats = f
+}
 
-def empty_refstats = file("${workflow.workDir}/empty_refstats.csv")
-empty_refstats.text = ""
+// Additional specific assignments if needed
+def empty_hist = file("${workflow.workDir}/empty_hist")
+def empty_bedcov = file("${workflow.workDir}/empty_bedcov")
+def empty_bedcov_compl = file("${workflow.workDir}/empty_bedcov_compl")
+def empty_flagstat = file("${workflow.workDir}/empty_flagstat")
+def empty_variants = file("${workflow.workDir}/empty_variants")
+def empty_sv_variants = file("${workflow.workDir}/empty_sv_variants")
 
 // Workflow properties - create CSV content as a string
 def as_status = params.asfile ? "Yes" : "No"
@@ -175,11 +187,12 @@ workflow report {
         READ_STATS.out.collect(),
         ch_ref_stats,
         // no need to actually create the empty files, this is handled by REPORT defs
-        Channel.fromPath("empty_hist", type: 'file'),
-        Channel.fromPath("empty_bedcov", type: 'file'),
-        Channel.fromPath("empty_bedcov_compl", type: 'file'),
-        Channel.fromPath("empty_flagstat", type: 'file'),
-        Channel.fromPath("empty_variants", type: 'file'),
+        Channel.fromPath(empty_hist),
+        Channel.fromPath(empty_bedcov),
+        Channel.fromPath(empty_bedcov_compl),
+        Channel.fromPath(empty_flagstat),
+        Channel.fromPath(empty_variants),
+        Channel.fromPath(empty_sv_variants),
         ch_asfile
     )
 }
@@ -226,12 +239,12 @@ workflow {
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
     | SAMTOOLS_BEDCOV
 
+    ch_vc_input = DORADO_ALIGN.out
+        .combine( ch_ref )
+        .combine( ch_bedfile )
+
     // Variant Calling Logic
-    if (params.variants) {
-        
-        ch_vc_input = DORADO_ALIGN.out
-            .combine( ch_ref )
-            .combine( ch_bedfile )
+    if (params.snp) {
         
         if (params.variant_caller == 'deepvariant') {
              ch_vc_input | VCF_DEEPVARIANT
@@ -241,12 +254,16 @@ workflow {
              ch_vcf = VCF_CLAIR3.out
         }
         
-        ch_vcf | VCF_STATS
+        VCF_STATS_SNP(ch_vcf, 'snp')
 
         if (params.annotate) {
             ch_vcf | VCF_ANNOTATE
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
         }
+    }
+    if (params.sv) {
+        ch_vc_input | VCF_SNIFFLES2
+        VCF_STATS_SV(VCF_SNIFFLES2.out, 'sv')
     }
     
     REPORT(
@@ -258,7 +275,8 @@ workflow {
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
-        params.variants ? VCF_STATS.out.collect() : Channel.fromPath("empty_variants", type: 'file'),
+        params.snp ? VCF_STATS_SNP.out.collect() : Channel.fromPath(empty_variants),
+        params.sv ? VCF_STATS_SV.out.collect() : Channel.fromPath(empty_sv_variants),
         ch_asfile
     )  
 }

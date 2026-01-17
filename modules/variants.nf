@@ -13,7 +13,7 @@ process VCF_CLAIR3 {
     tuple path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.vcf.gz"), path("${bam.simpleName}.vcf.gz.tbi")
+    tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
 
     script:
     def model = "${params.clair3_model}"
@@ -30,8 +30,8 @@ process VCF_CLAIR3 {
     --threads=${task.cpus} \
     --output="clair3_output"
 
-    mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.vcf.gz
-    mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.vcf.gz.tbi
+    mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.snp.vcf.gz
+    mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.snp.vcf.gz.tbi
     """ 
 }
 
@@ -44,7 +44,7 @@ process VCF_DEEPVARIANT {
     tuple path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.vcf.gz"), path("${bam.simpleName}.vcf.gz.tbi")
+    tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
 
     script:
     """
@@ -55,7 +55,7 @@ process VCF_DEEPVARIANT {
     --ref=$ref \
     --reads=$bam \
     --regions=$bedfile \
-    --output_vcf=${bam.simpleName}.vcf.gz \
+    --output_vcf=${bam.simpleName}.snp.vcf.gz \
     --num_shards=${task.cpus}
     """ 
 }
@@ -63,21 +63,44 @@ process VCF_DEEPVARIANT {
 process VCF_STATS {
     
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
-    //publishDir "${params.outdir}/03-variants", mode: 'copy'
     errorStrategy 'ignore'
     tag "${vcf.simpleName}"
 
     input:
     tuple path(vcf), path(vcf_tbi)
+    val vcftype
 
     output:
-    path("${vcf.simpleName}.query")
+    path("${vcf.simpleName}.${vcftype}.query")
+
+    script:
+    def snp_header = "%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\n"
+    def sv_header = "%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\t%INFO/SVTYPE\n"
+    def format = vcftype == 'sv' ? sv_header : snp_header
+    """
+    bcftools query -f '$format' $vcf > ${vcf.simpleName}.${vcftype}.query
+    """
+}
+
+process VCF_SNIFFLES2 {
+    container 'docker.io/hydragenetics/sniffles2:2.6.3'
+    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    tag "${bam.simpleName}"
+
+    input:
+    tuple path(bam), path(bai), path(ref), path(bedfile)
+
+    output:
+    tuple path("${bam.simpleName}.sv.vcf.gz"), path("${bam.simpleName}.sv.vcf.gz.tbi")
 
     script:
     """
-    bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\n' $vcf > ${vcf.simpleName}.query
-
-    """
+    sniffles \
+    --input $bam \
+    --regions $bedfile \
+    --vcf ${bam.simpleName}.sv.vcf.gz \
+    --threads 4
+    """ 
 }
 
 process VCF_ANNOTATE {

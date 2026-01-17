@@ -186,17 +186,21 @@ def parse_bcftools_query(filepath):
                 if len(parts) < 7:
                     continue
                 
-                # Format: CHROM POS REF ALT TYPE FILTER QUAL
+                # Format: CHROM POS REF ALT TYPE FILTER QUAL [SVTYPE]
                 ref = parts[2].upper()
                 alt = parts[3].upper()
                 var_type = parts[4]
                 filter_status = parts[5]
                 qual_str = parts[6]
 
-                # Skip non-variants
+                # Skip non-variants and structural variants (if identified by TYPE or SVTYPE)
                 if var_type == 'REF':
                     continue
                 
+                # If there's an 8th column and it's not empty/., it might be an SV
+                if len(parts) >= 8 and parts[7] != '.' and parts[7] != '':
+                    continue
+
                 stats['total'] += 1
                 
                 # Check Quality
@@ -236,6 +240,48 @@ def parse_bcftools_query(filepath):
         return stats
     except Exception as e:
         print(f"Error parsing query file {filepath}: {e}", file=sys.stderr)
+        return None
+
+def parse_sv_query(filepath):
+    """Parse an SV query file (from bcftools query) and return statistics."""
+    stats = {
+        'total': 0,
+        'DEL': 0,
+        'INS': 0,
+        'DUP': 0,
+        'INV': 0,
+        'BND': 0,
+        'other': 0
+    }
+    
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) < 8:
+                    continue
+                
+                # Format: CHROM POS REF ALT TYPE FILTER QUAL SVTYPE
+                sv_type = parts[7]
+                
+                if not sv_type or sv_type == '.':
+                    # Fallback to ALT if SVTYPE is missing
+                    alt = parts[3].strip('<>')
+                    if alt in ['DEL', 'INS', 'DUP', 'INV', 'BND']:
+                        sv_type = alt
+                    else:
+                        continue
+
+                stats['total'] += 1
+                
+                if sv_type in stats:
+                    stats[sv_type] += 1
+                else:
+                    stats['other'] += 1
+                    
+        return stats
+    except Exception as e:
+        print(f"Error parsing SV query file {filepath}: {e}", file=sys.stderr)
         return None
 
 def parse_as_file(filepath):
@@ -563,7 +609,7 @@ def render_variants_table(variants_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Variants</h3>
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Small Variants (SNPs/Indels)</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportVariantsToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -604,6 +650,60 @@ def render_variants_table(variants_data):
               <td style="text-align: right;">{stats['high_qual_snp']:,}</td>
               <td style="text-align: right;">{stats['high_qual_indel']:,}</td>
               <td style="text-align: right;">{stats.get('ts_tv_ratio', 0.0):.2f}</td>
+            </tr>
+        """
+        
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
+def render_sv_table(sv_data):
+    """Render the Structural Variant Statistics table"""
+    if not sv_data:
+        return ""
+
+    html = """
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Structural Variants (SVs)</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportSVToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="svTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortSVTable(0)">Sample</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(1)">Total SVs</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(2)">Deletions (DEL)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(3)">Insertions (INS)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(4)">Duplications (DUP)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(5)">Inversions (INV)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(6)">Translocations (BND)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortSVTable(7)">Other</th>
+              </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for sample_name in sorted(sv_data.keys()):
+        stats = sv_data[sample_name]
+        
+        html += f"""
+            <tr data-sample="{sample_name.lower()}">
+              <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{stats['total']:,}</td>
+              <td style="text-align: right;">{stats['DEL']:,}</td>
+              <td style="text-align: right;">{stats['INS']:,}</td>
+              <td style="text-align: right;">{stats['DUP']:,}</td>
+              <td style="text-align: right;">{stats['INV']:,}</td>
+              <td style="text-align: right;">{stats['BND']:,}</td>
+              <td style="text-align: right;">{stats['other']:,}</td>
             </tr>
         """
         
@@ -790,7 +890,7 @@ def render_bed_coverage_table(bed_coverage_data):
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, as_counts, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, as_counts, output_file):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -831,6 +931,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     readstats_table = render_readstats_table(readstats_data)
     samtools_table = render_samtools_table(samtools_stats)
     variants_table = render_variants_table(variants_data)
+    sv_table = render_sv_table(sv_data)
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     
@@ -877,6 +978,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {bed_coverage_table}
       {coverage_table}
       {variants_table}
+      {sv_table}
     </div>
   </div>
   <button onclick="scrollToTop()" id="backToTop" title="Go to top">↑</button>
@@ -901,6 +1003,7 @@ def main():
     parser.add_argument('--bedcov-compl', nargs='*', default=[], help='One or more reads.bedcov.compl.tsv files')
     parser.add_argument('--flagstat', nargs='*', default=[], help='One or more .flagstat.json files')
     parser.add_argument('--vcf-query', nargs='*', default=[], help='One or more .query files from bcftools query')
+    parser.add_argument('--sv-vcf', nargs='*', default=[], help='One or more structural variant VCF files')
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
@@ -910,6 +1013,7 @@ def main():
     readstats_data = {}
     samtools_stats = {}
     variants_data = {}
+    sv_data = {}
     bed_coverage_data = {}
     run_info = [] 
     wf_info = []
@@ -1003,7 +1107,15 @@ def main():
             if name not in samtools_stats: samtools_stats[name] = {}
             samtools_stats[name]['flagstat'] = result
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, bed_coverage_data, as_counts, args.output)
+    for vcf_file in args.sv_vcf:
+        path = Path(vcf_file)
+        sample_name = path.name.replace('.sv.query', '').replace('.query', '').replace('.vcf.gz', '').replace('.vcf', '')
+        print(f"Processing SV query {vcf_file} (Sample: {sample_name})...")
+        result = parse_sv_query(vcf_file)
+        if result is not None:
+            sv_data[sample_name] = result
+
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, as_counts, args.output)
 
 if __name__ == "__main__":
     main()

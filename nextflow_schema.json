@@ -145,12 +145,19 @@
       "fa_icon": "fas fa-dna",
       "description": "Options for variant calling using Clair3 or DeepVariant.",
       "properties": {
-        "variants": {
+        "snp": {
           "type": "boolean",
-          "description": "Enable variant calling with Clair3 or DeepVariant",
+          "description": "Enable SNP/small INDEL variant calling with Clair3 or DeepVariant",
           "fa_icon": "fas fa-check-square",
           "default": false,
-          "help_text": "Set to true to enable variant calling on the aligned reads using Clair3 or DeepVariant."
+          "help_text": "Set to true to enable SNP/small INDEL variant calling on the aligned reads using Clair3 or DeepVariant."
+        },
+        "sv": {
+          "type": "boolean",
+          "description": "Enable structural variant calling with sniffles2",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable structural variant calling on the aligned reads using sniffles2."
         },
         "variant_caller": {
           "type": "string",
