@@ -695,7 +695,14 @@ def render_sv_table(sv_data):
         stats = sv_data[sample_name]
         
         html += f"""
-            <tr data-sample="{sample_name.lower()}">
+            <tr data-sample="{sample_name.lower()}"
+                data-total="{stats['total']}"
+                data-del="{stats['DEL']}"
+                data-ins="{stats['INS']}"
+                data-dup="{stats['DUP']}"
+                data-inv="{stats['INV']}"
+                data-bnd="{stats['BND']}"
+                data-other="{stats['other']}">
               <td class="sample-col">{sample_name}</td>
               <td style="text-align: right;">{stats['total']:,}</td>
               <td style="text-align: right;">{stats['DEL']:,}</td>

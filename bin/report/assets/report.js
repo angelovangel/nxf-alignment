@@ -3,6 +3,7 @@ let readstatsSortDirection = {};
 let samtoolsSortDirection = {};
 let variantsSortDirection = {};
 let bedcovSortDirection = {};
+let svSortDirection = {};
 
 function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -153,6 +154,37 @@ function exportBedcovToCSV() {
     downloadCSV(csv.join('\n'), 'bed_coverage_export.csv');
 }
 
+function exportSVToCSV() {
+    const table = document.getElementById('svTable');
+    if (!table) { alert('Structural Variants table not found.'); return; }
+    let csv = [];
+    const headers = ['Sample', 'Total_SVs', 'Deletions_DEL', 'Insertions_INS', 'Duplications_DUP', 'Inversions_INV', 'Translocations_BND', 'Other'];
+    csv.push(headers.join(','));
+    const dataRows = table.querySelectorAll('tbody tr');
+    dataRows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const cols = [
+                row.getAttribute('data-sample'),
+                row.getAttribute('data-total'),
+                row.getAttribute('data-del'),
+                row.getAttribute('data-ins'),
+                row.getAttribute('data-dup'),
+                row.getAttribute('data-inv'),
+                row.getAttribute('data-bnd'),
+                row.getAttribute('data-other')
+            ];
+            const safeCols = cols.map(text => {
+                if (!text) return "";
+                text = text.trim().replace(/,/g, '');
+                if (text.includes('"')) { text = '"' + text.replace(/"/g, '""') + '"'; }
+                return text;
+            });
+            csv.push(safeCols.join(','));
+        }
+    });
+    downloadCSV(csv.join('\n'), 'sv_export.csv');
+}
+
 $(document).ready(function () {
     $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
@@ -161,6 +193,7 @@ $(document).ready(function () {
             filterSamtoolsTable();
             filterVariantsTable();
             filterBedcovTable();
+            filterSVTable();
         });
     $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
@@ -173,17 +206,20 @@ $(document).ready(function () {
     filterSamtoolsTable();
     filterVariantsTable();
     filterBedcovTable();
+    filterSVTable();
 
     sortDirection[0] = 'desc';
     readstatsSortDirection[0] = 'desc';
     samtoolsSortDirection[0] = 'desc';
     variantsSortDirection[0] = 'desc';
     bedcovSortDirection[0] = 'desc';
+    svSortDirection[0] = 'desc';
     sortTable(0);
     sortReadstatsTable(0);
     sortSamtoolsTable(0);
     sortVariantsTable(0);
     sortBedcovTable(0);
+    sortSVTable(0);
 });
 
 function sortReadstatsTable(columnIndex) {
@@ -407,6 +443,49 @@ function sortBedcovTable(columnIndex) {
             let bVal = parseFloat(b.getAttribute('data-' + dataKey));
             return isAsc ? aVal - bVal : bVal - aVal;
         }
+    });
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function filterSVTable() {
+    const selectedSamples = $('#sampleFilter').val() || [];
+    const table = document.getElementById('svTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const sample = row.getAttribute('data-sample');
+        const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+        row.style.display = showSample ? '' : 'none';
+    });
+}
+
+function sortSVTable(columnIndex) {
+    const table = document.getElementById('svTable');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    svSortDirection[columnIndex] = svSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+    const isAsc = svSortDirection[columnIndex] === 'asc';
+
+    const headers = table.querySelectorAll('th.sortable');
+    headers.forEach(h => h.classList.remove('asc', 'desc'));
+    if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+
+    rows.sort((a, b) => {
+        const dataAttrMap = {
+            0: 'sample',
+            1: 'total',
+            2: 'del', 3: 'ins', 4: 'dup', 5: 'inv', 6: 'bnd', 7: 'other'
+        };
+        const dataKey = dataAttrMap[columnIndex];
+        if (columnIndex === 0) {
+            const aVal = a.getAttribute('data-sample');
+            const bVal = b.getAttribute('data-sample');
+            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        let aVal = parseFloat(a.getAttribute('data-' + dataKey));
+        let bVal = parseFloat(b.getAttribute('data-' + dataKey));
+        return isAsc ? aVal - bVal : bVal - aVal;
     });
     rows.forEach(row => tbody.appendChild(row));
 }
