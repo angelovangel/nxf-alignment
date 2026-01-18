@@ -14,30 +14,12 @@ if (params.help) {
 log.info """
     NXF-ALIGNMENT Execution Summary
     ===============================
-    Profile           : ${workflow.profile}
-    Container Engine  : ${workflow.containerEngine ?: 'local'}
-    
-    pod5              : ${params.pod5}
-    herro             : ${params.herro}
-    reads             : ${params.reads}
-    asfile            : ${params.asfile}
-    model             : ${params.model}
-    ref               : ${params.ref}
-    bed               : ${params.bed}
-    kit               : ${params.kit}
-    samplesheet       : ${params.samplesheet}
-    snp               : ${params.snp}
-    variant_caller    : ${params.variant_caller}
-    deepvariant_model : ${params.deepvariant_model}
-    clair3_platform   : ${params.clair3_platform}
-    clair3_model      : ${params.clair3_model}
-    sv                : ${params.sv}
-    annotate          : ${params.annotate}
-    anno_db           : ${params.anno_db}
-    anno_filterQ      : ${params.anno_filterQ}
-    outdir            : ${params.outdir}
-    ===============================
-""".stripIndent()
+    Profile             : ${workflow.profile}
+    Container Engine    : ${workflow.containerEngine ?: 'local'}
+    -------------------------------
+    """.stripIndent()
+    params.each { name, value -> log.info "${name.padRight(20)}: ${value}"}
+log.info "=============================="
 
 def showHelp() {
         log.info """

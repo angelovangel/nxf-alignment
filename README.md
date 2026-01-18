@@ -32,7 +32,7 @@ nextflow run angelovangel/nxf-alignment \
   --model hac \
   --bed /path/to/regions.bed # optional, if provided the report contains coverage analysis per region from bed file 
   --ref /path/to/ref.fasta \
-  --variants \
+  --snp \
   --annotate
 ```
 #### Barcoded run (Basecalling + Alignment)
@@ -47,7 +47,7 @@ nextflow run angelovangel/nxf-alignment \
   --samplesheet /path/to/samplesheet.csv
 ```
 
-#### Skip Basecalling (Align Existing BAM/FASTQ + Variant Calling)
+#### Skip Basecalling (Align Existing BAM/FASTQ + SNP/SV Variant Calling)
 If the basecalling has been performed before, the pipeline can be run with the `--reads` parameter. The reads can be in any HTS format, a directory of reads can also be given.
 
 ```bash
@@ -55,7 +55,8 @@ nextflow run angelovangel/nxf-alignment \
   --reads /path/to/reads.bam \ # can be also a directory with reads
   --ref /path/to/ref.fasta \
   --bedfile /path/to/regions.bed \
-  --variants \
+  --snp \
+  --sv \
   --annotate
 ```
 #### Skip alignment (basecalling only)
@@ -92,12 +93,13 @@ nextflow run angelovangel/nxf-alignment \
 | `kit` | string | null | Barcoding kit name (e.g., `SQK-NBD111-96`). Required for barcoded runs |
 | `samplesheet` | path | null | Sample sheet CSV with columns: `sample`, `barcode`. Required for barcoded runs |
 | `bed` | path | null | BED file with target regions (auto-generated from reference if not provided) |
-| `variants` | boolean | false | Perform variant calling using Clair3 or DeepVariant |
-| `variant_caller` | string | `clair3` | Variant caller to use (`clair3` or `deepvariant`, use only with `--variants`) |
+| `snp` | boolean | false | Perform SNP variant calling using Clair3 or DeepVariant |
+| `sv` | boolean | false | Perform SV variant calling using Sniffles2 |
+| `variant_caller` | string | `clair3` | Variant caller to use (`clair3` or `deepvariant`, use only with `--snp`) |
 | `clair3_platform` | string | `ont` | Platform to use for Clair3 (`ont` or `hifi`) |
 | `clair3_model` | string | `r1041_e82_400bps_hac_v500` | Model to use for Clair3 |
 | `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
-| `annotate` | boolean | false | Annotate variants using snpEff (use only with `--variants`) |
+| `annotate` | boolean | false | Annotate variants using snpEff (use only with `--snp` or `--sv`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
 | `anno_filterQ` | int | `20` | Filter out variants with quality lower than this before annotation |
 
@@ -123,7 +125,8 @@ results/
 ├── 02-coverage/
 │   └── reads.hist.tsv         # Coverage histogram
 ├── 03-variants/
-│   └── reads.variants.vcf     # Variants
+│   ├── reads.variants.snp.vcf # SNP variants
+│   └── reads.variants.sv.vcf  # SV variants
 └── nxf-alignment-report.html  # Workflow report
 ```
 
