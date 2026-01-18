@@ -7,7 +7,8 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **Basecalling**: Uses Dorado for basecalling (and demultiplexing) with optional adaptive sampling support (ONT)
 - **Alignment**: Aligns reads to a reference genome using Dorado aligner (modifications are preserved, ONT or HiFi data)
 - **Coverage Analysis**: Calculates per-region coverage statistics with thresholds (1x, 10x, 20x, 30x)
-- **Variant Calling**: Uses Clair3 for variant calling (ONT or HiFi data)
+- **SNP Variant Calling**: Uses Clair3 or DeepVariant for SNP variant calling (ONT or HiFi data)
+- **Structural Variant Calling**: Uses Sniffles2 for structural variant calling (ONT or HiFi data)
 - **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
 - **Interactive HTML Report**: Generates an interactive report with read statistics, coverage, variants and annotations metrics
 
@@ -94,11 +95,11 @@ nextflow run angelovangel/nxf-alignment \
 | `samplesheet` | path | null | Sample sheet CSV with columns: `sample`, `barcode`. Required for barcoded runs |
 | `bed` | path | null | BED file with target regions (auto-generated from reference if not provided) |
 | `snp` | boolean | false | Perform SNP variant calling using Clair3 or DeepVariant |
-| `sv` | boolean | false | Perform SV variant calling using Sniffles2 |
-| `variant_caller` | string | `clair3` | Variant caller to use (`clair3` or `deepvariant`, use only with `--snp`) |
+| `snp_caller` | string | `clair3` | SNP variant caller to use (`clair3` or `deepvariant`, use only with `--snp`) |
 | `clair3_platform` | string | `ont` | Platform to use for Clair3 (`ont` or `hifi`) |
 | `clair3_model` | string | `r1041_e82_400bps_hac_v500` | Model to use for Clair3 |
 | `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
+| `sv` | boolean | false | Perform SV variant calling using Sniffles2 |
 | `annotate` | boolean | false | Annotate variants using snpEff (use only with `--snp` or `--sv`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
 | `anno_filterQ` | int | `20` | Filter out variants with quality lower than this before annotation |

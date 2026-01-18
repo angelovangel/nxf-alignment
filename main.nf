@@ -37,18 +37,18 @@ Input options:
     --asfile <file>        Adaptive sampling CSV (filters reads to basecall)
 
 Processing options:
-    --model <name>         Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'
+    --model                Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'
     --herro                Enable herro correction (default: false). The corrected reads will be in 00-basecall, but will NOT be used in alignment.
     --kit                  Barcoding kit name (required with --samplesheet)
     --samplesheet          CSV with columns: sample,barcode (required with --kit)
     --bed                  BED file with regions (auto-generated from reference if omitted)
     --snp                  Enable SNP/small INDEL variant calling
-    --variant_caller       Variant caller to use, only when --snp is specified (default: clair3, options: clair3, deepvariant)
-    --deepvariant_model    DeepVariant model to use, only when --snp and --variant_caller deepvariant is specified (default: ONT_R104)
-    --clair3_platform      Clair3 platform to use, only when --snp and --variant_caller clair3 is specified (default: ONT)
-    --clair3_model         Clair3 model to use, only when --snp and --variant_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
+    --snp_caller           SNP variant caller to use, only when --snp is specified (default: clair3, options: clair3, deepvariant)
+    --deepvariant_model    DeepVariant model to use, only when --snp and --snp_caller deepvariant is specified (default: ONT_R104)
+    --clair3_platform      Clair3 platform to use, only when --snp and --snp_caller clair3 is specified (default: ONT)
+    --clair3_model         Clair3 model to use, only when --snp and --snp_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
     --sv                   Enable structural variant calling with sniffles2
-    --annotate             Enable variant annotation with snpEff
+    --annotate             Enable variant annotation with snpEff (use only with --snp)
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
 
@@ -228,7 +228,7 @@ workflow {
     // Variant Calling Logic
     if (params.snp) {
         
-        if (params.variant_caller == 'deepvariant') {
+        if (params.snp_caller == 'deepvariant') {
              ch_vc_input | VCF_DEEPVARIANT
              ch_vcf = VCF_DEEPVARIANT.out
         } else {

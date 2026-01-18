@@ -152,23 +152,16 @@
           "default": false,
           "help_text": "Set to true to enable SNP/small INDEL variant calling on the aligned reads using Clair3 or DeepVariant."
         },
-        "sv": {
-          "type": "boolean",
-          "description": "Enable structural variant calling with sniffles2",
-          "fa_icon": "fas fa-check-square",
-          "default": false,
-          "help_text": "Set to true to enable structural variant calling on the aligned reads using sniffles2."
-        },
-        "variant_caller": {
+        "snp_caller": {
           "type": "string",
-          "description": "Variant caller to use",
+          "description": "SNP variant caller to use",
           "fa_icon": "fas fa-cog",
           "default": "clair3",
           "enum": [
             "clair3",
             "deepvariant"
           ],
-          "help_text": "Variant caller to use. Clair3 is recommended for ONT data."
+          "help_text": "SNP variant caller to use. Clair3 is recommended for ONT data."
         },
         "clair3_platform": {
           "type": "string",
@@ -212,6 +205,13 @@
             "HYBRID_PACBIO_ILLUMINA"
           ],
           "help_text": "The specific DeepVariant model name."
+        },
+        "sv": {
+          "type": "boolean",
+          "description": "Enable structural variant calling with sniffles2",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable structural variant calling on the aligned reads using sniffles2."
         },
         "annotate": {
           "type": "boolean",
