@@ -229,7 +229,7 @@ workflow {
     .combine( ch_bedfile )
 
     // Variant Calling Logic
-    def ch_vcf = Channel.empty() // needed for older versions of nextflow
+    ch_vcf = Channel.empty()
     if (params.snp) {
         
         if (params.snp_caller == 'deepvariant') {
@@ -249,12 +249,12 @@ workflow {
     }
 
     if (params.phase && params.snp) {
-        def ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
+        ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
             def sample = bam.simpleName.replace('.align', '')
             tuple(sample, bam, bai)
         }
         
-        def ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
+        ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
             def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
             tuple(sample, vcf, tbi)
         }
