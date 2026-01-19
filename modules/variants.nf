@@ -3,7 +3,7 @@
 process VCF_CLAIR3 {
 
     //container 'docker.io/hkubal/clair3:latest'
-    container 'docker.io/hkubal/clair3-gpu:latest'
+    container 'docker.io/hkubal/clair3-gpu:v1.2.0'
 
     publishDir "${params.outdir}/03-variants", mode: 'copy'
     errorStrategy 'ignore'
@@ -130,18 +130,18 @@ process VCF_ANNOTATE {
 }
 
 process VCF_ANNOTATE_REPORT {
-    publishDir "${params.outdir}/05-annotations", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
     errorStrategy 'ignore'
 
     input:
     path(ann_stats)
 
     output:
-    path("variants_annotation_report.html")
+    path("02-variants-annotation-report.html")
 
     script:
     """
-    make-variants-report.py $ann_stats -o variants_annotation_report.html --filterQ ${params.anno_filterQ}
+    make-variants-report.py $ann_stats -o 02-variants-annotation-report.html --filterQ ${params.anno_filterQ}
     """
 }
 

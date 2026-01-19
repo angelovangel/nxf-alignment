@@ -62,7 +62,7 @@ Output & config:
 }
 
 // create empty placeholder files if not exist
-["runinfo", "refstats", "hist", "bedcov", "bedcov_compl", "flagstat", "variants", "sv_variants"].each { name ->
+["runinfo", "refstats", "hist", "bedcov", "bedcov_compl", "flagstat", "variants", "sv_variants", "phase_stats"].each { name ->
     def f = file("${workflow.workDir}/empty_${name}" + (name.contains("info") || name.contains("stats") ? ".csv" : ""))
     if (!f.exists()) f.text = ""
     // assign to variables for easy reference
@@ -77,6 +77,7 @@ def empty_bedcov_compl = file("${workflow.workDir}/empty_bedcov_compl")
 def empty_flagstat = file("${workflow.workDir}/empty_flagstat")
 def empty_variants = file("${workflow.workDir}/empty_variants")
 def empty_sv_variants = file("${workflow.workDir}/empty_sv_variants")
+def empty_phase_stats = file("${workflow.workDir}/empty_phase_stats")
 
 // Workflow properties - create CSV content as a string
 def as_status = params.asfile ? "Yes" : "No"
@@ -176,6 +177,7 @@ workflow report {
         Channel.fromPath(empty_flagstat),
         Channel.fromPath(empty_variants),
         Channel.fromPath(empty_sv_variants),
+        Channel.fromPath(empty_phase_stats),
         ch_asfile
     )
 }
@@ -261,6 +263,9 @@ workflow {
             ch_ref.first(),
             REF_STATS.out.ch_genome.first()
         )
+        ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
+    } else {
+        ch_phase_stats = Channel.fromPath(empty_phase_stats)
     }
     
     if (params.sv) {
@@ -279,6 +284,7 @@ workflow {
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
         params.snp ? VCF_STATS_SNP.out.collect() : Channel.fromPath(empty_variants),
         params.sv ? VCF_STATS_SV.out.collect() : Channel.fromPath(empty_sv_variants),
+        ch_phase_stats,
         ch_asfile
     )  
 }

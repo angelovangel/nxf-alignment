@@ -4,6 +4,7 @@ let samtoolsSortDirection = {};
 let variantsSortDirection = {};
 let bedcovSortDirection = {};
 let svSortDirection = {};
+let phaseSortDirection = {};
 
 function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -185,6 +186,36 @@ function exportSVToCSV() {
     downloadCSV(csv.join('\n'), 'sv_export.csv');
 }
 
+function exportPhaseToCSV() {
+    const table = document.getElementById('phaseTable');
+    if (!table) { alert('Phasing table not found.'); return; }
+    let csv = [];
+    const headers = ['Sample', 'Phased_Variants', 'Unphased_Variants', 'Phased_Pct', 'Blocks', 'Block_N50', 'Avg_Block_BP'];
+    csv.push(headers.join(','));
+    const dataRows = table.querySelectorAll('tbody tr');
+    dataRows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const cols = [
+                row.getAttribute('data-sample'),
+                row.getAttribute('data-phased'),
+                row.getAttribute('data-unphased'),
+                row.getAttribute('data-pct'),
+                row.getAttribute('data-blocks'),
+                row.getAttribute('data-n50'),
+                row.getAttribute('data-avgbp')
+            ];
+            const safeCols = cols.map(text => {
+                if (!text) return "";
+                text = text.trim().replace(/,/g, '');
+                if (text.includes('"')) { text = '"' + text.replace(/"/g, '""') + '"'; }
+                return text;
+            });
+            csv.push(safeCols.join(','));
+        }
+    });
+    downloadCSV(csv.join('\n'), 'phasing_export.csv');
+}
+
 $(document).ready(function () {
     $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
@@ -194,6 +225,7 @@ $(document).ready(function () {
             filterVariantsTable();
             filterBedcovTable();
             filterSVTable();
+            filterPhaseTable();
         });
     $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
@@ -214,12 +246,14 @@ $(document).ready(function () {
     variantsSortDirection[0] = 'desc';
     bedcovSortDirection[0] = 'desc';
     svSortDirection[0] = 'desc';
+    phaseSortDirection[0] = 'desc';
     sortTable(0);
     sortReadstatsTable(0);
     sortSamtoolsTable(0);
     sortVariantsTable(0);
     sortBedcovTable(0);
     sortSVTable(0);
+    sortPhaseTable(0);
 });
 
 function sortReadstatsTable(columnIndex) {
@@ -571,4 +605,47 @@ function scrollToTop() {
         top: 0,
         behavior: 'smooth'
     });
+}
+
+function filterPhaseTable() {
+    const selectedSamples = $('#sampleFilter').val() || [];
+    const table = document.getElementById('phaseTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const sample = row.getAttribute('data-sample');
+        const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+        row.style.display = showSample ? '' : 'none';
+    });
+}
+
+function sortPhaseTable(columnIndex) {
+    const table = document.getElementById('phaseTable');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    phaseSortDirection[columnIndex] = phaseSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+    const isAsc = phaseSortDirection[columnIndex] === 'asc';
+
+    const headers = table.querySelectorAll('th.sortable');
+    headers.forEach(h => h.classList.remove('asc', 'desc'));
+    if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+
+    rows.sort((a, b) => {
+        const dataAttrMap = {
+            0: 'sample',
+            1: 'phased', 2: 'unphased', 3: 'pct',
+            4: 'blocks', 5: 'n50', 6: 'avgbp'
+        };
+        const dataKey = dataAttrMap[columnIndex];
+        if (columnIndex === 0) {
+            const aVal = a.getAttribute('data-sample');
+            const bVal = b.getAttribute('data-sample');
+            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        let aVal = parseFloat(a.getAttribute('data-' + dataKey));
+        let bVal = parseFloat(b.getAttribute('data-' + dataKey));
+        return isAsc ? aVal - bVal : bVal - aVal;
+    });
+    rows.forEach(row => tbody.appendChild(row));
 }

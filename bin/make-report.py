@@ -284,6 +284,28 @@ def parse_sv_query(filepath):
         print(f"Error parsing SV query file {filepath}: {e}", file=sys.stderr)
         return None
 
+def parse_phase_file(filepath):
+    """Parse Whatshap phasing stats TSV and return dictionary for 'ALL' chromosome row."""
+    try:
+        data = {}
+        with open(filepath, 'r') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            for row in reader:
+                if row['chromosome'] == 'ALL':
+                    data = {
+                        'phased': int(row.get('phased', 0)),
+                        'unphased': int(row.get('unphased', 0)),
+                        'blocks': int(row.get('blocks', 0)),
+                        'block_n50': int(float(row.get('block_n50', 0))),
+                        'avg_block_bp': float(row.get('bp_per_block_avg', 0)),
+                        'phased_fraction': float(row.get('phased_fraction', 0)) * 100
+                    }
+                    break
+        return data if data else None
+    except Exception as e:
+        print(f"Error parsing phasing stats file {filepath}: {e}", file=sys.stderr)
+        return None
+
 def parse_as_file(filepath):
     """Parse adaptive sampling decision file and return accepted/total counts."""
     accepted = 0
@@ -722,6 +744,64 @@ def render_sv_table(sv_data):
     """
     return html
 
+def render_phasing_table(phasing_data):
+    """Render the Phasing Statistics table"""
+    if not phasing_data:
+        return ""
+
+    html = """
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Small Variants (Phasing Statistics)</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportPhaseToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="phaseTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortPhaseTable(0)">Sample</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(1)">Phased Variants</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(2)">Unphased Variants</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(3)">Phased (%)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(4)">Blocks</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(5)">Block N50</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(6)">Avg Block Size (bp)</th>
+              </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for sample_name in sorted(phasing_data.keys()):
+        stats = phasing_data[sample_name]
+        
+        html += f"""
+            <tr data-sample="{sample_name.lower()}"
+                data-phased="{stats['phased']}"
+                data-unphased="{stats['unphased']}"
+                data-pct="{stats['phased_fraction']}"
+                data-blocks="{stats['blocks']}"
+                data-n50="{stats['block_n50']}"
+                data-avgbp="{stats['avg_block_bp']}">
+              <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{stats['phased']:,}</td>
+              <td style="text-align: right;">{stats['unphased']:,}</td>
+              <td style="text-align: right;">{stats['phased_fraction']:.2f}%</td>
+              <td style="text-align: right;">{stats['blocks']:,}</td>
+              <td style="text-align: right;">{stats['block_n50']:,}</td>
+              <td style="text-align: right;">{stats['avg_block_bp']:.0f}</td>
+            </tr>
+        """
+        
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
 def render_coverage_table(samples_data, genes):
     """Render the Coverage Statistics table"""
     # Don't render if there's no data or all samples are empty
@@ -897,7 +977,7 @@ def render_bed_coverage_table(bed_coverage_data):
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, as_counts, output_file):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, output_file):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -923,6 +1003,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     if samtools_stats: all_sample_names.update(samtools_stats.keys())
     if variants_data: all_sample_names.update(variants_data.keys())
     if bed_coverage_data: all_sample_names.update(bed_coverage_data.keys())
+    if phasing_data: all_sample_names.update(phasing_data.keys())
     
     sample_names = sorted(list(all_sample_names))
     sample_options = "".join([f'<option value="{name.lower()}">{name}</option>' for name in sample_names])
@@ -938,6 +1019,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     readstats_table = render_readstats_table(readstats_data)
     samtools_table = render_samtools_table(samtools_stats)
     variants_table = render_variants_table(variants_data)
+    phasing_table = render_phasing_table(phasing_data)
     sv_table = render_sv_table(sv_data)
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
@@ -985,6 +1067,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {bed_coverage_table}
       {coverage_table}
       {variants_table}
+      {phasing_table}
       {sv_table}
     </div>
   </div>
@@ -1011,6 +1094,7 @@ def main():
     parser.add_argument('--flagstat', nargs='*', default=[], help='One or more .flagstat.json files')
     parser.add_argument('--vcf-query', nargs='*', default=[], help='One or more .query files from bcftools query')
     parser.add_argument('--sv-vcf', nargs='*', default=[], help='One or more structural variant VCF files')
+    parser.add_argument('--phasestats', nargs='*', default=[], help='One or more phasing stats TSV files')
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
@@ -1022,6 +1106,7 @@ def main():
     variants_data = {}
     sv_data = {}
     bed_coverage_data = {}
+    phasing_data = {}
     run_info = [] 
     wf_info = []
     ref_stats = []
@@ -1121,8 +1206,16 @@ def main():
         result = parse_sv_query(vcf_file)
         if result is not None:
             sv_data[sample_name] = result
+            
+    for phase_file in args.phasestats:
+        path = Path(phase_file)
+        sample_name = path.name.replace('.phase.tsv', '')
+        print(f"Processing phasing stats {phase_file} (Sample: {sample_name})...")
+        result = parse_phase_file(phase_file)
+        if result:
+            phasing_data[sample_name] = result
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, as_counts, args.output)
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, args.output)
 
 if __name__ == "__main__":
     main()

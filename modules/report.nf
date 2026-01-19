@@ -17,6 +17,7 @@ process REPORT {
         path(flagstat)
         path(variants)
         path(sv_variants)
+        path(phase_stats)
         path(as_file)
         
     output:
@@ -31,6 +32,7 @@ process REPORT {
     def flagstat_arg = flagstat.name.contains('empty_flagstat') ? '' : "--flagstat ${flagstat}"
     def variants_arg = variants.name.contains('empty_variants') ? '' : "--vcf-query ${variants}"
     def sv_variants_arg = sv_variants.name.contains('empty_sv_variants') ? '' : "--sv-vcf ${sv_variants}"
+    def phase_stats_arg = phase_stats.name.contains('empty_phase_stats') ? '' : "--phasestats ${phase_stats}" 
     def asfile_arg = as_file.name.contains('EMPTY') ? '' : "--asfile ${as_file}"
     """
     make-report.py \
@@ -44,7 +46,8 @@ process REPORT {
         $flagstat_arg \
         $variants_arg \
         $sv_variants_arg \
+        $phase_stats_arg \
         $asfile_arg \
-        -o nxf-alignment-report.html
+        -o 01-nxf-alignment-report.html
     """
 }
