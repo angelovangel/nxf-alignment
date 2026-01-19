@@ -296,7 +296,7 @@ def parse_phase_file(filepath):
                         'phased': int(row.get('phased', 0)),
                         'unphased': int(row.get('unphased', 0)),
                         'blocks': int(row.get('blocks', 0)),
-                        'block_n50': int(float(row.get('block_n50', 0))),
+                        'singletons': int(float(row.get('singletons', 0))),
                         'avg_block_bp': float(row.get('bp_per_block_avg', 0)),
                         'phased_fraction': float(row.get('phased_fraction', 0)) * 100
                     }
@@ -766,7 +766,7 @@ def render_phasing_table(phasing_data):
                 <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(2)">Unphased Variants</th>
                 <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(3)">Phased (%)</th>
                 <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(4)">Blocks</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(5)">Block N50</th>
+                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(5)">Singletons</th>
                 <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(6)">Avg Block Size (bp)</th>
               </tr>
             </thead>
@@ -782,14 +782,14 @@ def render_phasing_table(phasing_data):
                 data-unphased="{stats['unphased']}"
                 data-pct="{stats['phased_fraction']}"
                 data-blocks="{stats['blocks']}"
-                data-n50="{stats['block_n50']}"
+                data-singletons="{stats['singletons']}"
                 data-avgbp="{stats['avg_block_bp']}">
               <td class="sample-col">{sample_name}</td>
               <td style="text-align: right;">{stats['phased']:,}</td>
               <td style="text-align: right;">{stats['unphased']:,}</td>
               <td style="text-align: right;">{stats['phased_fraction']:.2f}%</td>
               <td style="text-align: right;">{stats['blocks']:,}</td>
-              <td style="text-align: right;">{stats['block_n50']:,}</td>
+              <td style="text-align: right;">{stats['singletons']:,}</td>
               <td style="text-align: right;">{stats['avg_block_bp']:.0f}</td>
             </tr>
         """
@@ -1144,7 +1144,7 @@ def main():
 
     for query_file in args.vcf_query:
         path = Path(query_file)
-        sample_name = path.name.replace('.query', '').replace('.vcf', '').replace('.variants', '')
+        sample_name = path.name.replace('.snp.query', '').replace('.vcf', '').replace('.variants', '')
         print(f"Processing query {query_file} (Sample: {sample_name})...")
         result = parse_bcftools_query(query_file)
         if result is not None:

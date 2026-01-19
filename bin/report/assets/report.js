@@ -190,7 +190,7 @@ function exportPhaseToCSV() {
     const table = document.getElementById('phaseTable');
     if (!table) { alert('Phasing table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Phased_Variants', 'Unphased_Variants', 'Phased_Pct', 'Blocks', 'Block_N50', 'Avg_Block_BP'];
+    const headers = ['Sample', 'Phased_Variants', 'Unphased_Variants', 'Phased_Pct', 'Blocks', 'Singletons', 'Avg_Block_BP'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -201,7 +201,7 @@ function exportPhaseToCSV() {
                 row.getAttribute('data-unphased'),
                 row.getAttribute('data-pct'),
                 row.getAttribute('data-blocks'),
-                row.getAttribute('data-n50'),
+                row.getAttribute('data-singletons'),
                 row.getAttribute('data-avgbp')
             ];
             const safeCols = cols.map(text => {
@@ -219,35 +219,34 @@ function exportPhaseToCSV() {
 $(document).ready(function () {
     $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
-            filterTable();
             filterReadstatsTable();
             filterSamtoolsTable();
             filterVariantsTable();
             filterBedcovTable();
             filterSVTable();
             filterPhaseTable();
+            filterTable();
         });
     $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
-            filterTable();
             filterBedcovTable();
+            filterTable();
         });
 
-    filterTable();
     filterReadstatsTable();
     filterSamtoolsTable();
     filterVariantsTable();
     filterBedcovTable();
     filterSVTable();
+    filterTable();
 
-    sortDirection[0] = 'desc';
+    // Default Sorts
     readstatsSortDirection[0] = 'desc';
     samtoolsSortDirection[0] = 'desc';
     variantsSortDirection[0] = 'desc';
     bedcovSortDirection[0] = 'desc';
     svSortDirection[0] = 'desc';
     phaseSortDirection[0] = 'desc';
-    sortTable(0);
     sortReadstatsTable(0);
     sortSamtoolsTable(0);
     sortVariantsTable(0);
@@ -635,7 +634,7 @@ function sortPhaseTable(columnIndex) {
         const dataAttrMap = {
             0: 'sample',
             1: 'phased', 2: 'unphased', 3: 'pct',
-            4: 'blocks', 5: 'n50', 6: 'avgbp'
+            4: 'blocks', 5: 'singletons', 6: 'avgbp'
         };
         const dataKey = dataAttrMap[columnIndex];
         if (columnIndex === 0) {
