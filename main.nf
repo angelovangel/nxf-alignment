@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -222,8 +222,8 @@ workflow {
     | SAMTOOLS_BEDCOV
 
     ch_vc_input = DORADO_ALIGN.out
-        .combine( ch_ref )
-        .combine( ch_bedfile )
+    .combine( ch_ref )
+    .combine( ch_bedfile )
 
     // Variant Calling Logic
     if (params.snp) {
@@ -243,6 +243,25 @@ workflow {
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
         }
     }
+
+    if (params.phase && params.snp) {
+        def ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
+            def sample = bam.simpleName.replace('.align', '')
+            tuple(sample, bam, bai)
+        }
+        
+        def ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
+            def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
+            tuple(sample, vcf, tbi)
+        }
+
+        VCF_PHASE(
+            ch_bam_phase.join(ch_vcf_phase),
+            ch_ref,
+            REF_STATS.out.ch_genome
+        )
+    }
+    
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
         VCF_STATS_SV(VCF_SNIFFLES2.out, 'sv')

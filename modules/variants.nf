@@ -144,4 +144,48 @@ process VCF_ANNOTATE_REPORT {
     make-variants-report.py $ann_stats -o variants_annotation_report.html --filterQ ${params.anno_filterQ}
     """
 }
+
+process VCF_PHASE {
+    container 'docker.io/tianjie16/whatshap:2.8'
+    publishDir "${params.outdir}/03-variants-phased", mode: 'copy', pattern: "*.{vcf.gz,gtf,ht.bam,ht.bam.bai}"
+    tag "${vcf.simpleName}"
+
+    input:
+    tuple val(sample), path(bam), path(bai), path(vcf), path(vcf_tbi)
+    path ref
+    path genome
+
+    output:
+    tuple val(sample), path("${sample}.phase.vcf.gz"), path("${sample}.phase.gtf")
+    path("${sample}.phase.tsv"), emit: ch_vcfphase_stats
+    tuple path("${sample}.ht.bam"), path("${sample}.ht.bam.bai")
+
+    script:
+    """
+    mv $genome ${ref}.fai
+
+    whatshap phase \
+    --reference $ref \
+    --ignore-read-groups \
+    -o ${sample}.phase.vcf.gz \
+    $vcf \
+    $bam 
+
+    whatshap stats \
+    --gtf ${sample}.phase.gtf \
+    --tsv ${sample}.phase.tsv \
+    ${sample}.phase.vcf.gz
+
+    tabix ${sample}.phase.vcf.gz
+
+    whatshap haplotag \
+    -o ${sample}.ht.bam \
+    --reference $ref \
+    --ignore-read-groups \
+    --output-threads=4 \
+    ${sample}.phase.vcf.gz $bam
+
+    samtools index ${sample}.ht.bam
+    """
+}
     
