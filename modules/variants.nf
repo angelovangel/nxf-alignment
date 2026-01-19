@@ -130,7 +130,7 @@ process VCF_ANNOTATE {
 }
 
 process VCF_ANNOTATE_REPORT {
-    publishDir "${params.outdir}/04-annotations", mode: 'copy'
+    publishDir "${params.outdir}/05-annotations", mode: 'copy'
     errorStrategy 'ignore'
 
     input:
@@ -147,7 +147,7 @@ process VCF_ANNOTATE_REPORT {
 
 process VCF_PHASE {
     container 'docker.io/tianjie16/whatshap:2.8'
-    publishDir "${params.outdir}/03-variants-phased", mode: 'copy', pattern: "*.{vcf.gz,gtf,ht.bam,ht.bam.bai}"
+    publishDir "${params.outdir}/04-phasing", mode: 'copy', pattern: "*.{vcf.gz,gtf,ht.bam,ht.bam.bai}"
     tag "${vcf.simpleName}"
 
     input:

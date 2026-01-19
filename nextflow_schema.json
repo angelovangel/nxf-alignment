@@ -206,6 +206,13 @@
           ],
           "help_text": "The specific DeepVariant model name."
         },
+        "phase": {
+          "type": "boolean",
+          "description": "Enable variant phasing with Whatshap",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable SNP phasing using Whatshap (only diploid cases supported). Also haplotagging will be performed on the aligned reads."
+        },
         "sv": {
           "type": "boolean",
           "description": "Enable structural variant calling with sniffles2",
