@@ -229,6 +229,7 @@ workflow {
     .combine( ch_bedfile )
 
     // Variant Calling Logic
+    def ch_vcf = Channel.empty() // needed for older versions of nextflow
     if (params.snp) {
         
         if (params.snp_caller == 'deepvariant') {
