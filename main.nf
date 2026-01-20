@@ -229,6 +229,11 @@ workflow {
     .combine( ch_bedfile )
 
     // Variant Calling Logic
+    if (params.sv) {
+        ch_vc_input | VCF_SNIFFLES2
+        VCF_STATS_SV(VCF_SNIFFLES2.out, 'sv')
+    }
+    // annotate and phase are within snp
     ch_vcf = Channel.empty()
     if (params.snp) {
         
@@ -246,32 +251,26 @@ workflow {
             ch_vcf | VCF_ANNOTATE
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
         }
-    }
 
-    if (params.phase && params.snp) {
-        ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
-            def sample = bam.simpleName.replace('.align', '')
-            tuple(sample, bam, bai)
-        }
-        
-        ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
-            def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
-            tuple(sample, vcf, tbi)
-        }
+        if (params.phase) {
+            ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
+                def sample = bam.simpleName.replace('.align', '')
+                tuple(sample, bam, bai)
+            }
 
-        VCF_PHASE(
-            ch_bam_phase.join(ch_vcf_phase),
-            ch_ref.first(),
-            REF_STATS.out.ch_genome.first()
-        )
-        ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
-    } else {
-        ch_phase_stats = Channel.fromPath(empty_phase_stats)
-    }
-    
-    if (params.sv) {
-        ch_vc_input | VCF_SNIFFLES2
-        VCF_STATS_SV(VCF_SNIFFLES2.out, 'sv')
+            ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
+                def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
+                tuple(sample, vcf, tbi)
+            }
+            VCF_PHASE(
+                ch_bam_phase.join(ch_vcf_phase),
+                ch_ref.first(),
+                REF_STATS.out.ch_genome.first()
+            )
+            ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
+        } else {
+            ch_phase_stats = Channel.fromPath(empty_phase_stats)
+        }
     }
     
     REPORT(

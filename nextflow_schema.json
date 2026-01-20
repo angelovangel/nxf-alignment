@@ -249,6 +249,14 @@
           "default": 20,
           "help_text": "Filter out variants with quality score lower than this before annotation."
         }
+      },
+      "dependencies": {
+        "phase": [
+          "snp"
+        ],
+        "annotate": [
+          "snp"
+        ]
       }
     },
     "other_options": {

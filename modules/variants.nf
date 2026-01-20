@@ -5,7 +5,7 @@ process VCF_CLAIR3 {
     //container 'docker.io/hkubal/clair3:latest'
     container 'docker.io/hkubal/clair3-gpu:v1.2.0'
 
-    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/snps", mode: 'copy'
     errorStrategy 'ignore'
     tag "${bam.simpleName}, ${task.cpus} cpus"
 
@@ -25,6 +25,7 @@ process VCF_CLAIR3 {
     --bam_fn=$bam \
     --ref_fn=$ref \
     --bed_fn=$bedfile \
+    --sample_name=${bam.simpleName} \
     --platform=$platform \
     --model_path="/opt/models/$model" \
     --threads=${task.cpus} \
@@ -37,7 +38,7 @@ process VCF_CLAIR3 {
 
 process VCF_DEEPVARIANT {
     //container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
-    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/snps", mode: 'copy'
     tag "${bam.simpleName} ${task.cpus} cpus"
 
     input:
@@ -84,7 +85,7 @@ process VCF_STATS {
 
 process VCF_SNIFFLES2 {
     container 'docker.io/hydragenetics/sniffles2:2.6.3'
-    publishDir "${params.outdir}/03-variants", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/sv", mode: 'copy'
     tag "${bam.simpleName}"
 
     input:
@@ -108,7 +109,7 @@ process VCF_ANNOTATE {
     containerOptions '--entrypoint ""' 
     errorStrategy 'ignore'
     
-    publishDir "${params.outdir}/04-annotations", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{vcf,vzf.gz,stats.csv}"
     tag "${vcf.simpleName} (filterQ >= ${params.anno_filterQ})"
 
     input:
@@ -147,7 +148,7 @@ process VCF_ANNOTATE_REPORT {
 
 process VCF_PHASE {
     container 'docker.io/tianjie16/whatshap:2.8'
-    publishDir "${params.outdir}/04-phasing", mode: 'copy', pattern: "*.{vcf.gz,gtf,ht.bam,ht.bam.bai}"
+    publishDir "${params.outdir}/03-variants/phasing", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi,gtf,ht.bam,ht.bam.bai}"
     tag "${vcf.simpleName}"
 
     input:
@@ -156,7 +157,7 @@ process VCF_PHASE {
     path genome
 
     output:
-    tuple val(sample), path("${sample}.phase.vcf.gz"), path("${sample}.phase.gtf")
+    tuple val(sample), path("${sample}.phase.{vcf.gz,vcf.gz.tbi}"), path("${sample}.phase.gtf")
     path("${sample}.phase.tsv"), emit: ch_vcfphase_stats
     tuple path("${sample}.ht.bam"), path("${sample}.ht.bam.bai")
 
