@@ -46,18 +46,21 @@ process BEDTOOLS_COV {
     container 'docker.io/biocontainers/bedtools:v2.27.1dfsg-4-deb_cv1'
 
     publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*hist.tsv'
+    publishDir "${params.outdir}", mode: 'copy', pattern: '*.bed'
     tag "${bam.simpleName}"
 
     input:
         tuple path(bam), path(bai), path(bed)
 
     output:
-        path "*hist.tsv"
+        path "*hist.tsv", emit: ch_hist
+        path "nxf-alignment.bed"
 
     script:
     """
     echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${bam.simpleName}.hist.tsv
     bedtools coverage -a ${bed} -b ${bam} -hist >> ${bam.simpleName}.hist.tsv
+    cp $bed nxf-alignment.bed
     """
 }
 

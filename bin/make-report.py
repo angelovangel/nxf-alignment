@@ -206,7 +206,7 @@ def parse_bcftools_query(filepath):
                 # Check Quality
                 is_high_qual = False
                 try:
-                    if qual_str != '.' and float(qual_str) >= 20:
+                    if qual_str != '.' and float(qual_str) >= 30:
                         stats['high_qual'] += 1
                         is_high_qual = True
                 except ValueError:
@@ -643,7 +643,7 @@ def render_variants_table(variants_data):
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">PASS Variants</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">SNPs</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">Indels</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">High Qual (≥Q20)</th>
+                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">High Qual (≥Q30)</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(5)">High Qual SNPs</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(6)">High Qual Indels</th>
                 <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(7)">Ts/Tv Ratio</th>

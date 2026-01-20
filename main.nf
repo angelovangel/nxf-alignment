@@ -279,7 +279,7 @@ workflow {
         ch_wf_properties,
         READ_STATS.out.collect(),
         REF_STATS.out.ch_ref_stats,
-        BEDTOOLS_COV.out.collect(),
+        BEDTOOLS_COV.out.ch_hist.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
