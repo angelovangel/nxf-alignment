@@ -49,7 +49,7 @@ Processing options:
     --clair3_model         Clair3 model to use, only when --snp and --snp_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
     --sv                   Enable structural variant calling with sniffles2
     --phase                Enable SNP phasing with Whatshap (use only with --snp, only diploid cases supported)
-    --annotate             Enable variant annotation with snpEff (use only with --snp)
+    --annotate             Enable SNP variant annotation with snpEff (use only with --snp)
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
 

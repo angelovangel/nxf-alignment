@@ -100,9 +100,10 @@ nextflow run angelovangel/nxf-alignment \
 | `clair3_model` | string | `r1041_e82_400bps_hac_v500` | Model to use for Clair3 |
 | `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
 | `sv` | boolean | false | Perform SV variant calling using Sniffles2 |
-| `annotate` | boolean | false | Annotate variants using snpEff (use only with `--snp` or `--sv`) |
+| `phase` | boolean | false | Perform SNP phasing using Whatshap (use only with `--snp`, only diploid cases supported) |
+| `annotate` | boolean | false | Annotate SNP variants using snpEff (use only with `--snp`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
-| `anno_filterQ` | int | `20` | Filter out variants with quality lower than this before annotation |
+| `anno_filterQ` | int | `20` | Filter out SNP variants with quality lower than this before annotation |
 
 #### Profiles
 Predefined set of parameters for common use cases, use with `-profile`:
@@ -110,25 +111,27 @@ Predefined set of parameters for common use cases, use with `-profile`:
 | Profile | Description |
 |---------|-------------|
 | `standard` | Standard workflow with Docker GPU support |
+| `dev` | Workflow for testing on Apple Silicon |
 | `singularity` | Workflow with Singularity GPU support |
 | `revio` | Workflow optimized for HiFi Revio (use with `--reads` to skip basecalling)|
 
 ## Output Structure
 
 ```
-results/
+output/
 ├── 00-basecall/
-│   ├── reads.bam              # Basecalled reads
-│   └── processed/             # Per-sample BAMs (if barcoded)
+│   ├── reads.bam                       # Basecalled reads
+│   └── processed/                      # Per-sample BAMs (if barcoded)
 ├── 01-align/
-│   ├── reads.align.bam        # Aligned reads
-│   └── reads.align.bam.bai    # BAM index
+│   ├── reads.align.bam                 # Aligned reads
+│   └── reads.align.bam.bai             # BAM index
 ├── 02-coverage/
-│   └── reads.hist.tsv         # Coverage histogram
+│   └── reads.hist.tsv                  # Coverage histogram
 ├── 03-variants/
-│   ├── reads.variants.snp.vcf # SNP variants
-│   └── reads.variants.sv.vcf  # SV variants
-└── nxf-alignment-report.html  # Workflow report
+│   ├── reads.variants.snp.vcf          # SNP variants
+│   └── reads.variants.sv.vcf           # SV variants
+└── 01-nxf-alignment-report.html        # Workflow report
+└── 02-variants-annotation-report.html  # Variants annotation report
 ```
 
 ## Input Files
