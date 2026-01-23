@@ -17,8 +17,9 @@ process DORADO_ALIGN {
     # -o outputs sorted indexed bam, but with ONT folder structure or not (version??)
     dorado aligner -o align_out -t ${task.cpus} ${ref} ${reads}
 
-    find align_out -name "*.bam" -exec mv {} ${reads.simpleName}.align.bam \\;
-    find align_out -name "*.bai" -exec mv {} ${reads.simpleName}.align.bam.bai \\;
+    find align_out -name "*.bam" -exec samtools merge -@ ${task.cpus} -o ${reads.simpleName}.align.bam {} +
+    
+    #find align_out -name "*.bai" -exec mv {} ${reads.simpleName}.align.bam.bai \\;
 
     if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
         samtools index ${reads.simpleName}.align.bam
