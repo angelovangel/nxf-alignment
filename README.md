@@ -61,15 +61,15 @@ nextflow run angelovangel/nxf-alignment \
   --annotate
 ```
 #### Skip alignment (basecalling only)
-Basecalling (for single sample and barcoded runs) can also be performed without alignment, using the `-entry` parameter.
-`-entry basecall` will do basecalling (and evt demultiplexing), `-entry report` will do basecalling + report
+Basecalling (for single sample and barcoded runs) can also be performed without alignment, using the `--basecall` or `--report` parameters.
+`--basecall` will do basecalling (and evt demultiplexing), `--report` will do basecalling + report
 ```bash
 nextflow run angelovangel/nxf-alignment \
     --pod5 /path/to/pod5/dir \
     --model hac \
     --kit SQK-RBK114-96 # for barcoded runs only
     --samplesheet /path/to/samplesheet.csv # for barcoded runs only
-    -entry report
+    --report
 ```
 
 
@@ -81,7 +81,9 @@ nextflow run angelovangel/nxf-alignment \
 |-----------|------|---------|-------------|
 | `pod5` | path | - | Directory containing POD5 files (required if not using `--reads`) |
 | `reads` | path | null | Path to input BAM/FASTQ file(s) or directory (skips basecalling) |
-| `ref` | path | - | Reference genome in FASTA format (required) |
+| `ref` | path | - | Reference genome in FASTA format (required unless `--basecall` or `--report` is used) |
+| `basecall` | boolean | `false` | Run the pipeline up to basecalling only |
+| `report` | boolean | `false` | Run the pipeline up to reporting only (skips alignment and variants) |
 | `model` | string | `fast` | Dorado basecall model, see [available models](https://software-docs.nanoporetech.com/dorado/latest/models/list/)|
 | `outdir` | string | `results` | Output directory for results |
 

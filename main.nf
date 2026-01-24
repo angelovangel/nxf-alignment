@@ -29,7 +29,7 @@ basecal, align, and analyze ONT data
 =============================================
 
 Required/important options:
-    --ref <path>           Reference FASTA (required unless -entry basecall is used)
+    --ref <path>           Reference FASTA (required unless --basecall or --report is used)
 
 Input options:
     --pod5 <dir>           Directory with POD5 files (use when basecalling)
@@ -55,7 +55,7 @@ Processing options:
 
 Output & config:
     --outdir               Output directory name (default: results)
-    -profile               Nextflow profile (standard, test, singularity)
+    -profile               Nextflow profile (standard, test, dev, singularity)
     --basecall             Run the pipeline up to basecalling only
     --report               Run the pipeline up to reporting only (skips alignment and variants)
 
@@ -147,6 +147,9 @@ workflow basecall {
 }
 
 workflow {
+    if (!params.basecall && !params.report && !params.ref) {
+        error "Reference FASTA file (--ref) is required for full pipeline analysis (alignment and variant calling). Use --basecall or --report to run subsets of the pipeline without a reference."
+    }
 
     // If 'reads' parameter is provided create a channel from that path.
     // also possible to pass a folder with reads, every read is one sample

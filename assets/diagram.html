@@ -290,14 +290,14 @@
         <p class="subtitle">Parameter-driven execution paths</p>
 
         <!-- Entry Point -->
-        <div class="entry-point">-entry parameter</div>
+        <div class="entry-point">Flow control parameters</div>
         <div class="connector"></div>
 
         <!-- Three Branches -->
         <div class="branches">
             <!-- Branch 1: basecall -->
             <div class="branch">
-                <div class="branch-header blue">-entry basecall</div>
+                <div class="branch-header blue">--basecall</div>
                 <div class="branch-connector blue"></div>
                 <div class="branch-card blue">
                     <h3>Basecalling Only</h3>
@@ -318,7 +318,7 @@
 
             <!-- Branch 2: report -->
             <div class="branch">
-                <div class="branch-header green">-entry report</div>
+                <div class="branch-header green">--report</div>
                 <div class="branch-connector green"></div>
                 <div class="branch-card green">
                     <h3>Basecall + Report</h3>
@@ -354,7 +354,7 @@
                         </div>
                         <div class="note" style="color:#c2410c;">Basecall + Align + Coverage + Variants + Annotation +
                             Report</div>
-                        <div class="note">Optional: --asfile, --model, --bed, --variants, --annotate</div>
+                        <div class="note">Optional: --asfile, --model, --bed, --snp, --sv, --annotate</div>
                         <div class="note">Barcoded: --kit and --samplesheet</div>
                     </div>
                 </div>
@@ -366,13 +366,13 @@
             <ul>
                 <li>• <code>--kit</code> and <code>--samplesheet</code> must be used together (for ONT barcoded runs)
                 </li>
-                <li>• <code>--ref</code> is required for most workflows but can be auto-skipped in
-                    <code>-entry basecall</code>
+                <li>• <code>--ref</code> is required for the full pipeline but optional with <code>--basecall</code> or
+                    <code>--report</code>
                 </li>
                 <li>• <code>--model</code> dorado basecalling model (default is 'fast')</li>
                 <li>• <code>--asfile</code> (adaptive sampling CSV) is optional for filtering reads during basecalling
-                <li>• <code>--variants</code> enables variant calling via <b>Clair3</b> or <b>DeepVariant</b></li>
-                <li>• <code>--variant_caller</code> choose between <code>clair3</code> (default) or
+                <li>• <code>--snp</code> enables SNP variant calling via <b>Clair3</b> or <b>DeepVariant</b></li>
+                <li>• <code>--snp_caller</code> choose between <code>clair3</code> (default) or
                     <code>deepvariant</code>
                 </li>
                 <li>• <code>--annotate</code> enables variant annotation with <b>snpEff</b></li>
@@ -477,11 +477,11 @@
             </div>
             <div class="two-col-grid">
                 <div class="info-card">
-                    <div class="info-card-title">Detection options (--variants):</div>
+                    <div class="info-card-title">Detection options (--snp, --sv):</div>
                     <div class="info-card-content">
                         <div>• <b>Clair3</b>: Standard ONT variant caller</div>
                         <div>• <b>DeepVariant</b>: High-accuracy caller (Google)</div>
-                        <div>• Select via <code>--variant_caller</code></div>
+                        <div>• Select via <code>--snp_caller</code></div>
                     </div>
                 </div>
                 <div class="info-card">

@@ -7,6 +7,28 @@
   "url": "https://github.com/angelovangel/nxf-alignment",
   "type": "object",
   "definitions": {
+    "workflow_options": {
+      "title": "Workflow options",
+      "type": "object",
+      "fa_icon": "fas fa-cogs",
+      "description": "Options for workflow execution.",
+      "properties": {
+        "basecall": {
+          "type": "boolean",
+          "description": "Run the pipeline up to basecalling only",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to run the pipeline up to basecalling only (skips alignment and variants)."
+        },
+        "report": {
+          "type": "boolean",
+          "description": "Run the pipeline up to basecall + reporting only (skips alignment and variants)",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to run the pipeline up to basecalling and reporting only (skips alignment and variants)."
+        }
+      }
+    },
     "basecalling_options": {
       "title": "Basecalling/Input reads options",
       "type": "object",
@@ -119,16 +141,14 @@
       "type": "object",
       "fa_icon": "fas fa-cogs",
       "description": "Options for alignment.",
-      "required": [
-        "ref"
-      ],
+      "required": [],
       "properties": {
         "ref": {
           "type": "string",
           "format": "file-path",
           "fa_icon": "fas fa-dna",
           "description": "Reference FASTA file",
-          "help_text": "Path to reference FASTA file for alignment. Required unless using -entry basecall."
+          "help_text": "Path to reference FASTA file for alignment. Required unless using --basecall or --report."
         },
         "bed": {
           "type": "string",
