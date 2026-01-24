@@ -56,12 +56,14 @@ Processing options:
 Output & config:
     --outdir               Output directory name (default: results)
     -profile               Nextflow profile (standard, test, singularity)
-    -entry                 Workflow entry point (basecall - basecalling only, report - basecalling + report)
+    --basecall             Run the pipeline up to basecalling only
+    --report               Run the pipeline up to reporting only (skips alignment and variants)
 
 """.stripIndent()
 }
 
 // create empty placeholder files if not exist
+/*
 ["runinfo", "refstats", "hist", "bedcov", "bedcov_compl", "flagstat", "variants", "sv_variants", "phase_stats"].each { name ->
     def f = file("${workflow.workDir}/empty_${name}" + (name.contains("info") || name.contains("stats") ? ".csv" : ""))
     if (!f.exists()) f.text = ""
@@ -69,8 +71,11 @@ Output & config:
     if (name == "runinfo") empty_runinfo = f
     if (name == "refstats") empty_refstats = f
 }
+*/
 
 // Additional specific assignments if needed
+def empty_runinfo = file("${workflow.workDir}/empty_runinfo.csv")
+def empty_refstats = file("${workflow.workDir}/empty_refstats.csv")
 def empty_hist = file("${workflow.workDir}/empty_hist")
 def empty_bedcov = file("${workflow.workDir}/empty_bedcov")
 def empty_bedcov_compl = file("${workflow.workDir}/empty_bedcov_compl")
@@ -140,51 +145,8 @@ workflow basecall {
     emit: 
     ch_bc = params.kit ? MERGE_READS.out : DORADO_BASECALL.out
 }
-// do basecall + reporting
-workflow report {
-    // Calc ref stats if ref exists, else empty
-    if (params.ref) {
-        REF_STATS(Channel.fromPath(params.ref))
-        ch_ref_stats = REF_STATS.out.ch_ref_stats       
-    } else {
-        ch_ref_stats = Channel.fromPath(empty_refstats)
-    }
-
-    if (params.reads) {
-        if ( file(params.reads).isDirectory() ) {
-            pattern = "*.{bam,fasta,fastq,fastq.gz,fq,fq.gz}"
-            ch_reads = Channel.fromPath(params.reads + "/" + pattern, type: 'file', checkIfExists: true)
-        } else {
-            ch_reads = Channel.fromPath(params.reads, checkIfExists: true)        
-        }
-    } else {
-        // Otherwise, source the channel from the 'basecall' (or basecall + merge_reads) workflow's output.
-        ch_reads = basecall().ch_bc
-    }
-    
-    RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
-    READ_STATS(ch_reads)
-    
-    REPORT(
-        RUN_INFO.out.ifEmpty(empty_runinfo),
-        ch_wf_properties,
-        READ_STATS.out.collect(),
-        ch_ref_stats,
-        // no need to actually create the empty files, this is handled by REPORT defs
-        Channel.fromPath(empty_hist),
-        Channel.fromPath(empty_bedcov),
-        Channel.fromPath(empty_bedcov_compl),
-        Channel.fromPath(empty_flagstat),
-        Channel.fromPath(empty_variants),
-        Channel.fromPath(empty_sv_variants),
-        Channel.fromPath(empty_phase_stats),
-        ch_asfile
-    )
-}
 
 workflow {
-    ch_ref = Channel.fromPath(params.ref)
-    REF_STATS(ch_ref)
 
     // If 'reads' parameter is provided create a channel from that path.
     // also possible to pass a folder with reads, every read is one sample
@@ -200,17 +162,51 @@ workflow {
         ch_reads = basecall().ch_bc
     }
 
-    // if no bedfile provided, just use the ref to generate one with the fasta entries
-    if ( !params.bed ) {
-        // generating bedfile from reference
-        MAKE_BEDFILE(Channel.fromPath(params.ref, checkIfExists: true))
-        ch_bedfile = MAKE_BEDFILE.out
+    if (params.basecall) {
+        return
+    }
+
+    if (params.ref) {
+        ch_ref = Channel.fromPath(params.ref, checkIfExists: true)
+        REF_STATS(ch_ref)
+        ch_ref_stats = REF_STATS.out.ch_ref_stats
+        ch_genome = REF_STATS.out.ch_genome
     } else {
-        ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
+        ch_ref = Channel.empty()
+        ch_ref_stats = Channel.fromPath(empty_refstats)
+        ch_genome = Channel.empty()
     }
 
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
+
+    if (params.report) {
+        REPORT(
+            RUN_INFO.out.ifEmpty(empty_runinfo),
+            ch_wf_properties,
+            READ_STATS.out.collect(),
+            ch_ref_stats,
+            //
+            Channel.fromPath(empty_hist),
+            Channel.fromPath(empty_bedcov),
+            Channel.fromPath(empty_bedcov_compl),
+            Channel.fromPath(empty_flagstat),
+            Channel.fromPath(empty_variants),
+            Channel.fromPath(empty_sv_variants),
+            Channel.fromPath(empty_phase_stats),
+            ch_asfile
+        )
+        return
+    }
+
+    // if no bedfile provided, just use the ref to generate one with the fasta entries
+    if ( !params.bed ) {
+        // generating bedfile from reference
+        MAKE_BEDFILE(ch_ref)
+        ch_bedfile = MAKE_BEDFILE.out
+    } else {
+        ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
+    }
 
     ch_ref \
     .combine( ch_reads ) \
@@ -221,7 +217,7 @@ workflow {
     
     DORADO_ALIGN.out
     .combine( ch_bedfile )
-    .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, REF_STATS.out.ch_genome) )
+    .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, ch_genome) )
     | SAMTOOLS_BEDCOV
 
     ch_vc_input = DORADO_ALIGN.out
@@ -265,7 +261,7 @@ workflow {
             VCF_PHASE(
                 ch_bam_phase.join(ch_vcf_phase),
                 ch_ref.first(),
-                REF_STATS.out.ch_genome.first()
+                ch_genome.first()
             )
             ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
         } else {
@@ -277,14 +273,14 @@ workflow {
         RUN_INFO.out.ifEmpty(empty_runinfo),
         ch_wf_properties,
         READ_STATS.out.collect(),
-        REF_STATS.out.ch_ref_stats,
+        ch_ref_stats,
         BEDTOOLS_COV.out.ch_hist.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
         params.snp ? VCF_STATS_SNP.out.collect() : Channel.fromPath(empty_variants),
         params.sv ? VCF_STATS_SV.out.collect() : Channel.fromPath(empty_sv_variants),
-        ch_phase_stats,
+        params.phase ? ch_phase_stats : Channel.fromPath(empty_phase_stats),
         ch_asfile
     )  
 }
