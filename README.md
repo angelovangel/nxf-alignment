@@ -47,6 +47,7 @@ nextflow run angelovangel/nxf-alignment \
   --kit SQK-RBK114-96
   --samplesheet /path/to/samplesheet.csv
 ```
+>Note: Sample name is obtained from the pod5 file (the sample ID entered in MinKNOW). If another sample name is desired, use the `--samplename` parameter. For barcoded runs sample names are taken from the samplesheet.
 
 #### Skip Basecalling (Align Existing BAM/FASTQ + SNP/SV Variant Calling)
 If the basecalling has been performed before, the pipeline can be run with the `--reads` parameter. The reads can be in any HTS format, a directory of reads can also be given.
@@ -91,6 +92,7 @@ nextflow run angelovangel/nxf-alignment \
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `samplename` | string | null | Sample name to use for non-barcoded runs (if not provided, sample name is obtained from the pod5 file) |
 | `asfile` | path | null | Adaptive sampling decisions CSV (if using AS filtering) |
 | `herro` | boolean | null | Enable HERRO read correction. The corrected reads will be in 00-basecall, but will NOT be used in alignment. |
 | `kit` | string | null | Barcoding kit name (e.g., `SQK-NBD111-96`). Required for barcoded runs |
@@ -128,12 +130,14 @@ output/
 │   ├── reads.align.bam                 # Aligned reads
 │   └── reads.align.bam.bai             # BAM index
 ├── 02-coverage/
-│   └── reads.hist.tsv                  # Coverage histogram
+│   ├── reads.hist.tsv                  # Coverage histogram
+│   └── reads.bigwig                    # Coverage bigwig
 ├── 03-variants/
-│   ├── reads.variants.snp.vcf          # SNP variants
-│   └── reads.variants.sv.vcf           # SV variants
-└── 01-nxf-alignment-report.html        # Workflow report
-└── 02-variants-annotation-report.html  # Variants annotation report
+│   ├── reads.snp.vcf                   # SNP variants
+│   ├── reads.sv.vcf                    # SV variants
+│   └── reads.ann.vcf                   # Annotated variants
+└── nxf-alignment-report.html           # Workflow report
+└── variants-annotation-report.html     # Variants annotation report
 ```
 
 ## Input Files

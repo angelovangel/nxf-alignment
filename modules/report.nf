@@ -48,6 +48,6 @@ process REPORT {
         $sv_variants_arg \
         $phase_stats_arg \
         $asfile_arg \
-        -o 01-nxf-alignment-report.html
+        -o nxf-alignment-report.html
     """
 }

@@ -2,7 +2,7 @@
 
 
 process DORADO_BASECALL {
-
+    // pod5 view is available in container
     container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/00-basecall", mode: 'copy'
@@ -12,10 +12,11 @@ process DORADO_BASECALL {
         path pod5
 
     output:
-        path "reads.bam"
+        path "*.bam"
 
     script:
     def readids = params.asfile ? "--read-ids accepted_reads.txt" : ""
+    def samplename = params.samplename ? "${params.samplename}" : ""
     """
     if [ "$decisionfile" != "EMPTY" ]; then
         echo "asfile provided, proceeding to basecall filtered reads."
@@ -24,7 +25,7 @@ process DORADO_BASECALL {
         nreads_total=\$(wc -l < '$decisionfile')
         echo -e "Found \$nreads_accept out of \$nreads_total reads to basecall " 
     fi
-    
+
     dorado basecaller $readids ${params.model} ${pod5} > reads.bam
 
     # check if reads.bam has reads and exit if no
@@ -34,6 +35,14 @@ process DORADO_BASECALL {
         echo "No reads found in reads.bam, exiting." >&2
         exit 1
     fi
+    
+    samplename=\$(pod5 view --include "sample_id" ${pod5} | head -2 | tail -1)
+    clean_name=\$(echo "\$samplename" | LC_ALL=C tr -dc '[:graph:]')
+
+    if [ "${params.samplename}" != "" ]; then
+        clean_name=${params.samplename}
+    fi
+    mv reads.bam \$clean_name.bam
 
     """
 }

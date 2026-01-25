@@ -138,11 +138,11 @@ process VCF_ANNOTATE_REPORT {
     path(ann_stats)
 
     output:
-    path("02-variants-annotation-report.html")
+    path("variants-annotation-report.html")
 
     script:
     """
-    make-variants-report.py $ann_stats -o 02-variants-annotation-report.html --filterQ ${params.anno_filterQ}
+    make-variants-report.py $ann_stats -o variants-annotation-report.html --filterQ ${params.anno_filterQ}
     """
 }
 
