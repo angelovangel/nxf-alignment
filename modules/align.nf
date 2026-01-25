@@ -104,6 +104,24 @@ process SAMTOOLS_BEDCOV {
     """
 }
 
+process DEEPTOOLS_BIGWIG {
+    container 'mgibio/deeptools:3.5.3'
+    tag "${bam.simpleName}"
+
+    publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.bigwig'
+
+    input:
+        tuple path(bam), path(bai)
+
+    output:
+        path "*.bigwig"
+
+    script:
+    """
+    bamCoverage -b ${bam} -o ${bam.simpleName}.bigwig -p ${task.cpus}
+    """
+}
+
 process REF_STATS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     tag "${ref.simpleName}"

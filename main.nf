@@ -1,5 +1,5 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
-include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; REF_STATS} from './modules/align.nf'
+include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
@@ -222,6 +222,9 @@ workflow {
     .combine( ch_bedfile )
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, ch_genome) )
     | SAMTOOLS_BEDCOV
+
+    DORADO_ALIGN.out
+    | DEEPTOOLS_BIGWIG
 
     ch_vc_input = DORADO_ALIGN.out
     .combine( ch_ref )
