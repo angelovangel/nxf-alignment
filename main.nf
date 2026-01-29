@@ -33,14 +33,21 @@ Required/important options:
 
 Input options:
     --pod5 <dir>           Directory with POD5 files (use when basecalling)
+    --samplename <str>     Sample name to use (if not provided, sample name is obtained from the pod5 file)
     --reads <file|dir>     BAM/FASTQ file or directory of reads (skips basecalling)
     --asfile <file>        Adaptive sampling CSV (filters reads to basecall)
+    --kit                  Use for barcoded run - barcoding kit name (--samplesheet required)
+    --samplesheet          Use for barcoded run - CSV with columns: sample,barcode (--kit required)
+
+Output & config:
+    --outdir               Output directory name (default: results)
+    -profile               Nextflow profile (standard, test, dev, singularity)
+    --basecall             Run the pipeline up to basecalling only
+    --report               Run the pipeline up to reporting only (skips alignment and variants)
 
 Processing options:
     --model                Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'
     --herro                Enable herro correction (default: false). The corrected reads will be in 00-basecall, but will NOT be used in alignment.
-    --kit                  Barcoding kit name (required with --samplesheet)
-    --samplesheet          CSV with columns: sample,barcode (required with --kit)
     --bed                  BED file with regions (auto-generated from reference if omitted)
     --snp                  Enable SNP/small INDEL variant calling
     --snp_caller           SNP variant caller to use, only when --snp is specified (default: clair3, options: clair3, deepvariant)
@@ -52,12 +59,6 @@ Processing options:
     --annotate             Enable SNP variant annotation with snpEff (use only with --snp)
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
-
-Output & config:
-    --outdir               Output directory name (default: results)
-    -profile               Nextflow profile (standard, test, dev, singularity)
-    --basecall             Run the pipeline up to basecalling only
-    --report               Run the pipeline up to reporting only (skips alignment and variants)
 
 """.stripIndent()
 }
