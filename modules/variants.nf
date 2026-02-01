@@ -185,7 +185,7 @@ process VCF_PHASE {
     -o ${sample}.ht.bam \
     --reference $ref \
     --ignore-read-groups \
-    --output-threads=4 \
+    --output-threads ${task.cpus} \
     ${sample}.phase.vcf.gz $bam
 
     samtools index ${sample}.ht.bam
