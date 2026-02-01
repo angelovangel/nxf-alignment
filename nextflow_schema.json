@@ -301,6 +301,13 @@
           "fa_icon": "fas fa-poll",
           "default": "output",
           "help_text": "It is recommended to not change the default output directory"
+        },
+        "cpus": {
+          "type": "integer",
+          "description": "Number of CPUs to use",
+          "fa_icon": "fas fa-cpu",
+          "default": 64,
+          "help_text": "Number of CPUs to use"
         }
       }
     }

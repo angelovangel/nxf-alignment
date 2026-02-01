@@ -58,6 +58,7 @@ Output & config:
     -profile               Nextflow profile (standard, test, dev, singularity)
     --basecall             Run the pipeline up to basecalling only
     --report               Run the pipeline up to reporting only (skips alignment and variants)
+    --cpus                 Number of CPUs to use (default: 64)
 
 Processing options:
     --model                Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'

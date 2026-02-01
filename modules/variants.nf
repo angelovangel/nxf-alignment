@@ -100,7 +100,7 @@ process VCF_SNIFFLES2 {
     --input $bam \
     --regions $bedfile \
     --vcf ${bam.simpleName}.sv.vcf.gz \
-    --threads 4
+    --threads ${task.cpus}
     """ 
 }
 
@@ -185,7 +185,7 @@ process VCF_PHASE {
     -o ${sample}.ht.bam \
     --reference $ref \
     --ignore-read-groups \
-    --output-threads 4 \
+    --output-threads=4 \
     ${sample}.phase.vcf.gz $bam
 
     samtools index ${sample}.ht.bam
