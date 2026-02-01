@@ -148,7 +148,8 @@ process VCF_ANNOTATE_REPORT {
 
 process VCF_PHASE {
     container 'docker.io/tianjie16/whatshap:2.8'
-    publishDir "${params.outdir}/03-variants/phasing", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi,gtf,ht.bam,ht.bam.bai}"
+    publishDir "${params.outdir}/03-variants/phasing", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi,gtf}"
+    publishDir "${params.outdir}/01-align", mode: 'copy', pattern: "*.{ht.bam,ht.bam.bai}"
     tag "${vcf.simpleName}"
 
     input:
@@ -168,6 +169,7 @@ process VCF_PHASE {
     whatshap phase \
     --reference $ref \
     --ignore-read-groups \
+    --tag HP \
     -o ${sample}.phase.vcf.gz \
     $vcf \
     $bam 
@@ -183,7 +185,7 @@ process VCF_PHASE {
     -o ${sample}.ht.bam \
     --reference $ref \
     --ignore-read-groups \
-    --output-threads=4 \
+    --output-threads 4 \
     ${sample}.phase.vcf.gz $bam
 
     samtools index ${sample}.ht.bam

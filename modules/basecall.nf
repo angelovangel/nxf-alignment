@@ -23,7 +23,7 @@ process DORADO_BASECALL {
         awk -F',' '\$2 == "sequence"' '$decisionfile' | cut -f1 -d, > accepted_reads.txt
         nreads_accept=\$(wc -l < accepted_reads.txt)
         nreads_total=\$(wc -l < '$decisionfile')
-        echo -e "Found \$nreads_accept out of \$nreads_total reads to basecall " 
+        echo -e "found \$nreads_accept out of \$nreads_total reads to basecall " 
     fi
 
     dorado basecaller $readids ${params.model} ${pod5} > reads.bam
@@ -39,9 +39,11 @@ process DORADO_BASECALL {
     samplename=\$(pod5 view --include "sample_id" ${pod5} | head -2 | tail -1)
     clean_name=\$(echo "\$samplename" | LC_ALL=C tr -dc '[:graph:]')
 
-    if [ "${params.samplename}" != "" ]; then
+    if [ "${params.samplename}" != null ]; then
         clean_name=${params.samplename}
     fi
+    echo "samplename: \$samplename"
+    echo "clean name: \$clean_name"
     mv reads.bam \$clean_name.bam
 
     """

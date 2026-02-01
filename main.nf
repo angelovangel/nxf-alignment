@@ -11,15 +11,29 @@ if (params.help) {
 }
 
 // Log execution environment
-log.info """
+def summary = """
     NXF-ALIGNMENT Execution Summary
     ===============================
     Profile             : ${workflow.profile}
     Container Engine    : ${workflow.containerEngine ?: 'local'}
     -------------------------------
     """.stripIndent()
-    params.each { name, value -> log.info "${name.padRight(20)}: ${value}"}
-log.info "=============================="
+
+params.each { name, value -> summary += "${name.padRight(20)}: ${value}\n" }
+summary += "==============================\n"
+
+def out_dir = file(params.outdir)
+if( !out_dir.exists() ) out_dir.mkdirs()
+def summary_file = file("${params.outdir}/nxf-alignment-execution-summary.txt")
+summary_file.text = summary
+
+log.info """
+    NXF-ALIGNMENT Execution Summary
+    ===============================
+    Profile             : ${workflow.profile}
+    Container Engine    : ${workflow.containerEngine ?: 'local'}
+    ===============================
+""".stripIndent()
 
 def showHelp() {
         log.info """
