@@ -109,7 +109,7 @@ process VCF_ANNOTATE {
     containerOptions '--entrypoint ""' 
     errorStrategy 'ignore'
     
-    publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{vcf,vzf.gz,stats.csv}"
+    publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{ann.vcf,stats.csv}"
     tag "${vcf.simpleName} (filterQ >= ${params.anno_filterQ})"
 
     input:
@@ -126,7 +126,51 @@ process VCF_ANNOTATE {
 
     SnpSift filter "(QUAL>=${params.anno_filterQ})" $vcf > filtered.vcf
     snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
+    """
+}
+
+process VCF_BGZIP {
+    container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
+    //publishDir "${params.outdir}/03-variants/annotations", mode: 'copy'
+    tag "${vcf.simpleName}"
+
+    input:
+    path vcf
+
+    output:
+    tuple path("${vcf.simpleName}.vcf.gz"), path("${vcf.simpleName}.vcf.gz.tbi")
+
+    script:
+    """
+    bgzip -c $vcf > ${vcf.simpleName}.vcf.gz
+    tabix ${vcf.simpleName}.vcf.gz
+    """
+}
+
+process MERGE_VARIANTS {
+    container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
+    publishDir "${params.outdir}/03-variants/merged", mode: 'copy'
+    tag "${snp_vcf.simpleName}"
+
+    input:
+    tuple path(snp_vcf), path(snp_tbi), path(sv_vcf), path(sv_tbi)
+
+    output:
+    tuple path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi")
+
+    script:
+    def sample = snp_vcf.simpleName.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf', '').replace('.gz', '')
+    """
+    echo "$sample" > sample_name.txt
     
+    bcftools reheader -s sample_name.txt -o snp_reheaded.vcf.gz $snp_vcf
+    bcftools reheader -s sample_name.txt -o sv_reheaded.vcf.gz $sv_vcf
+    
+    bcftools index snp_reheaded.vcf.gz
+    bcftools index sv_reheaded.vcf.gz
+
+    bcftools concat -a snp_reheaded.vcf.gz sv_reheaded.vcf.gz | bcftools sort -o ${sample}.merged.vcf.gz -O z
+    tabix ${sample}.merged.vcf.gz
     """
 }
 

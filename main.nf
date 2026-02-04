@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {REPORT} from './modules/report.nf'
@@ -14,8 +14,12 @@ if (params.help) {
 def summary = """
     NXF-ALIGNMENT Execution Summary
     ===============================
+    Start               : ${workflow.start.format('yyyy-MM-dd HH:mm:ss')}
     Profile             : ${workflow.profile}
     Container Engine    : ${workflow.containerEngine ?: 'local'}
+    Workflow version    : ${workflow.manifest.version}
+    Workflow script ID  : ${workflow.scriptId.take(10)}
+    NXF version         : ${workflow.nextflow.version}
     -------------------------------
     """.stripIndent()
 
@@ -247,12 +251,19 @@ workflow {
     .combine( ch_bedfile )
 
     // Variant Calling Logic
+    // Variant Calling Logic
+    ch_sv = Channel.empty()
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
-        VCF_STATS_SV(VCF_SNIFFLES2.out, 'sv')
+        ch_sv = VCF_SNIFFLES2.out
+        VCF_STATS_SV(ch_sv, 'sv')
     }
+
     // annotate and phase are within snp
     ch_vcf = Channel.empty()
+    ch_phase_stats = Channel.fromPath(empty_phase_stats)
+    
+    //SNP start
     if (params.snp) {
         
         if (params.snp_caller == 'deepvariant') {
@@ -265,30 +276,65 @@ workflow {
         
         VCF_STATS_SNP(ch_vcf, 'snp')
 
-        if (params.annotate) {
-            ch_vcf | VCF_ANNOTATE
-            VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
-        }
-
+        // Phasing 
         if (params.phase) {
             ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
                 def sample = bam.simpleName.replace('.align', '')
                 tuple(sample, bam, bai)
             }
 
-            ch_vcf_phase = ch_vcf.map{ vcf, tbi -> 
+            ch_vcf_phase_input = ch_vcf.map{ vcf, tbi -> 
                 def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
                 tuple(sample, vcf, tbi)
             }
+            
             VCF_PHASE(
-                ch_bam_phase.join(ch_vcf_phase),
+                ch_bam_phase.join(ch_vcf_phase_input),
                 ch_ref.first(),
                 ch_genome.first()
             )
             ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
-        } else {
-            ch_phase_stats = Channel.fromPath(empty_phase_stats)
+            
+            // update ch_vcf to phased vcf
+            ch_vcf = VCF_PHASE.out[0].map{ sample, vcf, index -> 
+                def vcf_file = vcf.find { it.name.endsWith('.vcf.gz') }
+                def tbi_file = vcf.find { it.name.endsWith('.tbi') }
+                tuple(vcf_file, tbi_file) 
+            }
         }
+
+        // Annotation
+        if (params.annotate) {
+            ch_vcf | VCF_ANNOTATE
+            VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
+            
+            VCF_BGZIP(VCF_ANNOTATE.out[0])
+            
+            // update ch_vcf to annotated vcf
+            ch_vcf = VCF_BGZIP.out
+        }
+    }
+    //SNP end
+    
+    // Merging logic
+    if (params.snp && params.sv) {
+        // VCF_SNIFFLES2 out: tuple path(vcf), path(tbi)
+        // ch_vcf (final SNPs): tuple path(vcf), path(tbi)
+
+        // Map to sample key for joining
+        def ch_snp_join = ch_vcf.map { vcf, tbi -> 
+            def sample = vcf.name.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf.gz', '')
+            tuple(sample, vcf, tbi)
+        }
+
+        def ch_sv_join = ch_sv.map { vcf, tbi ->
+             def sample = vcf.name.replace('.sv', '').replace('.align', '').replace('.vcf.gz', '')
+             tuple(sample, vcf, tbi)
+        }
+
+        ch_snp_join.join(ch_sv_join).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
+            tuple(snp_vcf, snp_tbi, sv_vcf, sv_tbi)
+        } | MERGE_VARIANTS
     }
     
     REPORT(
