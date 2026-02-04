@@ -252,7 +252,7 @@ workflow {
 
     // Variant Calling Logic
     // Variant Calling Logic
-    def ch_sv = Channel.empty()
+    ch_sv = Channel.empty()
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
         ch_sv = VCF_SNIFFLES2.out
@@ -260,21 +260,21 @@ workflow {
     }
 
     // annotate and phase are within snp
-    def ch_vcf = Channel.empty()
-    def ch_phase_stats = Channel.fromPath(empty_phase_stats)
+    ch_vcf = Channel.empty()
+    ch_phase_stats = Channel.fromPath(empty_phase_stats)
     
     //SNP start
     if (params.snp) {
         
         if (params.snp_caller == 'deepvariant') {
              ch_vc_input | VCF_DEEPVARIANT
-             ch_vcf = VCF_DEEPVARIANT.out
+             ch_vcf_raw = VCF_DEEPVARIANT.out
         } else {
              ch_vc_input | VCF_CLAIR3
-             ch_vcf = VCF_CLAIR3.out
+             ch_vcf_raw = VCF_CLAIR3.out
         }
         
-        VCF_STATS_SNP(ch_vcf, 'snp')
+        VCF_STATS_SNP(ch_vcf_raw, 'snp')
 
         // Phasing 
         if (params.phase) {
@@ -283,7 +283,7 @@ workflow {
                 tuple(sample, bam, bai)
             }
 
-            ch_vcf_phase_input = ch_vcf.map{ vcf, tbi -> 
+            ch_vcf_phase_input = ch_vcf_raw.map{ vcf, tbi -> 
                 def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
                 tuple(sample, vcf, tbi)
             }
@@ -296,23 +296,29 @@ workflow {
             ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
             
             // update ch_vcf to phased vcf
-            ch_vcf = VCF_PHASE.out[0].map{ sample, vcf, index -> 
+            ch_vcf_phased = VCF_PHASE.out[0].map{ sample, vcf, index -> 
                 def vcf_file = vcf.find { it.name.endsWith('.vcf.gz') }
                 def tbi_file = vcf.find { it.name.endsWith('.tbi') }
                 tuple(vcf_file, tbi_file) 
             }
+        } else {
+            ch_vcf_phased = ch_vcf_raw
         }
 
         // Annotation
         if (params.annotate) {
-            ch_vcf | VCF_ANNOTATE
+            ch_vcf_phased | VCF_ANNOTATE
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
             
             VCF_BGZIP(VCF_ANNOTATE.out[0])
             
             // update ch_vcf to annotated vcf
-            ch_vcf = VCF_BGZIP.out
+            ch_vcf_annotated = VCF_BGZIP.out
+        } else {
+            ch_vcf_annotated = ch_vcf_phased
         }
+        
+        ch_vcf = ch_vcf_annotated
     }
     //SNP end
     
