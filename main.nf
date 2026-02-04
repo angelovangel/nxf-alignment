@@ -252,7 +252,7 @@ workflow {
 
     // Variant Calling Logic
     // Variant Calling Logic
-    ch_sv = Channel.empty()
+    def ch_sv = Channel.empty()
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
         ch_sv = VCF_SNIFFLES2.out
@@ -260,8 +260,8 @@ workflow {
     }
 
     // annotate and phase are within snp
-    ch_vcf = Channel.empty()
-    ch_phase_stats = Channel.fromPath(empty_phase_stats)
+    def ch_vcf = Channel.empty()
+    def ch_phase_stats = Channel.fromPath(empty_phase_stats)
     
     //SNP start
     if (params.snp) {
