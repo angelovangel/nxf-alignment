@@ -125,10 +125,15 @@ Predefined set of parameters for common use cases, use with `-profile`:
 output/
 ├── 00-basecall/
 │   ├── reads.bam                       # Basecalled reads
+│   ├── reads.bam.bai                   # BAM index
 │   └── processed/                      # Per-sample BAMs (if barcoded)
+│       ├── sample_1.bam
+│       └── sample_1.bam.bai
 ├── 01-align/
 │   ├── reads.align.bam                 # Aligned reads
 │   └── reads.align.bam.bai             # BAM index
+│   ├── reads.align.ht.bam              # Haplotagged aligned reads
+│   └── reads.align.ht.bam.bai          # Haplotagged aligned BAM index
 ├── 02-coverage/
 │   ├── reads.hist.tsv                  # Coverage histogram
 │   └── reads.bigwig                    # Coverage bigwig
