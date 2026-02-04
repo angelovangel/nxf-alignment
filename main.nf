@@ -328,12 +328,12 @@ workflow {
         // ch_vcf (final SNPs): tuple path(vcf), path(tbi)
 
         // Map to sample key for joining
-        def ch_snp_join = ch_vcf.map { vcf, tbi -> 
+        ch_snp_join = ch_vcf.map { vcf, tbi -> 
             def sample = vcf.name.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf.gz', '')
             tuple(sample, vcf, tbi)
         }
 
-        def ch_sv_join = ch_sv.map { vcf, tbi ->
+        ch_sv_join = ch_sv.map { vcf, tbi ->
              def sample = vcf.name.replace('.sv', '').replace('.align', '').replace('.vcf.gz', '')
              tuple(sample, vcf, tbi)
         }
