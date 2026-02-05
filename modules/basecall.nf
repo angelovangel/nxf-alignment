@@ -16,7 +16,7 @@ process DORADO_BASECALL {
 
     script:
     def readids = params.asfile ? "--read-ids accepted_reads.txt" : ""
-    def samplename = params.samplename ? "${params.samplename}" : ""
+    //def samplename = params.samplename ? "${params.samplename}" : ""
     """
     if [ "$decisionfile" != "EMPTY" ]; then
         echo "asfile provided, proceeding to basecall filtered reads."
@@ -36,7 +36,7 @@ process DORADO_BASECALL {
         exit 1
     fi
     
-    samplename=\$(pod5 view --include "sample_id" ${pod5} | head -2 | tail -1)
+    samplename=\$(samtools head reads.bam | grep "^@RG" | grep -o "LB:[^[:space:]]*" | cut -d: -f2 | head -n 1)
     clean_name=\$(echo "\$samplename" | LC_ALL=C tr -dc '[:graph:]')
 
     if [ "${params.samplename}" != null ]; then
