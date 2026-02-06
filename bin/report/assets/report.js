@@ -22,7 +22,7 @@ function exportReadstatsToCSV() {
     const table = document.getElementById('readstatsTable');
     if (!table) { alert('Read Statistics table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Reads', 'Bases', 'Min_Length', 'Max_Length', 'N50', 'GC_Percent', 'Q20_Percent'];
+    const headers = ['Sample', 'Reads', 'Bases', 'Min_Length', 'Max_Length', 'N50', 'GC_Percent', 'Q20_Percent', 'Mods'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -30,7 +30,7 @@ function exportReadstatsToCSV() {
             const cols = [
                 row.getAttribute('data-sample'), row.getAttribute('data-reads'), row.getAttribute('data-bases'),
                 row.getAttribute('data-minlen'), row.getAttribute('data-maxlen'), row.getAttribute('data-n50'),
-                row.getAttribute('data-gc'), row.getAttribute('data-q20')
+                row.getAttribute('data-gc'), row.getAttribute('data-q20'), row.getAttribute('data-mods')
             ];
             const safeCols = cols.map(text => {
                 text = text.trim().replace(/,/g, '');

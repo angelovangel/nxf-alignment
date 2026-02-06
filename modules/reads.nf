@@ -33,12 +33,19 @@ process READ_STATS {
     script:
     
     """
-    echo "file\treads\tbases\tn_bases\tmin_len\tmax_len\tn50\tGC_percent\tQ20_percent" > ${reads.simpleName}.readstats.tsv
+    printf "file\\treads\\tbases\\tn_bases\\tmin_len\\tmax_len\\tn50\\tGC_percent\\tQ20_percent\\tmods\\n" > ${reads.simpleName}.readstats.tsv
     
-    if [[ ${reads.extension} == bam ]]; then
-        samtools fastq ${reads} | faster2 -ts - >> ${reads.simpleName}.readstats.tsv
+    mods="-"
+    if [[ ${reads.extension} == "bam" ]]; then
+        # Detect modifications
+        bamtags=\$(samtools view ${reads} | head -n 1000 | grep -o "MM:Z:[^[:space:]]*" | cut -d',' -f1 | cut -d':' -f3 | sort -u)
+        mods=\$(echo \$bamtags | parse_mods.py)
+
+        samtools fastq ${reads} | faster2 -ts - | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
+        echo -e "\\t\$mods" >> ${reads.simpleName}.readstats.tsv
     else 
-    faster2 -ts ${reads} >> ${reads.simpleName}.readstats.tsv
+        faster2 -ts ${reads} | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
+        echo -e "\\t-" >> ${reads.simpleName}.readstats.tsv
     fi
     """
 }

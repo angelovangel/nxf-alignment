@@ -521,6 +521,7 @@ def render_readstats_table(readstats_data):
                 <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(6)">N50</th>
                 <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(7)">GC %</th>
                 <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(8)">Q20 %</th>
+                <th style="text-align: right;">Mods</th>
               </tr>
             </thead>
             <tbody>
@@ -537,7 +538,8 @@ def render_readstats_table(readstats_data):
                 data-maxlen="{stats.get('max_len', 0)}"
                 data-n50="{stats.get('n50', 0)}"
                 data-gc="{stats.get('GC_percent', 0)}"
-                data-q20="{stats.get('Q20_percent', 0)}">
+                data-q20="{stats.get('Q20_percent', 0)}"
+                data-mods="{stats.get('mods', '-')}">
               <td class="sample-col">{sample_name}</td>
               <td style="text-align: right;">{stats.get('reads', 0):,}</td>
               <td style="text-align: right;">{stats.get('bases', 0):,}</td>
@@ -547,6 +549,7 @@ def render_readstats_table(readstats_data):
               <td style="text-align: right;">{stats.get('n50', 0):,}</td>
               <td style="text-align: right;">{stats.get('GC_percent', 0):.2f}</td>
               <td style="text-align: right;">{stats.get('Q20_percent', 0):.2f}</td>
+              <td style="text-align: right;">{stats.get('mods', '-')}</td>
             </tr>
         """
         

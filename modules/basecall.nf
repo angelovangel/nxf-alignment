@@ -54,7 +54,7 @@ process DORADO_BASECALL_BARCODING {
     container 'docker.io/nanoporetech/dorado:latest'
 
     //publishDir "${params.outdir}/00-basecall", mode: 'copy'
-    tag "${params.model}, ${params.asfile ? 'with' : 'no'} adaptive sampling"
+    tag "${params.model} - ${params.asfile ? 'with' : 'no'} adaptive sampling"
 
     input:
         path decisionfile
@@ -74,10 +74,10 @@ process DORADO_BASECALL_BARCODING {
         echo -e "Found \$nreads_accept out of \$nreads_total reads to basecall " 
     fi
 
-    dorado basecaller $readids --kit-name ${params.kit} -o basecall-${params.model} ${params.model} ${pod5}
-    # the folder with barcodes is basecall-sup/folder1/folder2/folder3/bam_pass
-    [ -d "basecall-${params.model}" ] || { echo "Basecalling output folder empty!" >&2; exit 1; }
-    ln -s basecall-${params.model}/*/*/*/bam_pass bam_pass
+    dorado basecaller $readids --kit-name ${params.kit} -o basecalls ${params.model} ${pod5}
+    # the folder with barcodes is basecalls/folder1/folder2/folder3/bam_pass
+    [ -d "basecalls" ] || { echo "Basecalls output folder empty!" >&2; exit 1; }
+    ln -s basecalls/*/*/*/bam_pass bam_pass
     """
 }
 
