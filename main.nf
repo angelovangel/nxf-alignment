@@ -3,6 +3,7 @@ include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
 include {MERGE_READS; READ_STATS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
+include {MODKIT} from './modules/modkit.nf'
 include {REPORT} from './modules/report.nf'
 
 if (params.help) {
@@ -78,6 +79,7 @@ Processing options:
     --annotate             Enable SNP variant annotation with snpEff (use only with --snp)
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
+    --mods                 Perform base modifications analysis using modkit (requires --ref, read data must have mods)
 
 """.stripIndent()
 }
@@ -341,6 +343,10 @@ workflow {
         ch_snp_join.join(ch_sv_join).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
             tuple(snp_vcf, snp_tbi, sv_vcf, sv_tbi)
         } | MERGE_VARIANTS
+    }
+
+    if (params.mods) {
+        DORADO_ALIGN.out | MODKIT
     }
     
     REPORT(
