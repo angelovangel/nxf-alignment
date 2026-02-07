@@ -162,7 +162,19 @@
           "fa_icon": "fas fa-map",
           "description": "BED file with regions of interest",
           "help_text": "BED file defining regions of interest with 4 columns (chrom, start, end, name). If omitted, will be auto-generated from the reference file."
+        },
+        "mods": {
+          "type": "boolean",
+          "description": "Perform base modifications analysis of aligned reads with modkit",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable base modifications analysis of aligned reads with modkit. Read data must have base modifications."
         }
+      },
+      "dependencies": {
+        "mods": [
+          "ref"
+        ]
       }
     },
     "variant_calling_options": {
