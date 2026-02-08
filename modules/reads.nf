@@ -2,7 +2,13 @@
 
 process MERGE_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
-    errorStrategy 'ignore' //because some barcodes defined in the samplesheet might be missing in the data
+    errorStrategy {
+        if (task.exitStatus == 42) {
+            println "MERGE_READS: [WARNING] ${barcode} defined in the samplesheet does not exist in the data. Ignoring."
+            return 'ignore'
+        }
+        return 'ignore'
+    }
     tag "${barcode} == ${samplename}"
 
     publishDir "$params.outdir/00-basecall/processed", mode: 'copy', pattern: '*{fastq.gz,fastq,bam}'
@@ -15,7 +21,11 @@ process MERGE_READS {
     
     script:
     """
-    samtools cat ${bam_pass}/${barcode}/*.bam > ${samplename}.bam
+    if [ -d "${bam_pass}/${barcode}" ]; then
+        samtools cat ${bam_pass}/${barcode}/*.bam > ${samplename}.bam
+    else
+        exit 42
+    fi
     """
 }
 

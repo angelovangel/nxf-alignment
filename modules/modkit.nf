@@ -7,7 +7,7 @@ process MODKIT {
             println "MODKIT: [WARNING] No modified reads detected for ${task.tag}. Skipping."
             return 'ignore'
         }
-        return 'terminate'
+        return 'ignore'
     }
     tag "${bam.simpleName}"
 

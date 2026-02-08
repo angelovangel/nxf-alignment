@@ -10,6 +10,7 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **SNP Variant Calling**: Uses Clair3 or DeepVariant for SNP variant calling (ONT or HiFi data)
 - **Structural Variant Calling**: Uses Sniffles2 for structural variant calling (ONT or HiFi data)
 - **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
+- **Base Modifications Analysis**: Uses modkit for base modifications analysis (ONT or HiFi data)
 - **Interactive HTML Report**: Generates an interactive report with read statistics, coverage, variants and annotations metrics
 
 >Note: You can also import this workflow in EPI2ME, see [EPI2ME documentation](https://epi2me.nanoporetech.com/)
@@ -50,7 +51,7 @@ nextflow run angelovangel/nxf-alignment \
 >Note: Sample name is obtained from the pod5 file (the sample ID entered in MinKNOW). If another sample name is desired, use the `--samplename` parameter. For barcoded runs sample names are taken from the samplesheet.
 
 #### Skip Basecalling (Align Existing BAM/FASTQ + SNP/SV Variant Calling)
-If the basecalling has been performed before, the pipeline can be run with the `--reads` parameter. The reads can be in any HTS format, a directory of reads can also be given.
+If the basecalling has been performed before, the pipeline can be run with the `--reads` parameter. The reads can be in any HTS format, a directory of reads can also be given. If the reads contain base modifications, you can use the `--mods` parameter to perform base modification analysis - create a summary of counts of modified and unmodified bases.
 
 ```bash
 nextflow run angelovangel/nxf-alignment \
@@ -60,6 +61,7 @@ nextflow run angelovangel/nxf-alignment \
   --snp \
   --sv \
   --annotate
+  --mods
 ```
 #### Skip alignment (basecalling only)
 Basecalling (for single sample and barcoded runs) can also be performed without alignment, using the `--basecall` or `--report` parameters.
@@ -88,7 +90,7 @@ nextflow run angelovangel/nxf-alignment \
 | `model` | string | `fast` | Dorado basecall model, see [available models](https://software-docs.nanoporetech.com/dorado/latest/models/list/)|
 | `outdir` | string | `results` | Output directory for results |
 
-#### Optional Parameters
+#### Optional (advanced) Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -108,6 +110,7 @@ nextflow run angelovangel/nxf-alignment \
 | `annotate` | boolean | false | Annotate SNP variants using snpEff (use only with `--snp`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
 | `anno_filterQ` | int | `20` | Filter out SNP variants with quality lower than this before annotation |
+| `mods` | boolean | false | Perform base modification analysis using modkit (`--ref` is required)|
 
 #### Profiles
 Predefined set of parameters for common use cases, use with `-profile`:
@@ -141,7 +144,11 @@ output/
 │   ├── reads.snp.vcf                   # SNP variants
 │   ├── reads.sv.vcf                    # SV variants
 │   └── reads.ann.vcf                   # Annotated variants
-└── nxf-alignment-report.html           # Workflow report
+├── 04-modifications/
+│   ├── reads.bedmethyl                 # Output of modkit pileup
+│   └── reads.summary.tsv               # Base modification summary
+├── nxf-alignment-report.html           # Workflow report
+├── nxf-alignment-execution-summary.txt # Workflow execution summary
 └── variants-annotation-report.html     # Variants annotation report
 ```
 
