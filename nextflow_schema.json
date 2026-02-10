@@ -169,6 +169,13 @@
           "fa_icon": "fas fa-check-square",
           "default": false,
           "help_text": "Set to true to enable base modifications analysis of aligned reads with modkit. Read data must have base modifications."
+        },
+        "mods_filter": {
+          "type": "integer",
+          "description": "Minimum coverage for base modifications",
+          "fa_icon": "fas fa-filter",
+          "default": 5,
+          "help_text": "Filter coverage threshold for base modifications analysis (Nvalidcov)"
         }
       },
       "dependencies": {
@@ -325,6 +332,9 @@
     }
   },
   "allOf": [
+    {
+      "$ref": "#/definitions/workflow_options"
+    },
     {
       "$ref": "#/definitions/basecalling_options"
     },

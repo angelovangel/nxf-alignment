@@ -15,18 +15,20 @@ process MODKIT {
         tuple path(bam), path(bai)
 
     output:
-    path "*.bedmethyl"
+    tuple path("*.bedmethyl.gz"), path("*.bedmethyl.gz.tbi")
     path "*.summary.tsv"
     path "modprobs"
 
     script:
+    def filter = params.mods_filter
     """
     modkit modbam summary ${bam} > ${bam.simpleName}.summary.tsv
     nreads=\$(grep "# total_reads_used" ${bam.simpleName}.summary.tsv | awk '{print \$NF}')
 
     if [ "\$nreads" -gt 0 ]; then
         modkit sample-probs -o modprobs --hist --prefix ${bam.simpleName} ${bam}
-        modkit pileup --threads ${task.cpus} ${bam} ${bam.simpleName}.bedmethyl
+        modkit pileup --filter-threshold 0.7 --threads ${task.cpus} ${bam} - | awk '\$10 > ${filter}' | bgzip -c > ${bam.simpleName}.bedmethyl.gz
+        tabix -p bed ${bam.simpleName}.bedmethyl.gz
         
     else
         echo "No modified reads detected in ${bam}"
