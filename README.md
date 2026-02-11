@@ -111,6 +111,7 @@ nextflow run angelovangel/nxf-alignment \
 | `anno_db` | string | `hg38` | Database to use for annotation |
 | `anno_filterQ` | int | `20` | Filter out SNP variants with quality lower than this before annotation |
 | `mods` | boolean | false | Perform base modification analysis using modkit (`--ref` is required)|
+| `mods_filter` | int | `5` | Minimum coverage for base modifications calls |
 
 #### Profiles
 Predefined set of parameters for common use cases, use with `-profile`:

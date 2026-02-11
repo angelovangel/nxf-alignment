@@ -232,7 +232,7 @@ process VCF_PHASE {
     --output-threads ${task.cpus} \
     ${sample}.phase.vcf.gz $bam
 
-    samtools index ${sample}.ht.bam
+    samtools index -@ ${task.cpus} ${sample}.ht.bam
     """
 }
     

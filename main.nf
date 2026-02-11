@@ -80,6 +80,7 @@ Processing options:
     --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
     --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
     --mods                 Perform base modifications analysis using modkit (requires --ref, read data must have mods)
+    --mods_filter          Minimum coverage for base modifications calls (default: 5)
 
 """.stripIndent()
 }

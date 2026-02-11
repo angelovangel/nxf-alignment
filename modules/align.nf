@@ -22,7 +22,7 @@ process DORADO_ALIGN {
     #find align_out -name "*.bai" -exec mv {} ${reads.simpleName}.align.bam.bai \\;
 
     if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
-        samtools index ${reads.simpleName}.align.bam
+        samtools index -@ ${task.cpus} ${reads.simpleName}.align.bam
     fi
     """
 }
