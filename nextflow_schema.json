@@ -128,9 +128,8 @@
           "type": "string",
           "format": "file-path",
           "fa_icon": "fas fa-vials",
-          "mimetype": "text/csv",
-          "description": "CSV file with sample and barcode information",
-          "help_text": "Samplesheet CSV file must contain at least columns 'sample' and 'barcode'. Required when run is barcoded."
+          "description": "CSV or XLSX file with sample and barcode information",
+          "help_text": "Samplesheet CSV or XLSX file must contain at least columns 'sample' and 'barcode'. Required when run is barcoded."
         }
       },
       "dependencies": {

@@ -98,7 +98,7 @@ nextflow run angelovangel/nxf-alignment \
 | `asfile` | path | null | Adaptive sampling decisions CSV (if using AS filtering) |
 | `herro` | boolean | null | Enable HERRO read correction. The corrected reads will be in 00-basecall, but will NOT be used in alignment. |
 | `kit` | string | null | Barcoding kit name (e.g., `SQK-NBD111-96`). Required for barcoded runs |
-| `samplesheet` | path | null | Sample sheet CSV with columns: `sample`, `barcode`. Required for barcoded runs |
+| `samplesheet` | path | null | Sample sheet CSV or XLSX with columns: `sample`, `barcode`. Required for barcoded runs |
 | `bed` | path | null | BED file with target regions (auto-generated from reference if not provided) |
 | `snp` | boolean | false | Perform SNP variant calling using Clair3 or DeepVariant |
 | `snp_caller` | string | `clair3` | SNP variant caller to use (`clair3` or `deepvariant`, use only with `--snp`) |

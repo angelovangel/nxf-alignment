@@ -1,10 +1,42 @@
 #!/usr/bin/env nextflow
 
+process CONVERT_EXCEL {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+
+    input:
+        path(excelfile)
+
+    output:
+        path("*.csv")
+
+    script:
+    """
+    convert_excel.R $excelfile
+    """
+}
+
+// takes in csv, checks for duplicate barcodes etc.
+process VALIDATE_SAMPLESHEET {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    //publishDir "$params.outdir", mode: 'copy', pattern: '00-validated-samplesheet.csv'
+
+    input: 
+    path(csv)
+
+    output:
+    path("samplesheet-validated.csv")
+
+    script:
+    """
+    validate_samplesheet.R $csv
+    """
+}
+
 process MERGE_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     errorStrategy {
         if (task.exitStatus == 42) {
-            println "MERGE_READS: [WARNING] ${barcode} defined in the samplesheet does not exist in the data. Ignoring."
+            println "MERGE_READS: [WARNING] ${barcode} defined in the samplesheet but does not exist in the data. Ignoring."
             return 'ignore'
         }
         return 'ignore'
@@ -14,10 +46,10 @@ process MERGE_READS {
     publishDir "$params.outdir/00-basecall/processed", mode: 'copy', pattern: '*{fastq.gz,fastq,bam}'
 
     input:
-    tuple val(samplename), val(barcode), path(bam_pass)
+        tuple val(samplename), val(barcode), path(bam_pass)
     
     output: 
-    path('*{fastq.gz,fastq,bam}')
+        path('*{fastq.gz,fastq,bam}')
     
     script:
     """

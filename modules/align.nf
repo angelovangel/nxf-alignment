@@ -19,7 +19,12 @@ process DORADO_ALIGN {
 
     find align_out -name "*.bam" -exec samtools merge -@ ${task.cpus} -o ${reads.simpleName}.align.bam {} +
     
-    #find align_out -name "*.bai" -exec mv {} ${reads.simpleName}.align.bam.bai \\;
+    # exit here if no reads map to ref
+    nreads=\$(samtools view -c ${reads.simpleName}.align.bam)
+    if [ "\$nreads" -eq 0 ]; then
+        echo "No reads mapped to reference. Exiting."
+        exit 1
+    fi
 
     if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
         samtools index -@ ${task.cpus} ${reads.simpleName}.align.bam

@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {MERGE_READS; READ_STATS} from './modules/reads.nf'
+include {MERGE_READS; READ_STATS; CONVERT_EXCEL; VALIDATE_SAMPLESHEET} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
 include {REPORT} from './modules/report.nf'
@@ -56,7 +56,7 @@ Input options:
     --reads <file|dir>     BAM/FASTQ file or directory of reads (skips basecalling)
     --asfile <file>        Adaptive sampling CSV (filters reads to basecall)
     --kit                  Use for barcoded run - barcoding kit name (--samplesheet required)
-    --samplesheet          Use for barcoded run - CSV with columns: sample,barcode (--kit required)
+    --samplesheet          Use for barcoded run - CSV or XLSX with columns: sample,barcode (--kit required)
 
 Output & config:
     --outdir               Output directory name (default: results)
@@ -145,9 +145,20 @@ workflow basecall {
     ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
 
     if (params.kit) {
-        DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
         
-        ch_samplesheet
+        if (params.samplesheet.endsWith('.xlsx')) {
+            ch_samplesheet_validated = CONVERT_EXCEL(ch_samplesheet) | VALIDATE_SAMPLESHEET
+        
+        } else if (params.samplesheet.endsWith('.csv')) {
+            ch_samplesheet_validated = VALIDATE_SAMPLESHEET(ch_samplesheet)
+        
+        } else {
+            error "Unsupported samplesheet format. Use .xlsx or .csv"
+        }
+        
+        DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
+
+        ch_samplesheet_validated
         .splitCsv(header:true)
         .filter{ it -> it.barcode =~ /^barcode*/ }
         .map { row -> tuple( row.sample, row.barcode ) }
