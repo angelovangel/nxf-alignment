@@ -97,8 +97,8 @@ Processing options:
 */
 
 // Additional specific assignments if needed
-def empty_runinfo = file("${workflow.workDir}/empty_runinfo.csv")
-def empty_refstats = file("${workflow.workDir}/empty_refstats.csv")
+def empty_runinfo = file("${workflow.workDir}/empty_runinfo")
+def empty_refstats = file("${workflow.workDir}/empty_refstats")
 def empty_hist = file("${workflow.workDir}/empty_hist")
 def empty_bedcov = file("${workflow.workDir}/empty_bedcov")
 def empty_bedcov_compl = file("${workflow.workDir}/empty_bedcov_compl")

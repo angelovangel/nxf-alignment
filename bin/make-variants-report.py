@@ -41,7 +41,6 @@ def parse_snpeff_csv(filepath):
         'count_by_effects': [],
         'count_by_region': [],
         'tstv': {},
-        'tstv': {},
         'zygosity': {},
         'quality': [],
         'indel_lengths': []
