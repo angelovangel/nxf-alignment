@@ -14,18 +14,20 @@ if (params.help) {
 // Log execution environment
 def summary = """
     NXF-ALIGNMENT Execution Summary
-    ===============================
-    Start               : ${workflow.start.format('yyyy-MM-dd HH:mm:ss')}
-    Profile             : ${workflow.profile}
-    Container Engine    : ${workflow.containerEngine ?: 'local'}
-    Workflow version    : ${workflow.manifest.version}
-    Workflow script ID  : ${workflow.scriptId.take(10)}
-    NXF version         : ${workflow.nextflow.version}
-    -------------------------------
+    =========================================
+    Start                    : ${workflow.start.format('yyyy-MM-dd HH:mm:ss')}
+    Profile                  : ${workflow.profile}
+    Container Engine         : ${workflow.containerEngine ?: 'local'}
+    Workflow version         : ${workflow.manifest.version}
+    Workflow script ID       : ${workflow.scriptId.take(10)}
+    NXF version              : ${workflow.nextflow.version}
+    -----------------------------------------
+    Parameters
+    -----------------------------------------
     """.stripIndent()
 
-params.each { name, value -> summary += "${name.padRight(20)}: ${value}\n" }
-summary += "-------------------------------\n"
+params.each { name, value -> summary += "${name.padRight(25)}: ${value}\n" }
+summary += "-----------------------------------------"
 
 def out_dir = file(params.outdir)
 if( !out_dir.exists() ) out_dir.mkdirs()
@@ -216,6 +218,7 @@ workflow {
     ch_versions = ch_versions.mix(READ_STATS.out.versions)
 
     if (params.report) {
+        DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
         REPORT(
             RUN_INFO.out.ifEmpty(empty_runinfo),
             ch_wf_properties,
@@ -231,7 +234,6 @@ workflow {
             Channel.fromPath(empty_phase_stats),
             ch_asfile
         )
-        DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
         return
     }
 
@@ -270,7 +272,8 @@ workflow {
     ch_sv = Channel.empty()
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
-        ch_sv = VCF_SNIFFLES2.out
+        ch_sv = VCF_SNIFFLES2.out[0]
+        ch_versions = ch_versions.mix(VCF_SNIFFLES2.out.versions)
         VCF_STATS_SV(ch_sv, 'sv')
     }
 
@@ -312,6 +315,7 @@ workflow {
                 ch_genome.first()
             )
             ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
+            ch_versions = ch_versions.mix(VCF_PHASE.out.versions)
             
             // update ch_vcf to phased vcf
             ch_vcf_phased = VCF_PHASE.out[0].map{ sample, vcf, index -> 
@@ -326,6 +330,7 @@ workflow {
         // Annotation
         if (params.annotate) {
             ch_vcf_phased | VCF_ANNOTATE
+            ch_versions = ch_versions.mix(VCF_ANNOTATE.out.versions)
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
             
             VCF_BGZIP(VCF_ANNOTATE.out[0])
@@ -364,6 +369,8 @@ workflow {
     if (params.mods) {
         DORADO_ALIGN.out[0] | MODKIT
     }
+
+    DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
     
     REPORT(
         RUN_INFO.out.ifEmpty(empty_runinfo),
@@ -380,5 +387,4 @@ workflow {
         ch_asfile
     )  
 
-    DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
 }

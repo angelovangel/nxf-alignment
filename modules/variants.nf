@@ -36,7 +36,7 @@ process VCF_CLAIR3 {
     mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.snp.vcf.gz.tbi
 
     cat <<-END_VERSIONS > versions.txt
-    ${task.process}: clair3 v\$(/opt/bin/run_clair3.sh --version 2>&1 | sed 's/^Clair3 //')
+    ${task.process}: clair3 v\$(/opt/bin/run_clair3.sh --version 2>&1 | sed 's/^Clair3 v//')
     END_VERSIONS
     """ 
 }
@@ -98,7 +98,7 @@ process VCF_STATS {
 
 process VCF_SNIFFLES2 {
     container 'docker.io/hydragenetics/sniffles2:2.6.3'
-    publishDir "${params.outdir}/03-variants/sv", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/sv", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     tag "${bam.simpleName}"
 
     input:
@@ -106,6 +106,7 @@ process VCF_SNIFFLES2 {
 
     output:
     tuple path("${bam.simpleName}.sv.vcf.gz"), path("${bam.simpleName}.sv.vcf.gz.tbi")
+    path "versions.txt", emit: versions
 
     script:
     """
@@ -114,6 +115,8 @@ process VCF_SNIFFLES2 {
     --regions $bedfile \
     --vcf ${bam.simpleName}.sv.vcf.gz \
     --threads ${task.cpus}
+
+    echo "${task.process}: sniffles2 v\$(sniffles --version | head -n 1 | sed 's/^Sniffles2, Version //')" > versions.txt
     """ 
 }
 
@@ -131,6 +134,7 @@ process VCF_ANNOTATE {
     output:
     path("${vcf.simpleName}.ann.vcf")
     path("${vcf.simpleName}.stats.csv"), emit: ch_vcfann_stats
+    path "versions.txt", emit: versions
 
     script:
     """
@@ -139,6 +143,10 @@ process VCF_ANNOTATE {
 
     SnpSift filter "(QUAL>=${params.anno_filterQ})" $vcf > filtered.vcf
     snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: snpEff v\$(snpEff -version | head -n 1 | sed 's/^SnpEff //')
+    END_VERSIONS
     """
 }
 
@@ -218,6 +226,7 @@ process VCF_PHASE {
     tuple val(sample), path("${sample}.phase.{vcf.gz,vcf.gz.tbi}"), path("${sample}.phase.gtf")
     path("${sample}.phase.tsv"), emit: ch_vcfphase_stats
     tuple path("${sample}.ht.bam"), path("${sample}.ht.bam.bai")
+    path "versions.txt", emit: versions
 
     script:
     """
@@ -246,6 +255,11 @@ process VCF_PHASE {
     ${sample}.phase.vcf.gz $bam
 
     samtools index -@ ${task.cpus} ${sample}.ht.bam
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: whatshap v\$(whatshap --version)
+    ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
+    END_VERSIONS
     """
 }
     

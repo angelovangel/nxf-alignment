@@ -66,10 +66,10 @@ process DUMP_VERSIONS {
     script:
     """
     echo -e "\nSoftware Versions" > software_versions.txt
-    echo -e "===============================" >> software_versions.txt
+    echo -e "-----------------------------------------" >> software_versions.txt
     
     for f in versions*.txt; do
-        awk -F ': ' '{ if (NF>1) printf "%-20s: %s\\n", \$1, \$2; else print \$0 }' \$f >> software_versions.txt
+        awk -F ': ' '{ if (NF>1) printf "%-25s: %s\\n", \$1, \$2; else print \$0 }' \$f >> software_versions.txt
     done
     
     cat $summary_file software_versions.txt > nxf-alignment-execution-summary.txt
