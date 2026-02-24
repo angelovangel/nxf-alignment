@@ -4,7 +4,7 @@ include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as V
 include {MERGE_READS; READ_STATS; CONVERT_EXCEL; VALIDATE_SAMPLESHEET} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
-include {REPORT} from './modules/report.nf'
+include {REPORT; DUMP_VERSIONS} from './modules/report.nf'
 
 if (params.help) {
         showHelp()
@@ -25,12 +25,12 @@ def summary = """
     """.stripIndent()
 
 params.each { name, value -> summary += "${name.padRight(20)}: ${value}\n" }
-summary += "==============================\n"
+summary += "-------------------------------\n"
 
 def out_dir = file(params.outdir)
 if( !out_dir.exists() ) out_dir.mkdirs()
-def summary_file = file("${params.outdir}/nxf-alignment-execution-summary.txt")
-summary_file.text = summary
+def ch_summary_file = Channel.of(summary)
+    .collectFile(name: 'execution-summary.txt', newLine: false)
 
 log.info """
     NXF-ALIGNMENT Execution Summary
@@ -85,18 +85,8 @@ Processing options:
 """.stripIndent()
 }
 
-// create empty placeholder files if not exist
-/*
-["runinfo", "refstats", "hist", "bedcov", "bedcov_compl", "flagstat", "variants", "sv_variants", "phase_stats"].each { name ->
-    def f = file("${workflow.workDir}/empty_${name}" + (name.contains("info") || name.contains("stats") ? ".csv" : ""))
-    if (!f.exists()) f.text = ""
-    // assign to variables for easy reference
-    if (name == "runinfo") empty_runinfo = f
-    if (name == "refstats") empty_refstats = f
-}
-*/
+// create empty placeholder files
 
-// Additional specific assignments if needed
 def empty_runinfo = file("${workflow.workDir}/empty_runinfo")
 def empty_refstats = file("${workflow.workDir}/empty_refstats")
 def empty_hist = file("${workflow.workDir}/empty_hist")
@@ -143,6 +133,7 @@ if (!params.kit && params.samplesheet) {
 workflow basecall {
     ch_pod5 = Channel.fromPath(params.pod5, checkIfExists: true)
     ch_samplesheet = params.samplesheet ? Channel.fromPath(params.samplesheet, checkIfExists: true) : null
+    ch_versions = Channel.empty()
 
     if (params.kit) {
         
@@ -157,6 +148,7 @@ workflow basecall {
         }
         
         DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
+        ch_versions = ch_versions.mix(DORADO_BASECALL_BARCODING.out.versions)
 
         ch_samplesheet_validated
         .splitCsv(header:true)
@@ -170,17 +162,20 @@ workflow basecall {
         }
     } else {
         DORADO_BASECALL(ch_asfile, ch_pod5)
+        ch_versions = ch_versions.mix(DORADO_BASECALL.out.versions)
         // as an extra, do herro correction, the corrected reads are not used downstream
         if (params.herro) {
-            DORADO_CORRECT(DORADO_BASECALL.out)
+            DORADO_CORRECT(DORADO_BASECALL.out[0])
         }
     }
     
     emit: 
-    ch_bc = params.kit ? MERGE_READS.out : DORADO_BASECALL.out
+    ch_bc = params.kit ? MERGE_READS.out : DORADO_BASECALL.out[0]
+    ch_versions = ch_versions
 }
 
 workflow {
+    ch_versions = Channel.empty()
     if (!params.basecall && !params.report && !params.ref) {
         error "Reference FASTA file (--ref) is required for full pipeline analysis (alignment and variant calling). Use --basecall or --report to run subsets of the pipeline without a reference."
     }
@@ -196,7 +191,9 @@ workflow {
         }
     } else {
         // Otherwise, source the channel from the 'basecall' (or basecall + merge_reads) workflow's output.
-        ch_reads = basecall().ch_bc
+        def bc_out = basecall()
+        ch_reads = bc_out.ch_bc
+        ch_versions = ch_versions.mix(bc_out.ch_versions)
     }
 
     if (params.basecall) {
@@ -216,12 +213,13 @@ workflow {
 
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
+    ch_versions = ch_versions.mix(READ_STATS.out.versions)
 
     if (params.report) {
         REPORT(
             RUN_INFO.out.ifEmpty(empty_runinfo),
             ch_wf_properties,
-            READ_STATS.out.collect(),
+            READ_STATS.out[0].collect(),
             ch_ref_stats,
             //
             Channel.fromPath(empty_hist),
@@ -233,6 +231,7 @@ workflow {
             Channel.fromPath(empty_phase_stats),
             ch_asfile
         )
+        DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
         return
     }
 
@@ -245,26 +244,28 @@ workflow {
         ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
     }
 
-    ch_ref \
-    .combine( ch_reads ) \
-    //.view()
-    | DORADO_ALIGN \
-    | combine( ch_bedfile ) \
-    | BEDTOOLS_COV \
-    
-    DORADO_ALIGN.out
+    DORADO_ALIGN(ch_ref.combine(ch_reads))
+
+    DORADO_ALIGN.out[0]
+    .combine( ch_bedfile )
+    | BEDTOOLS_COV
+
+    DORADO_ALIGN.out[0]
     .combine( ch_bedfile )
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, ch_genome) )
     | SAMTOOLS_BEDCOV
 
-    DORADO_ALIGN.out
+    ch_versions = ch_versions.mix(DORADO_ALIGN.out.versions, BEDTOOLS_COV.out.versions)
+
+    DORADO_ALIGN.out[0]
     | DEEPTOOLS_BIGWIG
 
-    ch_vc_input = DORADO_ALIGN.out
+    ch_versions = ch_versions.mix(DEEPTOOLS_BIGWIG.out.versions)
+
+    ch_vc_input = DORADO_ALIGN.out[0]
     .combine( ch_ref )
     .combine( ch_bedfile )
 
-    // Variant Calling Logic
     // Variant Calling Logic
     ch_sv = Channel.empty()
     if (params.sv) {
@@ -282,17 +283,20 @@ workflow {
         
         if (params.snp_caller == 'deepvariant') {
              ch_vc_input | VCF_DEEPVARIANT
-             ch_vcf_raw = VCF_DEEPVARIANT.out
+             ch_vcf_raw = VCF_DEEPVARIANT.out[0]
+             ch_versions = ch_versions.mix(VCF_DEEPVARIANT.out.versions)
         } else {
              ch_vc_input | VCF_CLAIR3
-             ch_vcf_raw = VCF_CLAIR3.out
+             ch_vcf_raw = VCF_CLAIR3.out[0]
+             ch_versions = ch_versions.mix(VCF_CLAIR3.out.versions)
         }
         
         VCF_STATS_SNP(ch_vcf_raw, 'snp')
+        ch_versions = ch_versions.mix(VCF_STATS_SNP.out.versions)
 
         // Phasing 
         if (params.phase) {
-            ch_bam_phase = DORADO_ALIGN.out.map{ bam, bai -> 
+            ch_bam_phase = DORADO_ALIGN.out[0].map{ bam, bai -> 
                 def sample = bam.simpleName.replace('.align', '')
                 tuple(sample, bam, bai)
             }
@@ -358,21 +362,23 @@ workflow {
     }
 
     if (params.mods) {
-        DORADO_ALIGN.out | MODKIT
+        DORADO_ALIGN.out[0] | MODKIT
     }
     
     REPORT(
         RUN_INFO.out.ifEmpty(empty_runinfo),
         ch_wf_properties,
-        READ_STATS.out.collect(),
+        READ_STATS.out[0].collect(),
         ch_ref_stats,
         BEDTOOLS_COV.out.ch_hist.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
-        params.snp ? VCF_STATS_SNP.out.collect() : Channel.fromPath(empty_variants),
-        params.sv ? VCF_STATS_SV.out.collect() : Channel.fromPath(empty_sv_variants),
+        params.snp ? VCF_STATS_SNP.out[0].collect() : Channel.fromPath(empty_variants),
+        params.sv ? VCF_STATS_SV.out[0].collect() : Channel.fromPath(empty_sv_variants),
         params.phase ? ch_phase_stats : Channel.fromPath(empty_phase_stats),
         ch_asfile
     )  
+
+    DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
 }

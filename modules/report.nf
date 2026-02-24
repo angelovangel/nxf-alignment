@@ -51,3 +51,27 @@ process REPORT {
         -o nxf-alignment-report.html
     """
 }
+
+process DUMP_VERSIONS {
+    publishDir "${params.outdir}", mode: 'copy'
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    
+    input:
+    path 'versions*.txt'
+    path summary_file
+    
+    output:
+    path "nxf-alignment-execution-summary.txt"
+
+    script:
+    """
+    echo -e "\nSoftware Versions" > software_versions.txt
+    echo -e "===============================" >> software_versions.txt
+    
+    for f in versions*.txt; do
+        awk -F ': ' '{ if (NF>1) printf "%-20s: %s\\n", \$1, \$2; else print \$0 }' \$f >> software_versions.txt
+    done
+    
+    cat $summary_file software_versions.txt > nxf-alignment-execution-summary.txt
+    """
+}

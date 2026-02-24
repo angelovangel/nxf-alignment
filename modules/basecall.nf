@@ -5,7 +5,7 @@ process DORADO_BASECALL {
     // pod5 view is available in container
     container 'docker.io/nanoporetech/dorado:latest'
 
-    publishDir "${params.outdir}/00-basecall", mode: 'copy'
+    publishDir "${params.outdir}/00-basecall", mode: 'copy', pattern: '*.bam'
     tag "${params.model}, ${params.asfile ? 'with' : 'no'} adaptive sampling"
     input:
         path decisionfile
@@ -13,6 +13,7 @@ process DORADO_BASECALL {
 
     output:
         path "*.bam"
+        path "versions.txt", emit: versions
 
     script:
     def readids = params.asfile ? "--read-ids accepted_reads.txt" : ""
@@ -46,6 +47,9 @@ process DORADO_BASECALL {
     echo "clean name: \$clean_name"
     mv reads.bam \$clean_name.bam
 
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: dorado v\$(dorado --version 2>&1 | sed 's/^dorado //')
+    END_VERSIONS
     """
 }
 
@@ -62,6 +66,7 @@ process DORADO_BASECALL_BARCODING {
 
     output:
         path "bam_pass", type: 'dir', emit: ch_bam_pass
+        path "versions.txt", emit: versions
 
     script:
     def readids = params.asfile ? "--read-ids accepted_reads.txt" : ""
@@ -78,6 +83,10 @@ process DORADO_BASECALL_BARCODING {
     # the folder with barcodes is basecalls/folder1/folder2/folder3/bam_pass
     [ -d "basecalls" ] || { echo "Basecalls output folder empty!" >&2; exit 1; }
     ln -s basecalls/*/*/*/bam_pass bam_pass
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: dorado v\$(dorado --version 2>&1 | sed 's/^dorado //')
+    END_VERSIONS
     """
 }
 

@@ -5,7 +5,7 @@ process VCF_CLAIR3 {
     //container 'docker.io/hkubal/clair3:latest'
     container 'docker.io/hkubal/clair3-gpu:v1.2.0'
 
-    publishDir "${params.outdir}/03-variants/snps", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/snps", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     errorStrategy 'ignore'
     tag "${bam.simpleName}, ${task.cpus} cpus"
 
@@ -14,6 +14,7 @@ process VCF_CLAIR3 {
 
     output:
     tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
+    path "versions.txt", emit: versions
 
     script:
     def model = "${params.clair3_model}"
@@ -33,6 +34,10 @@ process VCF_CLAIR3 {
 
     mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.snp.vcf.gz
     mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.snp.vcf.gz.tbi
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: clair3 v\$(/opt/bin/run_clair3.sh --version 2>&1 | sed 's/^Clair3 //')
+    END_VERSIONS
     """ 
 }
 
@@ -46,6 +51,7 @@ process VCF_DEEPVARIANT {
 
     output:
     tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
+    path "versions.txt", emit: versions
 
     script:
     """
@@ -58,6 +64,10 @@ process VCF_DEEPVARIANT {
     --regions=$bedfile \
     --output_vcf=${bam.simpleName}.snp.vcf.gz \
     --num_shards=${task.cpus}
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: deepvariant v\$(/opt/deepvariant/bin/run_deepvariant --version 2>&1 | sed 's/^DeepVariant //')
+    END_VERSIONS
     """ 
 }
 
@@ -73,6 +83,7 @@ process VCF_STATS {
 
     output:
     path("${vcf.simpleName}.${vcftype}.query")
+    path "versions.txt", emit: versions
 
     script:
     def snp_header = "%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\n"
@@ -80,6 +91,8 @@ process VCF_STATS {
     def format = vcftype == 'sv' ? sv_header : snp_header
     """
     bcftools query -f '$format' $vcf > ${vcf.simpleName}.${vcftype}.query
+    
+    echo "${task.process}: bcftools v\$(bcftools --version | head -n 1 | sed 's/^bcftools //')" > versions.txt
     """
 }
 

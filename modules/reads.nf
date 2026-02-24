@@ -67,10 +67,11 @@ process READ_STATS {
     tag "${reads.simpleName}, ${reads.extension} file"
 
     input:
-        path(reads)
+        path reads
 
     output:
-        path("*readstats.tsv")
+        path "*readstats.tsv"
+        path "versions.txt", emit: versions
 
     script:
     
@@ -89,5 +90,10 @@ process READ_STATS {
         faster2 -ts ${reads} | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
         echo -e "\\t-" >> ${reads.simpleName}.readstats.tsv
     fi
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: faster2 v\$(faster2 --version 2>&1 | sed 's/^faster2 //')
+    ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
+    END_VERSIONS
     """
 }

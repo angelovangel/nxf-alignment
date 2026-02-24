@@ -11,6 +11,7 @@ process DORADO_ALIGN {
 
     output:
         tuple path("*.align.bam"), path("*.align.bam.bai")
+        path "versions.txt", emit: versions
 
     script:
     """
@@ -29,6 +30,11 @@ process DORADO_ALIGN {
     if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
         samtools index -@ ${task.cpus} ${reads.simpleName}.align.bam
     fi
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: dorado v\$(dorado --version 2>&1 | sed 's/^dorado //')
+    ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
+    END_VERSIONS
     """
 }
 
@@ -61,12 +67,17 @@ process BEDTOOLS_COV {
     output:
         path "*hist.tsv", emit: ch_hist
         path "nxf-alignment.bed"
+        path "versions.txt", emit: versions
 
     script:
     """
     echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${bam.simpleName}.hist.tsv
     bedtools coverage -a ${bed} -b ${bam} -hist >> ${bam.simpleName}.hist.tsv
     cp $bed nxf-alignment.bed
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: bedtools v\$(bedtools --version | sed 's/^bedtools v//')
+    END_VERSIONS
     """
 }
 
@@ -120,10 +131,15 @@ process DEEPTOOLS_BIGWIG {
 
     output:
         path "*.bigwig"
+        path "versions.txt", emit: versions
 
     script:
     """
     bamCoverage -b ${bam} -o ${bam.simpleName}.bigwig -p ${task.cpus}
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: deeptools v\$(bamCoverage --version | sed 's/^bamCoverage //')
+    END_VERSIONS
     """
 }
 
