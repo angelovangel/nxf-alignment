@@ -11,6 +11,7 @@ process REPORT {
         path(wf_props)
         path(readstats)
         path(ref_stats)
+        path(readhists)
         path(hist) 
         path(bedcov)
         path(bedcov_complement) 
@@ -34,6 +35,7 @@ process REPORT {
     def sv_variants_arg = sv_variants.name.contains('empty_sv_variants') ? '' : "--sv-vcf ${sv_variants}"
     def phase_stats_arg = phase_stats.name.contains('empty_phase_stats') ? '' : "--phasestats ${phase_stats}" 
     def asfile_arg = as_file.name.contains('EMPTY') ? '' : "--asfile ${as_file}"
+    def readhists_arg = readhists.name.contains('empty_readhists') ? '' : "--readhists ${readhists}"
     """
     make-report.py \
         --runinfo $runinfo \
@@ -47,7 +49,9 @@ process REPORT {
         $variants_arg \
         $sv_variants_arg \
         $phase_stats_arg \
+        $phase_stats_arg \
         $asfile_arg \
+        $readhists_arg \
         -o nxf-alignment-report.html
     """
 }

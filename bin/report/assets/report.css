@@ -474,3 +474,27 @@ th.sortable.desc::after {
 .table-container::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* Custom Instant Tooltip */
+.custom-tooltip {
+    position: absolute;
+    display: none;
+    background: rgba(30, 41, 59, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    line-height: 1.4;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+}
+
+svg rect:hover {
+    filter: brightness(1.2);
+    cursor: crosshair;
+}

@@ -97,3 +97,27 @@ process READ_STATS {
     END_VERSIONS
     """
 }
+
+process READ_HIST {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    tag "${reads.simpleName}"
+
+    input:
+        path reads
+
+    output:
+        path "*.hist"
+
+    script:
+    """
+    if [[ ${reads.extension} == "bam" ]]; then
+        samtools fastq ${reads} | faster2 --len - | awk '{ bin=int(\$1/100)*100; count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.len.hist
+        samtools fastq ${reads} | faster2 --gc - | awk '{ bin=int(\$1*100); count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.gc.hist
+        samtools fastq ${reads} | faster2 --qual - | awk '{ bin=int(\$1*10)/10; count[bin]++ } END { for (b in count) printf "%.1f\\t%d\\n", b, count[b] }' | sort -n > ${reads.simpleName}.qual.hist
+    else
+        faster2 --len ${reads} | awk '{ bin=int(\$1/100)*100; count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.len.hist
+        faster2 --gc ${reads} | awk '{ bin=int(\$1*100); count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.gc.hist
+        faster2 --qual ${reads} | awk '{ bin=int(\$1*10)/10; count[bin]++ } END { for (b in count) printf "%.1f\\t%d\\n", b, count[b] }' | sort -n > ${reads.simpleName}.qual.hist
+    fi
+    """
+}

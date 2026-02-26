@@ -5,6 +5,7 @@ let variantsSortDirection = {};
 let bedcovSortDirection = {};
 let svSortDirection = {};
 let phaseSortDirection = {};
+let readHistsSortDirection = {};
 
 function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -219,6 +220,7 @@ function exportPhaseToCSV() {
 $(document).ready(function () {
     $('#sampleFilter').select2({ placeholder: "Filter samples...", allowClear: true, closeOnSelect: true })
         .on('change', function () {
+            filterReadHistsTable();
             filterReadstatsTable();
             filterSamtoolsTable();
             filterVariantsTable();
@@ -233,6 +235,7 @@ $(document).ready(function () {
             filterTable();
         });
 
+    filterReadHistsTable();
     filterReadstatsTable();
     filterSamtoolsTable();
     filterVariantsTable();
@@ -647,4 +650,95 @@ function sortPhaseTable(columnIndex) {
         return isAsc ? aVal - bVal : bVal - aVal;
     });
     rows.forEach(row => tbody.appendChild(row));
+}
+
+function filterReadHistsTable() {
+    const selectedSamples = $('#sampleFilter').val() || [];
+    const table = document.getElementById('readHistsTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const sample = row.getAttribute('data-sample');
+        const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+        row.style.display = showSample ? '' : 'none';
+    });
+}
+
+function sortReadHistsTable(columnIndex) {
+    const table = document.getElementById('readHistsTable');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    readHistsSortDirection[columnIndex] = readHistsSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+    const isAsc = readHistsSortDirection[columnIndex] === 'asc';
+
+    const headers = table.querySelectorAll('th.sortable');
+    headers.forEach(h => h.classList.remove('asc', 'desc'));
+    if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+
+    rows.sort((a, b) => {
+        // Only Sample column is truly sortable in a simple way here
+        if (columnIndex === 0) {
+            const aVal = a.getAttribute('data-sample');
+            const bVal = b.getAttribute('data-sample');
+            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return 0; // Don't sort sparkline columns for now
+    });
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+// Histogram Tooltip Management
+function getHistTooltip() {
+    let tooltip = document.getElementById('hist-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'hist-tooltip';
+        tooltip.className = 'custom-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    return tooltip;
+}
+
+function showHistTooltip(event, text) {
+    const e = event || window.event;
+    if (!e) return;
+
+    const tooltip = getHistTooltip();
+    tooltip.innerHTML = text;
+    tooltip.style.display = 'block';
+
+    // Position near mouse
+    // Try pageX/Y first, then clientX/Y + scroll
+    let x = e.pageX;
+    let y = e.pageY;
+
+    if (x === undefined || y === undefined) {
+        x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+        y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    }
+
+    x += 15;
+    y += 15;
+
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+
+    // Check for overflow - horizontal
+    const rect = tooltip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth) {
+        tooltip.style.left = (x - rect.width - 30) + 'px';
+    }
+
+    // Check for overflow - vertical
+    if (y + rect.height > window.innerHeight + window.scrollY) {
+        tooltip.style.top = (y - rect.height - 30) + 'px';
+    }
+}
+
+function hideHistTooltip() {
+    const tooltip = document.getElementById('hist-tooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
 }

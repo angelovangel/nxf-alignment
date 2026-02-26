@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {MERGE_READS; READ_STATS; CONVERT_EXCEL; VALIDATE_SAMPLESHEET} from './modules/reads.nf'
+include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
 include {REPORT; VERSIONS} from './modules/report.nf'
@@ -58,6 +58,8 @@ def empty_flagstat = file("${workflow.workDir}/empty_flagstat")
 def empty_variants = file("${workflow.workDir}/empty_variants")
 def empty_sv_variants = file("${workflow.workDir}/empty_sv_variants")
 def empty_phase_stats = file("${workflow.workDir}/empty_phase_stats")
+def empty_readhists = file("${workflow.workDir}/empty_readhists")
+
 
 // Workflow properties - create CSV content as a string
 def as_status = params.asfile ? "Yes" : "No"
@@ -175,6 +177,8 @@ workflow {
 
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_reads)
+    READ_HIST(ch_reads)
+    ch_readhists = READ_HIST.out.collect()
     ch_versions = ch_versions.mix(READ_STATS.out.versions)
 
     if (params.report) {
@@ -184,6 +188,7 @@ workflow {
             ch_wf_properties,
             READ_STATS.out[0].collect(),
             ch_ref_stats,
+            ch_readhists,
             //
             Channel.fromPath(empty_hist),
             Channel.fromPath(empty_bedcov),
@@ -339,6 +344,7 @@ workflow {
         ch_wf_properties,
         READ_STATS.out[0].collect(),
         ch_ref_stats,
+        ch_readhists,
         BEDTOOLS_COV.out.ch_hist.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov.collect(),
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),

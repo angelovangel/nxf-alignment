@@ -22,17 +22,15 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 
 ## Quick Start
 
-See also [workflow diagram](https://angelovangel.github.io/nxf-alignment/assets/diagram.html) for how parameter use determine the workflow path
-
 #### Basic Workflow (Basecalling + Alignment + Variant Calling)
 For an adaptive sampling run, basecalling is done for the accepted reads based on the decision file produced by MinKNOW.
 
 ```bash
 nextflow run angelovangel/nxf-alignment \
   --pod5 /path/to/pod5/dir \
-  --asfile /path/to/AS_decisions.csv # optional
+  --asfile /path/to/AS_decisions.csv \ # optional
   --model hac \
-  --bed /path/to/regions.bed # optional, if provided the report contains coverage analysis per region from bed file 
+  --bed /path/to/regions.bed \ # optional, if provided the report contains coverage analysis per region from bed file 
   --ref /path/to/ref.fasta \
   --snp \
   --annotate
@@ -43,9 +41,9 @@ For a barcoded run, provide a [samplesheet](#sample-sheet-barcoded-runs) and kit
 nextflow run angelovangel/nxf-alignment \
   --pod5 /path/to/pod5/dir \
   --model hac,5mC_5hmC \
-  --bed /path/to/regions.bed
-  --ref /path/to/ref.fasta
-  --kit SQK-RBK114-96
+  --bed /path/to/regions.bed \
+  --ref /path/to/ref.fasta \
+  --kit SQK-RBK114-96 \
   --samplesheet /path/to/samplesheet.csv
 ```
 >Note: Sample name is obtained from the pod5 file (the sample ID entered in MinKNOW). If another sample name is desired, use the `--samplename` parameter. For barcoded runs sample names are taken from the samplesheet.
@@ -60,7 +58,7 @@ nextflow run angelovangel/nxf-alignment \
   --bedfile /path/to/regions.bed \
   --snp \
   --sv \
-  --annotate
+  --annotate \
   --mods
 ```
 #### Skip alignment (basecalling only)
@@ -70,8 +68,8 @@ Basecalling (for single sample and barcoded runs) can also be performed without 
 nextflow run angelovangel/nxf-alignment \
     --pod5 /path/to/pod5/dir \
     --model hac \
-    --kit SQK-RBK114-96 # for barcoded runs only
-    --samplesheet /path/to/samplesheet.csv # for barcoded runs only
+    --kit SQK-RBK114-96 \ # for barcoded runs only
+    --samplesheet /path/to/samplesheet.csv \ # for barcoded runs only
     --report
 ```
 
