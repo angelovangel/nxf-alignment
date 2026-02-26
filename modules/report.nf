@@ -52,7 +52,7 @@ process REPORT {
     """
 }
 
-process DUMP_VERSIONS {
+process VERSIONS {
     publishDir "${params.outdir}", mode: 'copy'
     container 'docker.io/aangeloo/nxf-tgs:latest'
     
@@ -68,7 +68,7 @@ process DUMP_VERSIONS {
     echo -e "\nSoftware Versions" > software_versions.txt
     echo -e "-----------------------------------------" >> software_versions.txt
     
-    for f in versions*.txt; do
+    for f in \$(ls versions*.txt | sort -V); do
         awk -F ': ' '{ if (NF>1) printf "%-25s: %s\\n", \$1, \$2; else print \$0 }' \$f >> software_versions.txt
     done
     

@@ -43,7 +43,7 @@ process VCF_CLAIR3 {
 
 process VCF_DEEPVARIANT {
     //container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
-    publishDir "${params.outdir}/03-variants/snps", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/snps", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     tag "${bam.simpleName} ${task.cpus} cpus"
 
     input:
@@ -125,7 +125,7 @@ process VCF_ANNOTATE {
     containerOptions '--entrypoint ""' 
     errorStrategy 'ignore'
     
-    publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{ann.vcf,stats.csv}"
+    //publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{ann.vcf,stats.csv}"
     tag "${vcf.simpleName} (filterQ >= ${params.anno_filterQ})"
 
     input:
@@ -145,14 +145,14 @@ process VCF_ANNOTATE {
     snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
 
     cat <<-END_VERSIONS > versions.txt
-    ${task.process}: snpEff v\$(snpEff -version | head -n 1 | sed 's/^SnpEff //')
+    ${task.process}: snpEff v\$(snpEff -version | head -n 1 | sed 's/^SnpEff//' | awk '{print \$1, \$2}')
     END_VERSIONS
     """
 }
 
 process VCF_BGZIP {
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
-    //publishDir "${params.outdir}/03-variants/annotations", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     tag "${vcf.simpleName}"
 
     input:
@@ -170,7 +170,7 @@ process VCF_BGZIP {
 
 process MERGE_VARIANTS {
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
-    publishDir "${params.outdir}/03-variants/merged", mode: 'copy'
+    publishDir "${params.outdir}/03-variants/merged", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     tag "${snp_vcf.simpleName}"
 
     input:
@@ -178,6 +178,7 @@ process MERGE_VARIANTS {
 
     output:
     tuple path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi")
+    path "versions.txt", emit: versions
 
     script:
     def sample = snp_vcf.simpleName.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf', '').replace('.gz', '')
@@ -192,6 +193,11 @@ process MERGE_VARIANTS {
 
     bcftools concat -a snp_reheaded.vcf.gz sv_reheaded.vcf.gz | bcftools sort -o ${sample}.merged.vcf.gz -O z
     tabix ${sample}.merged.vcf.gz
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: bcftools v\$(bcftools --version | head -n 1 | sed 's/^bcftools //')
+    ${task.process}: tabix v\$(tabix --version 2>&1 | head -n 1 |sed 's/^tabix (htslib) //')
+    END_VERSIONS
     """
 }
 
@@ -259,6 +265,7 @@ process VCF_PHASE {
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: whatshap v\$(whatshap --version)
     ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
+    ${task.process}: tabix v\$(tabix --version 2>&1 | head -n 1 |sed 's/^tabix (htslib) //')
     END_VERSIONS
     """
 }

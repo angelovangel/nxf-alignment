@@ -4,7 +4,10 @@ include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as V
 include {MERGE_READS; READ_STATS; CONVERT_EXCEL; VALIDATE_SAMPLESHEET} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
-include {REPORT; DUMP_VERSIONS} from './modules/report.nf'
+include {REPORT; VERSIONS} from './modules/report.nf'
+include {showHelp; logColors} from './modules/utils.nf'
+
+def c = logColors()
 
 if (params.help) {
         showHelp()
@@ -37,55 +40,12 @@ def ch_summary_file = Channel.of(summary)
 log.info """
     NXF-ALIGNMENT Execution Summary
     ===============================
-    Profile             : ${workflow.profile}
-    Container Engine    : ${workflow.containerEngine ?: 'local'}
+    ${c.blue}Profile${c.reset}             : ${c.yellow}${workflow.profile}${c.reset}
+    ${c.blue}Container Engine${c.reset}    : ${c.yellow}${workflow.containerEngine ?: 'local'}${c.reset}
     ===============================
 """.stripIndent()
 
-def showHelp() {
-        log.info """
-=============================================
-NXF-ALIGNMENT
-basecal, align, and analyze ONT data
-=============================================
 
-Required/important options:
-    --ref <path>           Reference FASTA (required unless --basecall or --report is used)
-
-Input options:
-    --pod5 <dir>           Directory with POD5 files (use when basecalling)
-    --samplename <str>     Sample name to use (if not provided, sample name is obtained from the pod5 file)
-    --reads <file|dir>     BAM/FASTQ file or directory of reads (skips basecalling)
-    --asfile <file>        Adaptive sampling CSV (filters reads to basecall)
-    --kit                  Use for barcoded run - barcoding kit name (--samplesheet required)
-    --samplesheet          Use for barcoded run - CSV or XLSX with columns: sample,barcode (--kit required)
-
-Output & config:
-    --outdir               Output directory name (default: results)
-    -profile               Nextflow profile (standard, test, dev, singularity)
-    --basecall             Run the pipeline up to basecalling only
-    --report               Run the pipeline up to reporting only (skips alignment and variants)
-    --cpus                 Number of CPUs to use (default: 64)
-
-Processing options:
-    --model                Dorado basecalling model (default: fast). For modifications use for example 'hac,5mCG_5hmCG'
-    --herro                Enable herro correction (default: false). The corrected reads will be in 00-basecall, but will NOT be used in alignment.
-    --bed                  BED file with regions (auto-generated from reference if omitted)
-    --snp                  Enable SNP/small INDEL variant calling
-    --snp_caller           SNP variant caller to use, only when --snp is specified (default: clair3, options: clair3, deepvariant)
-    --deepvariant_model    DeepVariant model to use, only when --snp and --snp_caller deepvariant is specified (default: ONT_R104)
-    --clair3_platform      Clair3 platform to use, only when --snp and --snp_caller clair3 is specified (default: ONT)
-    --clair3_model         Clair3 model to use, only when --snp and --snp_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
-    --sv                   Enable structural variant calling with sniffles2
-    --phase                Enable SNP phasing with Whatshap (use only with --snp, only diploid cases supported)
-    --annotate             Enable SNP variant annotation with snpEff (use only with --snp)
-    --anno_db              snpEff database to use, only when --annotate is specified (default: hg38)
-    --anno_filterQ         Filter out variants with quality lower than this before annotation (default: 20)
-    --mods                 Perform base modifications analysis using modkit (requires --ref, read data must have mods)
-    --mods_filter          Minimum coverage for base modifications calls (default: 5)
-
-""".stripIndent()
-}
 
 // create empty placeholder files
 
@@ -218,7 +178,7 @@ workflow {
     ch_versions = ch_versions.mix(READ_STATS.out.versions)
 
     if (params.report) {
-        DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
+        VERSIONS(ch_versions.collect(), ch_summary_file)
         REPORT(
             RUN_INFO.out.ifEmpty(empty_runinfo),
             ch_wf_properties,
@@ -364,13 +324,15 @@ workflow {
         ch_snp_join.join(ch_sv_join).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
             tuple(snp_vcf, snp_tbi, sv_vcf, sv_tbi)
         } | MERGE_VARIANTS
+        ch_versions = ch_versions.mix(MERGE_VARIANTS.out.versions)
     }
 
     if (params.mods) {
         DORADO_ALIGN.out[0] | MODKIT
+        ch_versions = ch_versions.mix(MODKIT.out.versions)
     }
 
-    DUMP_VERSIONS(ch_versions.collect(), ch_summary_file)
+    VERSIONS(ch_versions.collect(), ch_summary_file)
     
     REPORT(
         RUN_INFO.out.ifEmpty(empty_runinfo),
