@@ -25,7 +25,7 @@ def format_si(num):
         num_float /= 1000.0
         suffix_index += 1
 
-    return f"{num_float:.1f}{suffixes[suffix_index]}"
+    return f"{num_float:.0f}{suffixes[suffix_index]}"
 
 def parse_hist_file(filepath):
     """Parse a .hist file and return list of records"""
@@ -1000,7 +1000,7 @@ def render_svg_histogram(values, counts, title, x_label, y_label, color="#5f708b
     
     if mark_values is None: mark_values = []
     
-    # Normalize to exactly 60 bins if requested and needed
+    # Normalize to exactly 60 bins
     target_bins = 60
     min_v = min_v_fixed if min_v_fixed is not None else min(values)
     max_v = max_v_fixed if max_v_fixed is not None else max(values)
@@ -1063,9 +1063,9 @@ def render_svg_histogram(values, counts, title, x_label, y_label, color="#5f708b
         display_h = max(2, bar_h) if not is_zero else 2
         
         if is_marked:
-            fill_color = "#374151" # markers
+            fill_color = "#f44336" # markers
         elif is_zero:
-            fill_color = "#72839f" # zero values
+            fill_color = "#c3c6ca" # zero values
         else:
             fill_color = color
         
@@ -1075,7 +1075,7 @@ def render_svg_histogram(values, counts, title, x_label, y_label, color="#5f708b
         # Tooltip content
         range_str = f"{low:.1f}-{high:.1f}" if (high - low) < 1 else f"{int(low)}-{int(high)}"
         header = f"{title}<br>" if title else ""
-        tooltip = f"{header}{x_label}: {range_str}<br>Count: {count}"
+        tooltip = f"{header}{x_label}: {range_str}<br>Count: {format_si(count)}"
         # Escape single quotes and ensure no literal newlines break JS
         tooltip_js = tooltip.replace("'", "\\'").replace("\n", " ")
         
@@ -1133,12 +1133,12 @@ def render_read_hists_section(samples_readhists):
         len_spark = "No data"
         if 'len' in hists:
             vals, counts = zip(*hists['len'])
-            len_spark = render_svg_histogram(vals, counts, "", "Length (bp)", "Count", height=40, width=280, sparkline=True, min_v_fixed=0, max_v_fixed=50000, mark_values=[10000, 20000, 30000, 40000, 50000])
+            len_spark = render_svg_histogram(vals, counts, "", "Length (bp)", "Count", height=40, width=280, sparkline=True, min_v_fixed=0, max_v_fixed=50000, mark_values=[10001, 20001, 30001, 40001, 50001])
             
         gc_spark = "No data"
         if 'gc' in hists:
             vals, counts = zip(*hists['gc'])
-            gc_spark = render_svg_histogram(vals, counts, "", "GC %", "Count", height=40, width=280, sparkline=True, min_v_fixed=0, max_v_fixed=100, mark_values=[50])
+            gc_spark = render_svg_histogram(vals, counts, "", "GC %", "Count", height=40, width=280, sparkline=True, min_v_fixed=0, max_v_fixed=100, mark_values=[21,41,61,81])
             
         qual_spark = "No data"
         if 'qual' in hists:

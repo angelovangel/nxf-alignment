@@ -38,7 +38,7 @@ def ch_summary_file = Channel.of(summary)
     .collectFile(name: 'execution-summary.txt', newLine: false)
 
 log.info """
-    NXF-ALIGNMENT Execution Summary
+    NXF-ALIGNMENT
     ===============================
     ${c.blue}Profile${c.reset}             : ${c.yellow}${workflow.profile}${c.reset}
     ${c.blue}Container Engine${c.reset}    : ${c.yellow}${workflow.containerEngine ?: 'local'}${c.reset}
@@ -112,7 +112,7 @@ workflow basecall {
         }
         
         DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
-        ch_versions = ch_versions.mix(DORADO_BASECALL_BARCODING.out.versions)
+        ch_versions = ch_versions.mix(DORADO_BASECALL_BARCODING.out.versions.first())
 
         ch_samplesheet_validated
         .splitCsv(header:true)
@@ -126,7 +126,7 @@ workflow basecall {
         }
     } else {
         DORADO_BASECALL(ch_asfile, ch_pod5)
-        ch_versions = ch_versions.mix(DORADO_BASECALL.out.versions)
+        ch_versions = ch_versions.mix(DORADO_BASECALL.out.versions.first())
         // as an extra, do herro correction, the corrected reads are not used downstream
         if (params.herro) {
             DORADO_CORRECT(DORADO_BASECALL.out[0])
@@ -179,7 +179,7 @@ workflow {
     READ_STATS(ch_reads)
     READ_HIST(ch_reads)
     ch_readhists = READ_HIST.out.collect()
-    ch_versions = ch_versions.mix(READ_STATS.out.versions)
+    ch_versions = ch_versions.mix(READ_STATS.out.versions.first())
 
     if (params.report) {
         VERSIONS(ch_versions.collect(), ch_summary_file)
@@ -222,12 +222,12 @@ workflow {
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, ch_genome) )
     | SAMTOOLS_BEDCOV
 
-    ch_versions = ch_versions.mix(DORADO_ALIGN.out.versions, BEDTOOLS_COV.out.versions)
+    ch_versions = ch_versions.mix(DORADO_ALIGN.out.versions.first(), BEDTOOLS_COV.out.versions.first())
 
     DORADO_ALIGN.out[0]
     | DEEPTOOLS_BIGWIG
 
-    ch_versions = ch_versions.mix(DEEPTOOLS_BIGWIG.out.versions)
+    ch_versions = ch_versions.mix(DEEPTOOLS_BIGWIG.out.versions.first())
 
     ch_vc_input = DORADO_ALIGN.out[0]
     .combine( ch_ref )
@@ -238,7 +238,7 @@ workflow {
     if (params.sv) {
         ch_vc_input | VCF_SNIFFLES2
         ch_sv = VCF_SNIFFLES2.out[0]
-        ch_versions = ch_versions.mix(VCF_SNIFFLES2.out.versions)
+        ch_versions = ch_versions.mix(VCF_SNIFFLES2.out.versions.first())
         VCF_STATS_SV(ch_sv, 'sv')
     }
 
@@ -252,15 +252,15 @@ workflow {
         if (params.snp_caller == 'deepvariant') {
              ch_vc_input | VCF_DEEPVARIANT
              ch_vcf_raw = VCF_DEEPVARIANT.out[0]
-             ch_versions = ch_versions.mix(VCF_DEEPVARIANT.out.versions)
+             ch_versions = ch_versions.mix(VCF_DEEPVARIANT.out.versions.first())
         } else {
              ch_vc_input | VCF_CLAIR3
              ch_vcf_raw = VCF_CLAIR3.out[0]
-             ch_versions = ch_versions.mix(VCF_CLAIR3.out.versions)
+             ch_versions = ch_versions.mix(VCF_CLAIR3.out.versions.first())
         }
         
         VCF_STATS_SNP(ch_vcf_raw, 'snp')
-        ch_versions = ch_versions.mix(VCF_STATS_SNP.out.versions)
+        ch_versions = ch_versions.mix(VCF_STATS_SNP.out.versions.first())
 
         // Phasing 
         if (params.phase) {
@@ -280,7 +280,7 @@ workflow {
                 ch_genome.first()
             )
             ch_phase_stats = VCF_PHASE.out.ch_vcfphase_stats.collect()
-            ch_versions = ch_versions.mix(VCF_PHASE.out.versions)
+            ch_versions = ch_versions.mix(VCF_PHASE.out.versions.first())
             
             // update ch_vcf to phased vcf
             ch_vcf_phased = VCF_PHASE.out[0].map{ sample, vcf, index -> 
@@ -295,7 +295,7 @@ workflow {
         // Annotation
         if (params.annotate) {
             ch_vcf_phased | VCF_ANNOTATE
-            ch_versions = ch_versions.mix(VCF_ANNOTATE.out.versions)
+            ch_versions = ch_versions.mix(VCF_ANNOTATE.out.versions.first())
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
             
             VCF_BGZIP(VCF_ANNOTATE.out[0])
@@ -329,12 +329,12 @@ workflow {
         ch_snp_join.join(ch_sv_join).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
             tuple(snp_vcf, snp_tbi, sv_vcf, sv_tbi)
         } | MERGE_VARIANTS
-        ch_versions = ch_versions.mix(MERGE_VARIANTS.out.versions)
+        ch_versions = ch_versions.mix(MERGE_VARIANTS.out.versions.first())
     }
 
     if (params.mods) {
         DORADO_ALIGN.out[0] | MODKIT
-        ch_versions = ch_versions.mix(MODKIT.out.versions)
+        ch_versions = ch_versions.mix(MODKIT.out.versions.first())
     }
 
     VERSIONS(ch_versions.collect(), ch_summary_file)

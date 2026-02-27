@@ -111,13 +111,13 @@ process READ_HIST {
     script:
     """
     if [[ ${reads.extension} == "bam" ]]; then
-        samtools fastq ${reads} | faster2 --len - | awk '{ bin=int(\$1/100)*100; count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.len.hist
-        samtools fastq ${reads} | faster2 --gc - | awk '{ bin=int(\$1*100); count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.gc.hist
-        samtools fastq ${reads} | faster2 --qual - | awk '{ bin=int(\$1*10)/10; count[bin]++ } END { for (b in count) printf "%.1f\\t%d\\n", b, count[b] }' | sort -n > ${reads.simpleName}.qual.hist
+        samtools fastq ${reads} | faster2 --len -  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
+        samtools fastq ${reads} | faster2 --gc -   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
+        samtools fastq ${reads} | faster2 --qual - | bincount.awk -v type=qual | sort -n > ${reads.simpleName}.qual.hist
     else
-        faster2 --len ${reads} | awk '{ bin=int(\$1/100)*100; count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.len.hist
-        faster2 --gc ${reads} | awk '{ bin=int(\$1*100); count[bin]++ } END { for (b in count) print b"\\t"count[b] }' | sort -n > ${reads.simpleName}.gc.hist
-        faster2 --qual ${reads} | awk '{ bin=int(\$1*10)/10; count[bin]++ } END { for (b in count) printf "%.1f\\t%d\\n", b, count[b] }' | sort -n > ${reads.simpleName}.qual.hist
+        faster2 --len ${reads}  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
+        faster2 --gc ${reads}   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
+        faster2 --qual ${reads} | bincount.awk -v type=qual | sort -n > ${reads.simpleName}.qual.hist
     fi
     """
 }
