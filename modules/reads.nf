@@ -93,6 +93,7 @@ process READ_STATS {
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: faster2 v\$(faster2 --version 2>&1 | sed 's/^faster2 //')
+    ${task.process}: fasterplot v\$(fasterplot --version 2>&1 | sed 's/^fasterplot //')
     ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
     END_VERSIONS
     """
@@ -113,11 +114,11 @@ process READ_HIST {
     if [[ ${reads.extension} == "bam" ]]; then
         samtools fastq ${reads} | faster2 --len -  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
         samtools fastq ${reads} | faster2 --gc -   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
-        samtools fastq ${reads} | faster2 --qual - | bincount.awk -v type=qual | sort -n > ${reads.simpleName}.qual.hist
+        samtools fastq ${reads} | fasterplot -q - | sort -n > ${reads.simpleName}.qual.hist
     else
         faster2 --len ${reads}  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
         faster2 --gc ${reads}   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
-        faster2 --qual ${reads} | bincount.awk -v type=qual | sort -n > ${reads.simpleName}.qual.hist
+        fasterplot -q ${reads} | sort -n > ${reads.simpleName}.qual.hist
     fi
     """
 }

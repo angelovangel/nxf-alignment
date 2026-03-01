@@ -742,3 +742,29 @@ function hideHistTooltip() {
         tooltip.style.display = 'none';
     }
 }
+
+// Toggle Read Histograms Mode (Reads vs Bases)
+function toggleHistMode(element) {
+    const table = document.getElementById('readHistsTable');
+    if (!table) return;
+
+    const options = element.querySelectorAll('.toggle-option');
+    let newMode = 'reads';
+    
+    options.forEach(opt => {
+        if (opt.classList.contains('active')) {
+            opt.classList.remove('active');
+        } else {
+            opt.classList.add('active');
+            newMode = opt.getAttribute('data-mode');
+        }
+    });
+
+    if (newMode === 'bases') {
+        table.classList.remove('hist-mode-reads');
+        table.classList.add('hist-mode-bases');
+    } else {
+        table.classList.remove('hist-mode-bases');
+        table.classList.add('hist-mode-reads');
+    }
+}
