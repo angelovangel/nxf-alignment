@@ -598,8 +598,8 @@ def main():
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-main"><h1>Variant Annotation Report</h1></div>
-            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <div class="header-main"><h2>NXF-ALIGNMENT - Variants Annotation Report</h2></div>
+            <p style="text-align: right;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             {header_details}
         </div>
         

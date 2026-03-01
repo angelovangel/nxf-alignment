@@ -58,7 +58,7 @@ process BEDTOOLS_COV {
     container 'docker.io/biocontainers/bedtools:v2.27.1dfsg-4-deb_cv1'
 
     publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*hist.tsv'
-    publishDir "${params.outdir}", mode: 'copy', pattern: '*.bed'
+    publishDir "${params.outdir}/logs", mode: 'copy', pattern: '*.bed'
     tag "${bam.simpleName}"
 
     input:

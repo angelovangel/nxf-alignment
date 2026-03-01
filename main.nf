@@ -39,10 +39,12 @@ def ch_summary_file = Channel.of(summary)
 
 log.info """
     NXF-ALIGNMENT
-    ===============================
+    ${c.green}${workflow.manifest.homePage}${c.reset}
+    ==============================================
     ${c.blue}Profile${c.reset}             : ${c.yellow}${workflow.profile}${c.reset}
     ${c.blue}Container Engine${c.reset}    : ${c.yellow}${workflow.containerEngine ?: 'local'}${c.reset}
-    ===============================
+    ${c.blue}Workflow version${c.reset}    : ${c.yellow}${workflow.manifest.version}${c.reset}
+    ==============================================
 """.stripIndent()
 
 

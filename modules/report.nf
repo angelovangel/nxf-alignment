@@ -57,7 +57,7 @@ process REPORT {
 }
 
 process VERSIONS {
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir "${params.outdir}/logs", mode: 'copy'
     container 'docker.io/aangeloo/nxf-tgs:latest'
     
     input:
