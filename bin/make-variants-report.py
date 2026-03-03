@@ -9,6 +9,11 @@ from pathlib import Path
 from datetime import datetime
 import csv
 import math
+import re
+
+def natural_sort_key(s):
+    """Key function for natural sorting (e.g., S1, S2, S10)"""
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -377,7 +382,7 @@ def render_aggregate_tables(all_data):
         for sample, data in all_data.items():
             for item in data.get(key, []):
                 all_types.add(item['type'])
-        sorted_types = sorted(list(all_types))
+        sorted_types = sorted(list(all_types), key=natural_sort_key)
         
         if not sorted_types:
             continue
@@ -405,7 +410,7 @@ def render_aggregate_tables(all_data):
                     <tbody>
         """
         
-        for sample, data in sorted(all_data.items()):
+        for sample, data in sorted(all_data.items(), key=lambda x: natural_sort_key(x[0])):
             # Create a lookup for this sample's counts
             counts = {item['type']: item['count'] for item in data.get(key, [])}
             
@@ -450,7 +455,7 @@ def render_main_table(all_data):
                 </thead>
                 <tbody>
     """
-    for sample, data in sorted(all_data.items()):
+    for sample, data in sorted(all_data.items(), key=lambda x: natural_sort_key(x[0])):
         v_types = {t['type']: t['count'] for t in data['variant_types']}
         f_class = {t['type']: t['count'] for t in data['functional_class']}
         html += f"""
@@ -487,10 +492,11 @@ def render_quality_table(all_data):
                 </thead>
                 <tbody>
     """
-    for sample, data in sorted(all_data.items()):
+    for sample, data in sorted(all_data.items(), key=lambda x: natural_sort_key(x[0])):
         quality_data = data.get('quality', [])
         if not quality_data:
             mean_q = "N/A"
+            median_q = "N/A"
             sparkline = "No Data"
         else:
             total_count = sum(d['count'] for d in quality_data)
@@ -544,7 +550,7 @@ def render_indel_lengths_table(all_data):
                 </thead>
                 <tbody>
     """
-    for sample, data in sorted(all_data.items()):
+    for sample, data in sorted(all_data.items(), key=lambda x: natural_sort_key(x[0])):
         lengths_data = data.get('indel_lengths', [])
         if not lengths_data:
             sparkline = "No Data"

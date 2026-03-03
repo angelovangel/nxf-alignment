@@ -276,11 +276,11 @@ function sortReadstatsTable(columnIndex) {
         if (!dataKey) {
             const aVal = a.cells[columnIndex].textContent.toLowerCase().trim();
             const bVal = b.cells[columnIndex].textContent.toLowerCase().trim();
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         let aVal = a.getAttribute('data-' + dataKey);
         let bVal = b.getAttribute('data-' + dataKey);
-        if (columnIndex === 0) return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        if (columnIndex === 0) return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         return isAsc ? parseFloat(aVal) - parseFloat(bVal) : parseFloat(bVal) - parseFloat(aVal);
     });
     rows.forEach(row => tbody.appendChild(row));
@@ -333,7 +333,7 @@ function sortSamtoolsTable(columnIndex) {
         if (columnIndex === 0) {
             const aVal = a.getAttribute('data-sample');
             const bVal = b.getAttribute('data-sample');
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         let aVal = parseFloat(a.getAttribute('data-' + dataKey));
         let bVal = parseFloat(b.getAttribute('data-' + dataKey));
@@ -361,7 +361,7 @@ function sortTable(columnIndex) {
         let bVal = b.getAttribute('data-' + dataKey);
 
         if ([0, 1, 2].includes(columnIndex)) {
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         } else {
             return isAsc ? parseFloat(aVal) - parseFloat(bVal) : parseFloat(bVal) - parseFloat(aVal);
         }
@@ -421,7 +421,7 @@ function sortVariantsTable(columnIndex) {
         if (columnIndex === 0) {
             const aVal = a.getAttribute('data-sample');
             const bVal = b.getAttribute('data-sample');
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         let aVal = parseFloat(a.getAttribute('data-' + dataKey));
         let bVal = parseFloat(b.getAttribute('data-' + dataKey));
@@ -473,7 +473,7 @@ function sortBedcovTable(columnIndex) {
         if ([0, 1, 2].includes(columnIndex)) {
             const aVal = a.getAttribute('data-' + dataKey);
             const bVal = b.getAttribute('data-' + dataKey);
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         } else {
             let aVal = parseFloat(a.getAttribute('data-' + dataKey));
             let bVal = parseFloat(b.getAttribute('data-' + dataKey));
@@ -517,7 +517,7 @@ function sortSVTable(columnIndex) {
         if (columnIndex === 0) {
             const aVal = a.getAttribute('data-sample');
             const bVal = b.getAttribute('data-sample');
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         let aVal = parseFloat(a.getAttribute('data-' + dataKey));
         let bVal = parseFloat(b.getAttribute('data-' + dataKey));
@@ -643,7 +643,7 @@ function sortPhaseTable(columnIndex) {
         if (columnIndex === 0) {
             const aVal = a.getAttribute('data-sample');
             const bVal = b.getAttribute('data-sample');
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         let aVal = parseFloat(a.getAttribute('data-' + dataKey));
         let bVal = parseFloat(b.getAttribute('data-' + dataKey));
@@ -681,7 +681,7 @@ function sortReadHistsTable(columnIndex) {
         if (columnIndex === 0) {
             const aVal = a.getAttribute('data-sample');
             const bVal = b.getAttribute('data-sample');
-            return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
         }
         return 0; // Don't sort sparkline columns for now
     });
@@ -750,7 +750,7 @@ function toggleHistMode(element) {
 
     const options = element.querySelectorAll('.toggle-option');
     let newMode = 'reads';
-    
+
     options.forEach(opt => {
         if (opt.classList.contains('active')) {
             opt.classList.remove('active');

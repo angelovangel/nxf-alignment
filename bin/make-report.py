@@ -11,6 +11,11 @@ from datetime import datetime
 import csv
 import json
 import gzip
+import re
+
+def natural_sort_key(s):
+    """Key function for natural sorting (e.g., chr1, chr2, chr10)"""
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
 
 def format_si(num):
     """Format number with SI suffix (K, M, G, T, P)"""
@@ -551,7 +556,7 @@ def render_readstats_table(readstats_data):
             <tbody>
     """
     
-    for sample_name in sorted(readstats_data.keys()):
+    for sample_name in sorted(readstats_data.keys(), key=natural_sort_key):
         stats = readstats_data[sample_name]
         html += f"""
             <tr data-sample="{sample_name.lower()}"
@@ -614,7 +619,7 @@ def render_samtools_table(samtools_data):
             <tbody>
     """
     
-    for sample_name in sorted(samtools_data.keys()):
+    for sample_name in sorted(samtools_data.keys(), key=natural_sort_key):
         stats = samtools_data[sample_name]
         target = stats.get('target', {'len': 0, 'cov': 0})
         comp = stats.get('non-target', {'len': 0, 'cov': 0})
@@ -679,7 +684,7 @@ def render_variants_table(variants_data):
             <tbody>
     """
     
-    for sample_name in sorted(variants_data.keys()):
+    for sample_name in sorted(variants_data.keys(), key=natural_sort_key):
         stats = variants_data[sample_name]
         
         html += f"""
@@ -740,7 +745,7 @@ def render_sv_table(sv_data):
             <tbody>
     """
     
-    for sample_name in sorted(sv_data.keys()):
+    for sample_name in sorted(sv_data.keys(), key=natural_sort_key):
         stats = sv_data[sample_name]
         
         html += f"""
@@ -800,7 +805,7 @@ def render_phasing_table(phasing_data):
             <tbody>
     """
     
-    for sample_name in sorted(phasing_data.keys()):
+    for sample_name in sorted(phasing_data.keys(), key=natural_sort_key):
         stats = phasing_data[sample_name]
         
         html += f"""
@@ -967,7 +972,7 @@ def render_bed_coverage_table(bed_coverage_data):
             <tbody>
     """
 
-    for sample_name in sorted(bed_coverage_data.keys()):
+    for sample_name in sorted(bed_coverage_data.keys(), key=natural_sort_key):
         regions = bed_coverage_data[sample_name]
         for reg in regions:
             # Scale bar width to 90% of cell width max
@@ -1144,7 +1149,7 @@ def render_read_hists_section(samples_readhists):
             <tbody>
     """
     
-    for sample_name in sorted(samples_readhists.keys()):
+    for sample_name in sorted(samples_readhists.keys(), key=natural_sort_key):
         hists = samples_readhists[sample_name]
         
         # Render sparkline for each metric
@@ -1197,7 +1202,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     all_genes = set()
     for sample_name, sample_data in samples_data.items():
         all_genes.update(r['gene'] for r in sample_data)
-    genes = sorted(all_genes)
+    genes = sorted(all_genes, key=natural_sort_key)
     
     region_totals = {}
     for gene in genes:
@@ -1218,7 +1223,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     if bed_coverage_data: all_sample_names.update(bed_coverage_data.keys())
     if phasing_data: all_sample_names.update(phasing_data.keys())
     
-    sample_names = sorted(list(all_sample_names))
+    sample_names = sorted(list(all_sample_names), key=natural_sort_key)
     sample_options = "".join([f'<option value="{name.lower()}">{name}</option>' for name in sample_names])
 
     # Render Components
