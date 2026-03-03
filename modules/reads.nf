@@ -25,10 +25,15 @@ process VALIDATE_SAMPLESHEET {
 
     output:
     path("samplesheet-validated.csv")
+    path "versions.txt", emit: versions
 
     script:
     """
     validate_samplesheet.R $csv
+
+    cat <<EOF > versions.txt
+    ${task.process}: R v\$(R --version | head -n 1 | sed 's/^R version //')
+    EOF
     """
 }
 
@@ -36,12 +41,12 @@ process MERGE_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     errorStrategy {
         if (task.exitStatus == 42) {
-            println "MERGE_READS: [WARNING] ${barcode} defined in the samplesheet but does not exist in the data. Ignoring."
+            println "MERGE_READS: [WARNING] ${samplename} (${barcode}) defined in the samplesheet but does not exist in the data. Ignoring."
             return 'ignore'
         }
         return 'ignore'
     }
-    tag "${barcode} == ${samplename}"
+    tag "${samplename} - ${barcode}"
 
     publishDir "$params.outdir/00-basecall/processed", mode: 'copy', pattern: '*{fastq.gz,fastq,bam}'
 

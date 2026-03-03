@@ -112,11 +112,12 @@ workflow basecall {
         } else {
             error "Unsupported samplesheet format. Use .xlsx or .csv"
         }
+        ch_versions = ch_versions.mix(VALIDATE_SAMPLESHEET.out.versions.first())
         
         DORADO_BASECALL_BARCODING(ch_asfile, ch_pod5)  
         ch_versions = ch_versions.mix(DORADO_BASECALL_BARCODING.out.versions.first())
 
-        ch_samplesheet_validated
+        ch_samplesheet_validated[0]
         .splitCsv(header:true)
         .filter{ it -> it.barcode =~ /^barcode*/ }
         .map { row -> tuple( row.sample, row.barcode ) }
