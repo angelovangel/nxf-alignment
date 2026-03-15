@@ -68,7 +68,7 @@ process MERGE_READS {
 
 process READ_STATS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
-    publishDir "${params.outdir}/00-basecall", mode: 'copy', pattern: '*readstats.tsv'
+    publishDir "${params.outdir}/00-basecall/readqc", mode: 'copy', pattern: '*readstats.tsv'
     tag "${reads.simpleName}, ${reads.extension} file"
 
     input:
@@ -125,5 +125,38 @@ process READ_HIST {
         faster2 --gc ${reads}   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
         fasterplot -q ${reads} | sort -n > ${reads.simpleName}.qual.hist
     fi
+    """
+}
+process CONVERT_READS {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    tag "${reads.simpleName}"
+
+    input:
+        path reads
+
+    output:
+        path "*.fastq.gz"
+
+    script:
+    """
+    samtools fastq ${reads} > ${reads.simpleName}.fastq.gz
+    """
+}
+
+process READ_ANI {
+    container 'docker.io/staphb/sylph:latest'
+    publishDir "${params.outdir}/00-basecall/readqc", mode: 'copy', pattern: '*ani.tsv'
+    tag "${reads.simpleName}"
+
+    input:
+        path ref
+        path reads
+
+    output:
+        path "*.tsv"
+
+    script:
+    """
+    sylph query -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
     """
 }
