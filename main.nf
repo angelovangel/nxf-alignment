@@ -163,6 +163,17 @@ workflow {
         ch_versions = ch_versions.mix(bc_out.ch_versions)
     }
 
+    // Branch reads into BAM and others for centralized conversion
+    ch_reads
+        .branch {
+            bam: it.name.endsWith('.bam')
+            other: true
+        }
+        .set { ch_reads_split }
+
+    ch_fastq = CONVERT_READS(ch_reads_split.bam)
+        .mix(ch_reads_split.other)
+
     if (params.basecall) {
         return
     }
@@ -173,7 +184,7 @@ workflow {
         ch_ref_stats = REF_STATS.out.ch_ref_stats
         ch_genome = REF_STATS.out.ch_genome
         // get read ANI to reference
-        READ_ANI(ch_ref, CONVERT_READS(ch_reads))
+        READ_ANI(ch_ref.combine(ch_fastq))
 
     } else {
         ch_ref = Channel.empty()
@@ -182,8 +193,8 @@ workflow {
     }
 
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
-    READ_STATS(ch_reads)
-    READ_HIST(ch_reads)
+    READ_STATS(ch_fastq)
+    READ_HIST(ch_fastq)
     ch_readhists = READ_HIST.out.collect()
     ch_versions = ch_versions.mix(READ_STATS.out.versions.first())
 

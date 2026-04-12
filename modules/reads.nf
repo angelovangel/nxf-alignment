@@ -82,19 +82,8 @@ process READ_STATS {
     
     """
     printf "file\\treads\\tbases\\tn_bases\\tmin_len\\tmax_len\\tn50\\tGC_percent\\tQ20_percent\\tmods\\n" > ${reads.simpleName}.readstats.tsv
-    
-    mods="-"
-    if [[ ${reads.extension} == "bam" ]]; then
-        # Detect modifications
-        bamtags=\$(samtools view ${reads} | head -n 1000 | grep -o "MM:Z:[^[:space:]]*" | cut -d',' -f1 | cut -d':' -f3 | sort -u)
-        mods=\$(echo \$bamtags | parse_mods.py)
-
-        samtools fastq ${reads} | faster2 -ts - | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
-        echo -e "\\t\$mods" >> ${reads.simpleName}.readstats.tsv
-    else 
-        faster2 -ts ${reads} | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
-        echo -e "\\t-" >> ${reads.simpleName}.readstats.tsv
-    fi
+    faster2 -ts ${reads} | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
+    echo -e "\\t-" >> ${reads.simpleName}.readstats.tsv
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: faster2 v\$(faster2 --version 2>&1 | sed 's/^faster2 //')
@@ -116,20 +105,15 @@ process READ_HIST {
 
     script:
     """
-    if [[ ${reads.extension} == "bam" ]]; then
-        samtools fastq ${reads} | faster2 --len -  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
-        samtools fastq ${reads} | faster2 --gc -   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
-        samtools fastq ${reads} | fasterplot -q - | sort -n > ${reads.simpleName}.qual.hist
-    else
-        faster2 --len ${reads}  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
-        faster2 --gc ${reads}   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
-        fasterplot -q ${reads} | sort -n > ${reads.simpleName}.qual.hist
-    fi
+    faster2 --len ${reads}  | bincount.awk -v type=len  | sort -n > ${reads.simpleName}.len.hist
+    faster2 --gc ${reads}   | bincount.awk -v type=gc   | sort -n > ${reads.simpleName}.gc.hist
+    fasterplot -q ${reads} | sort -n > ${reads.simpleName}.qual.hist
     """
 }
 process CONVERT_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     tag "${reads.simpleName}"
+    cpus 4
 
     input:
         path reads
@@ -139,7 +123,7 @@ process CONVERT_READS {
 
     script:
     """
-    samtools fastq ${reads} > ${reads.simpleName}.fastq.gz
+    samtools fastq -@ ${task.cpus} -T '*' ${reads} -o ${reads.simpleName}.fastq.gz
     """
 }
 
@@ -149,8 +133,7 @@ process READ_ANI {
     tag "${reads.simpleName}"
 
     input:
-        path ref
-        path reads
+        tuple path(ref), path(reads)
 
     output:
         path "*.tsv"
