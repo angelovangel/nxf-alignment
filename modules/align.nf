@@ -15,10 +15,12 @@ process DORADO_ALIGN {
 
     script:
     """
-    # -o outputs sorted indexed bam, but with ONT folder structure or not (version??)
-    dorado aligner -o align_out -t ${task.cpus} ${ref} ${reads}
+    # samtools fastq -T '*' converts BAM to FASTQ while preserving all tags in the header
+    # minimap2 -y then parses these tags from the header back into the aligned BAM
+    samtools fastq -T '*' ${reads} | \
+    minimap2 -ax map-ont -t ${task.cpus} -y ${ref} - | \
+    samtools sort -@ ${task.cpus} -o ${reads.simpleName}.align.bam -
 
-    find align_out -name "*.bam" -exec samtools merge -@ ${task.cpus} -o ${reads.simpleName}.align.bam {} +
     
     # exit here if no reads map to ref
     nreads=\$(samtools view -c ${reads.simpleName}.align.bam)
@@ -32,7 +34,7 @@ process DORADO_ALIGN {
     fi
 
     cat <<-END_VERSIONS > versions.txt
-    ${task.process}: dorado v\$(dorado --version 2>&1 | sed 's/^dorado //')
+    ${task.process}: minimap2 v\$(minimap2 --version)
     ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
     END_VERSIONS
     """
