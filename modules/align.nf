@@ -15,15 +15,20 @@ process DORADO_ALIGN {
 
     script:
     """
-    # samtools fastq -T '*' converts BAM to FASTQ while preserving all tags in the header
-    # minimap2 -y then parses these tags from the header back into the aligned BAM
-    samtools fastq -T '*' ${reads} | \
-    minimap2 -ax map-ont -t ${task.cpus} -y ${ref} - | \
-    samtools sort -@ ${task.cpus} -o ${reads.simpleName}.align.bam -
+    # Calculate a balanced distribution of threads to avoid oversubscribing task.cpus
+    # fastq: 2-4 threads, sort: ~1/4 of total, minimap2: the rest
+    FASTQ_CPUS=\$(( ${task.cpus} > 8 ? 4 : 1 ))
+    SORT_CPUS=\$(( ${task.cpus} > 4 ? ${task.cpus} / 4 : 1 ))
+    MAP_CPUS=\$(( ${task.cpus} - \$FASTQ_CPUS - \$SORT_CPUS ))
+    [[ \$MAP_CPUS -lt 1 ]] && MAP_CPUS=1
+
+    samtools fastq -@ \$FASTQ_CPUS -T '*' ${reads} | \
+    minimap2 -ax map-ont -t \$MAP_CPUS -y ${ref} - | \
+    samtools sort -@ \$SORT_CPUS -o ${reads.simpleName}.align.bam -
 
     
     # exit here if no reads map to ref
-    nreads=\$(samtools view -c ${reads.simpleName}.align.bam)
+    nreads=\$(samtools view -@ ${task.cpus} -c ${reads.simpleName}.align.bam)
     if [ "\$nreads" -eq 0 ]; then
         echo "No reads mapped to reference. Exiting."
         exit 1
