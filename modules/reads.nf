@@ -123,7 +123,7 @@ process CONVERT_READS {
 
     script:
     """
-    samtools fastq -@ ${task.cpus} -T '*' ${reads} -o ${reads.simpleName}.fastq.gz
+    samtools fastq -@ ${task.cpus} -T '*' ${reads} | gzip > ${reads.simpleName}.fastq.gz
     """
 }
 
