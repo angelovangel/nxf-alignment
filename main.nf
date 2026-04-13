@@ -172,7 +172,7 @@ workflow {
         .set { ch_reads_split }
 
     ch_fastq = CONVERT_READS(ch_reads_split.bam)
-        .mix(ch_reads_split.other)
+        .mix(ch_reads_split.other.map { [it, "-"] })
 
     if (params.basecall) {
         return
@@ -184,7 +184,7 @@ workflow {
         ch_ref_stats = REF_STATS.out.ch_ref_stats
         ch_genome = REF_STATS.out.ch_genome
         // get read ANI to reference
-        READ_ANI(ch_ref.combine(ch_fastq))
+        READ_ANI(ch_ref.combine(ch_fastq).map { [it[0], it[1]] })
 
     } else {
         ch_ref = Channel.empty()
@@ -194,7 +194,7 @@ workflow {
 
     RUN_INFO( ch_reads.filter{ it.name.endsWith('.bam') }.first() )
     READ_STATS(ch_fastq)
-    READ_HIST(ch_fastq)
+    READ_HIST(ch_fastq.map { it[0] })
     ch_readhists = READ_HIST.out.collect()
     ch_versions = ch_versions.mix(READ_STATS.out.versions.first())
 

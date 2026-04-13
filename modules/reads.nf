@@ -72,7 +72,7 @@ process READ_STATS {
     tag "${reads.simpleName}, ${reads.extension} file"
 
     input:
-        path reads
+        tuple path(reads), val(mods)
 
     output:
         path "*readstats.tsv"
@@ -83,7 +83,7 @@ process READ_STATS {
     """
     printf "file\\treads\\tbases\\tn_bases\\tmin_len\\tmax_len\\tn50\\tGC_percent\\tQ20_percent\\tmods\\n" > ${reads.simpleName}.readstats.tsv
     faster2 -ts ${reads} | tr -d '\\n' >> ${reads.simpleName}.readstats.tsv
-    echo -e "\\t-" >> ${reads.simpleName}.readstats.tsv
+    echo -e "\\t${mods}" >> ${reads.simpleName}.readstats.tsv
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: faster2 v\$(faster2 --version 2>&1 | sed 's/^faster2 //')
@@ -113,17 +113,27 @@ process READ_HIST {
 process CONVERT_READS {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     tag "${reads.simpleName}"
-    cpus 4
 
     input:
         path reads
 
     output:
-        path "*.fastq.gz"
+        tuple path("*.fastq.gz"), env(MOD_LABELS)
 
     script:
     """
-    samtools fastq -@ ${task.cpus} -T '*' ${reads} | gzip > ${reads.simpleName}.fastq.gz
+    # Extract modification codes from MM tags (peek at first 1000 reads)
+    MODS=\$(samtools view ${reads} | head -n 1000 | grep -o "MM:Z:[^[:space:]]*" | tr ';' '\\n' | cut -d',' -f1 | cut -d'+' -f2 | sort -u | tr '\\n' ',' | sed 's/,\$//')
+    
+    # Map codes to human readable labels
+    if [ -z "\$MODS" ]; then
+        MOD_LABELS="-"
+    else
+        MOD_LABELS=\$(echo \$MODS | sed 's/m/5mC/g; s/h/5hmC/g; s/a/6mA/g')
+    fi
+
+    FASTQ_CPUS=\$(( ${task.cpus} > 8 ? ${task.cpus} / 4 : 1 ))
+    samtools fastq -@ \${FASTQ_CPUS} ${reads} | gzip > ${reads.simpleName}.fastq.gz
     """
 }
 
@@ -131,6 +141,7 @@ process READ_ANI {
     container 'docker.io/staphb/sylph:latest'
     publishDir "${params.outdir}/00-basecall/readqc", mode: 'copy', pattern: '*ani.tsv'
     tag "${reads.simpleName}"
+    cpus 4
 
     input:
         tuple path(ref), path(reads)
@@ -140,6 +151,6 @@ process READ_ANI {
 
     script:
     """
-    sylph query -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
+    sylph query -t 4 -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
     """
 }
