@@ -24,7 +24,7 @@ process DORADO_ALIGN {
 
     samtools fastq -@ \$FASTQ_CPUS -T '*' ${reads} | \
     minimap2 -ax map-ont -t \$MAP_CPUS -y ${ref} - | \
-    samtools sort -@ \$SORT_CPUS -o ${reads.simpleName}.align.bam -
+    samtools sort -@ \$SORT_CPUS -m 2G -T "sort_tmp" -o ${reads.simpleName}.align.bam -
 
     
     # exit here if no reads map to ref
