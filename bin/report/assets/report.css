@@ -522,3 +522,28 @@ svg rect:hover {
 .hist-mode-reads .hist-bases { display: none; }
 .hist-mode-bases .hist-reads { display: none; }
 
+/* Directory Structure Styles */
+.directory-structure {
+    line-height: 1.6;
+}
+
+.dir-item {
+    margin-top: 5px;
+    color: #1e293b;
+}
+
+.dir-item strong {
+    color: #2563eb;
+}
+
+.directory-structure ul li {
+    color: #475569;
+}
+
+.directory-structure code {
+    background: #f1f5f9;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.95em;
+    color: #e11d48;
+}

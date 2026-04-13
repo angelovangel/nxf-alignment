@@ -453,6 +453,82 @@ def render_details_block(title, info_list, add_top_border=False):
     """
     return html
 
+def render_output_section(args):
+    """Render a section explaining the output directory structure based on what was run"""
+    outputs = []
+    
+    # Standard outputs
+    outputs.append(('00-basecall/', 'Basecalling and read quality control results.', [
+        ('processed/', 'Combined BAM files per sample/barcode.'),
+        ('readqc/', 'Read statistics (.readstats.tsv) and taxonomy reports (.ani.tsv).')
+    ]))
+    
+    if args.flagstat:
+        outputs.append(('01-align/', 'Alignment results including sorted BAM files and coordinate indices.', [
+            ('*.align.bam', 'Coordinate-sorted alignment files (BAM).'),
+            ('*.align.bam.bai', 'BAM indices for random access and visualization.')
+        ]))
+        
+    if args.hist or args.bedcov:
+        outputs.append(('02-coverage/', 'Coverage analysis results.', [
+            ('*.hist.tsv', 'Genome-wide coverage histograms.'),
+            ('*.bedcov.tsv', 'Mean coverage per region from the input BED file.'),
+            ('*.bigwig', 'BigWig tracks for visualization in genome browsers (IGV/UCSC).')
+        ]))
+        
+    if args.vcf_query or args.sv_vcf:
+        outputs.append(('03-variants/', 'Variant calling results.', [
+            ('*.vcf.gz', 'Compressed VCF files containing SNPs, Indels, or SVs.'),
+            ('*.tbi', 'Tabix indices for VCF files.')
+        ]))
+
+    if args.phasestats:
+        # Add phasing to 03-variants if present
+        found_variants = False
+        for i, (dir_name, desc, subdirs) in enumerate(outputs):
+            if dir_name == '03-variants/':
+                subdirs.append(('*.phase.tsv', 'Phasing statistics from Whatshap.'))
+                found_variants = True
+                break
+        if not found_variants:
+            outputs.append(('03-variants/', 'Phasing and variant results.', [
+                ('*.phase.tsv', 'Phasing statistics from Whatshap.')
+            ]))
+
+    outputs.append(('logs/', 'Pipeline execution summary and software version logs.', []))
+    outputs.append(('nxf-alignment-report.html', 'The interactive HTML report (this file).', []))
+
+    html = """
+    <details class="collapsible-section" style="margin-bottom: 20px;">
+      <summary>
+        <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Output Directory and Files</h3>
+      </summary>
+      <div style="padding: 15px; background: #fafafa;">
+        <p style="margin-bottom: 10px; font-size: 0.9em; color: #475569;">The following directories were generated based on the pipeline components executed in this run:</p>
+        <div class="directory-structure" style="font-family: 'Courier New', monospace; font-size: 0.85em;">
+    """
+    
+    for item_name, desc, subdirs in outputs:
+        if item_name.endswith('/'):
+            html += f'<div class="dir-item"><strong>{item_name}</strong> - {desc}</div>'
+        else:
+            html += f'<div class="dir-item"><code>{item_name}</code> - {desc}</div>'
+
+        if subdirs:
+            html += '<ul style="list-style: none; padding-left: 25px; margin: 5px 0 10px 0;">'
+            for sub_name, sub_desc in subdirs:
+                html += f'<li><span style="opacity: 0.6;">└──</span> <code>{sub_name}</code>: {sub_desc}</li>'
+            html += '</ul>'
+        else:
+            html += '<div style="margin-bottom: 10px;"></div>'
+            
+    html += """
+        </div>
+      </div>
+    </details>
+    """
+    return html
+
 def render_stats_cards(readstats_data, samples_data, genes, region_totals, ref_stats, wf_info, as_counts=None):
     """Render the top statistics cards"""
     total_bases = sum(stats.get('bases', 0) for stats in readstats_data.values()) if readstats_data else 0
@@ -1195,7 +1271,7 @@ def render_read_hists_section(samples_readhists):
     """
     return html
 
-def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, output_file, samples_readhists):
+def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, output_file, samples_readhists, args):
     """Generate HTML report from multiple samples"""
     
     # Pre-processing
@@ -1242,6 +1318,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     read_hists_block = render_read_hists_section(samples_readhists)
+    output_structure_block = render_output_section(args)
     
     # Assemble HTML
     html = f"""<!DOCTYPE html>
@@ -1289,6 +1366,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {variants_table}
       {phasing_table}
       {sv_table}
+      {output_structure_block}
     </div>
   </div>
   <button onclick="scrollToTop()" id="backToTop" title="Go to top">↑</button>
@@ -1447,7 +1525,7 @@ def main():
             samples_readhists[sample_name] = {}
         samples_readhists[sample_name][hist_type] = parse_read_hist_file(f)
 
-    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, args.output, samples_readhists)
+    generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, args.output, samples_readhists, args)
 
 if __name__ == "__main__":
     main()
