@@ -123,17 +123,14 @@ process CONVERT_READS {
     script:
     """
     # Extract modification codes from MM tags (peek at first 1000 reads)
-    MODS=\$(samtools view ${reads} | head -n 1000 | grep -o "MM:Z:[^[:space:]]*" | tr ';' '\\n' | cut -d',' -f1 | cut -d'+' -f2 | sort -u | tr '\\n' ',' | sed 's/,\$//')
+    MODS=\$(samtools view ${reads} | head -n 1000 | grep -o "MM:Z:[^ ]*" | tr ';' '\\n' | sed -n 's/.*[+-]\\([a-z0-9]\\{1,\\}\\).*/\\1/p' | sort -u | paste -sd, -)
     
     # Map codes to human readable labels
-    if [ -z "\$MODS" ]; then
-        MOD_LABELS="-"
-    else
-        MOD_LABELS=\$(echo \$MODS | sed 's/m/5mC/g; s/h/5hmC/g; s/a/6mA/g')
-    fi
+    MOD_LABELS=\$(echo "\$MODS" | tr ',' '\\n' | sed 's/^m\$/5mC/; s/^h\$/5hmC/; s/^a\$/6mA/; s/^c\$/4mC/' | paste -sd, -)
+    [ -z "\$MOD_LABELS" ] && MOD_LABELS="-"
 
-    FASTQ_CPUS=\$(( ${task.cpus} > 8 ? ${task.cpus} / 4 : 1 ))
-    samtools fastq -@ \${FASTQ_CPUS} ${reads} | gzip > ${reads.simpleName}.fastq.gz
+    samtools fastq -@ ${task.cpus} ${reads} > ${reads.simpleName}.fastq
+    pigz ${reads.simpleName}.fastq
     """
 }
 
