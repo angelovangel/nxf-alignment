@@ -459,15 +459,20 @@ def render_output_section(args):
     
     # Standard outputs
     outputs.append(('00-basecall/', 'Basecalling and read quality control results.', [
-        ('processed/', 'Combined BAM files per sample/barcode.'),
+        ('*.bam', 'Combined BAM files per sample/barcode.'),
         ('readqc/', 'Read statistics (.readstats.tsv) and taxonomy reports (.ani.tsv).')
     ]))
     
     if args.flagstat:
-        outputs.append(('01-align/', 'Alignment results including sorted BAM files and coordinate indices.', [
+        align_subdirs = [
             ('*.align.bam', 'Coordinate-sorted alignment files (BAM).'),
             ('*.align.bam.bai', 'BAM indices for random access and visualization.')
-        ]))
+        ]
+        if args.phasestats:
+            align_subdirs.insert(2, ('*.ht.bam', 'Haplotagged BAM files (phased reads tagged with HP tag).'))
+            align_subdirs.insert(3, ('*.ht.bam.bai', 'Indices for haplotagged BAM files.'))
+            
+        outputs.append(('01-align/', 'Alignment results including sorted BAM files and coordinate indices.', align_subdirs))
         
     if args.hist or args.bedcov:
         outputs.append(('02-coverage/', 'Coverage analysis results.', [
@@ -476,24 +481,18 @@ def render_output_section(args):
             ('*.bigwig', 'BigWig tracks for visualization in genome browsers (IGV/UCSC).')
         ]))
         
-    if args.vcf_query or args.sv_vcf:
-        outputs.append(('03-variants/', 'Variant calling results.', [
-            ('*.vcf.gz', 'Compressed VCF files containing SNPs, Indels, or SVs.'),
-            ('*.tbi', 'Tabix indices for VCF files.')
-        ]))
-
-    if args.phasestats:
-        # Add phasing to 03-variants if present
-        found_variants = False
-        for i, (dir_name, desc, subdirs) in enumerate(outputs):
-            if dir_name == '03-variants/':
-                subdirs.append(('*.phase.tsv', 'Phasing statistics from Whatshap.'))
-                found_variants = True
-                break
-        if not found_variants:
-            outputs.append(('03-variants/', 'Phasing and variant results.', [
-                ('*.phase.tsv', 'Phasing statistics from Whatshap.')
-            ]))
+    if args.vcf_query or args.sv_vcf or args.phasestats:
+        variant_subdirs = []
+        if args.vcf_query:
+            variant_subdirs.append(('snps/', 'Small variant calls (SNPs and Indels): *.snp.vcf.gz'))
+        if args.sv_vcf:
+            variant_subdirs.append(('sv/', 'Structural variant calls: *.sv.vcf.gz'))
+        if args.phasestats:
+            variant_subdirs.append(('phasing/', 'Phasing results: *.phase.vcf.gz, *.phase.gtf, *.phase.tsv'))
+        if args.vcf_query and args.sv_vcf:
+            variant_subdirs.append(('merged/', 'Merged SNP and SV callsets: *.merged.vcf.gz'))
+            
+        outputs.append(('03-variants/', 'Variant calling and phasing results.', variant_subdirs))
 
     outputs.append(('logs/', 'Pipeline execution summary and software version logs.', []))
     outputs.append(('nxf-alignment-report.html', 'The interactive HTML report (this file).', []))
@@ -517,7 +516,8 @@ def render_output_section(args):
         if subdirs:
             html += '<ul style="list-style: none; padding-left: 25px; margin: 5px 0 10px 0;">'
             for sub_name, sub_desc in subdirs:
-                html += f'<li><span style="opacity: 0.6;">└──</span> <code>{sub_name}</code>: {sub_desc}</li>'
+                label = f'<strong>{sub_name}</strong>' if sub_name.endswith('/') else f'<code>{sub_name}</code>'
+                html += f'<li><span style="opacity: 0.6;">└──</span> {label}: {sub_desc}</li>'
             html += '</ul>'
         else:
             html += '<div style="margin-bottom: 10px;"></div>'
