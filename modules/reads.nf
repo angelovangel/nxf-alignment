@@ -118,7 +118,7 @@ process CONVERT_READS {
         path reads
 
     output:
-        tuple path("*.fastq.gz"), env(MOD_LABELS)
+        tuple path("*.fastq"), env(MOD_LABELS)
 
     script:
     """
@@ -130,7 +130,6 @@ process CONVERT_READS {
     [ -z "\$MOD_LABELS" ] && MOD_LABELS="-"
 
     samtools fastq -@ ${task.cpus} ${reads} > ${reads.simpleName}.fastq
-    pigz ${reads.simpleName}.fastq
     """
 }
 
