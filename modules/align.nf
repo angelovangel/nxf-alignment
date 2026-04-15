@@ -23,7 +23,7 @@ process DORADO_ALIGN {
     [[ \$MAP_CPUS -lt 1 ]] && MAP_CPUS=1
 
     samtools fastq -@ \$FASTQ_CPUS -T '*' ${reads} | \
-    minimap2 -ax map-ont -t \$MAP_CPUS -y ${ref} - | \
+    minimap2 ${params.mmap2} -t \$MAP_CPUS -y ${ref} - | \
     samtools sort -@ \$SORT_CPUS -m 2G -T "sort_tmp" -o ${reads.simpleName}.align.bam -
 
     

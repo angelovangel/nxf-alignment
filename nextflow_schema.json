@@ -162,6 +162,13 @@
           "description": "BED file with regions of interest",
           "help_text": "BED file defining regions of interest with 4 columns (chrom, start, end, name). If omitted, will be auto-generated from the reference file."
         },
+        "mmap2": {
+          "type": "string",
+          "description": "Minimap2 alignment parameters",
+          "fa_icon": "fas fa-cogs",
+          "default": "-ax map-ont",
+          "help_text": "Minimap2 alignment parameters. Default is '-ax map-ont'. See how to use [Minimap2](https://github.com/lh3/minimap2)."
+        },
         "mods": {
           "type": "boolean",
           "description": "Perform base modifications analysis of aligned reads with modkit",
