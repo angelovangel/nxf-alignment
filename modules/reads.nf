@@ -144,9 +144,14 @@ process READ_ANI {
 
     output:
         path "*.tsv"
+        path "versions.txt", emit: versions
 
     script:
     """
-    sylph query -t 4 -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
+    sylph profile -t 4 -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
+
+    cat <<- END_VERSIONS > versions.txt
+    ${task.process}: sylph v\$(sylph --version 2>&1 | sed 's/^sylph //')
+    END_VERSIONS
     """
 }

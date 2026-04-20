@@ -24,7 +24,7 @@ function exportAniToCSV() {
     const table = document.getElementById('aniTable');
     if (!table) { alert('ANI table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Genome', 'Adjusted_ANI', 'Eff_cov', 'Containment'];
+    const headers = ['Sample', 'Genome', 'Read_Abundance_Pct', 'Adjusted_ANI', 'Eff_cov', 'Containment'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -32,7 +32,7 @@ function exportAniToCSV() {
             const cells = row.querySelectorAll('td');
             const cols = [
                 cells[0].textContent, cells[1].textContent, cells[2].textContent,
-                cells[3].textContent, cells[4].textContent
+                cells[3].textContent, cells[4].textContent, cells[5].textContent
             ];
             const safeCols = cols.map(text => {
                 if (!text) return "";
@@ -828,11 +828,12 @@ function sortAniTable(columnIndex) {
         let aVal = a.cells[columnIndex].textContent.toLowerCase().trim();
         let bVal = b.cells[columnIndex].textContent.toLowerCase().trim();
         
-        // No % to remove for Adjusted ANI, but remove for Containment if present
-        if (columnIndex === 2 || columnIndex === 3) {
+        // Numeric sorting for cols 2, 3, 4 (Read Abundance, Adjusted ANI, Eff cov)
+        if (columnIndex >= 2 && columnIndex <= 4) {
             return isAsc ? parseFloat(aVal) - parseFloat(bVal) : parseFloat(bVal) - parseFloat(aVal);
         }
-        if (columnIndex === 4) {
+        // Containment % sorting (remove % if present)
+        if (columnIndex === 5) {
             let aNum = parseFloat(aVal.replace('%', ''));
             let bNum = parseFloat(bVal.replace('%', ''));
             if (isNaN(aNum)) aNum = 0;

@@ -1,0 +1,2 @@
+Sample_file	Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	Eff_cov	ANI_5-95_percentile	Eff_lambda	Lambda_5-95_percentile	Median_cov	Mean_cov_geq1	Containment_ind	Naive_ANI	kmers_reassigned	Contig_name
+testdata/reads3.fastq	demo/ref.fasta	100.0000	100.0000	88.59	0.686	88.52-88.66	0.686	0.67-0.71	1	1.495	20658/1778076	86.61	0	chr1

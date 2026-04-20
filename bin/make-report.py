@@ -365,7 +365,8 @@ def parse_ani_file(filepath):
                     'genome': row.get('Genome_file', ''),
                     'ani': row.get('Adjusted_ANI', '0'),
                     'cov': row.get('Eff_cov', '0'),
-                    'cont': row.get('Containment_ind', '0')
+                    'cont': row.get('Containment_ind', '0'),
+                    'seq_abund': row.get('Sequence_abundance', '0')
                 })
     except Exception as e:
         print(f"Error parsing ANI file {filepath}: {e}", file=sys.stderr)
@@ -1308,9 +1309,10 @@ def render_ani_table(ani_data):
               <tr>
                 <th class="sample-col sortable" onclick="sortAniTable(0)">Sample</th>
                 <th class="sortable" onclick="sortAniTable(1)">Genome</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(2)">Adjusted ANI</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(3)">Eff cov</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(4)">Containment %</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(2)">Read Abundance %</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(3)">Adjusted ANI</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(4)">Eff cov</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(5)">Containment %</th>
               </tr>
             </thead>
             <tbody>
@@ -1330,6 +1332,7 @@ def render_ani_table(ani_data):
         ani = row.get('ani', '0')
         cov = row.get('cov', '0')
         cont = row.get('cont', '0')
+        seq_abund = row.get('seq_abund', '0')
         # Evaluate containment ratio as percentage if possible
         display_cont = cont
         try:
@@ -1340,10 +1343,16 @@ def render_ani_table(ani_data):
         except (ValueError, ZeroDivisionError):
             pass
 
+        try:
+            display_abund = f"{float(seq_abund):.2f}"
+        except (ValueError, TypeError):
+            display_abund = seq_abund
+
         html += f"""
             <tr data-sample="{sample.lower()}">
               <td class="sample-col">{sample}</td>
               <td>{genome}</td>
+              <td style="text-align: right;">{display_abund}</td>
               <td style="text-align: right;">{ani}</td>
               <td style="text-align: right;">{cov}</td>
               <td style="text-align: right;">{display_cont}</td>

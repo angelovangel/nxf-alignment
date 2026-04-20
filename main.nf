@@ -187,7 +187,8 @@ workflow {
         ch_genome = REF_STATS.out.ch_genome
         // get read ANI to reference
         READ_ANI(ch_ref.combine(ch_fastq).map { [it[0], it[1]] })
-        ch_read_anis = READ_ANI.out.collect()
+        ch_read_anis = READ_ANI.out[0].collect()
+        ch_versions = ch_versions.mix(READ_ANI.out.versions)
 
     } else {
         ch_ref = Channel.empty()
