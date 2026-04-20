@@ -6,6 +6,7 @@ let bedcovSortDirection = {};
 let svSortDirection = {};
 let phaseSortDirection = {};
 let readHistsSortDirection = {};
+let aniSortDirection = {};
 
 function downloadCSV(csvContent, filename) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -17,6 +18,32 @@ function downloadCSV(csvContent, filename) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+function exportAniToCSV() {
+    const table = document.getElementById('aniTable');
+    if (!table) { alert('ANI table not found.'); return; }
+    let csv = [];
+    const headers = ['Sample', 'Genome', 'Adjusted_ANI', 'Eff_cov', 'Containment'];
+    csv.push(headers.join(','));
+    const dataRows = table.querySelectorAll('tbody tr');
+    dataRows.forEach(row => {
+        if (row.style.display !== 'none') {
+            const cells = row.querySelectorAll('td');
+            const cols = [
+                cells[0].textContent, cells[1].textContent, cells[2].textContent,
+                cells[3].textContent, cells[4].textContent
+            ];
+            const safeCols = cols.map(text => {
+                if (!text) return "";
+                text = text.trim().replace(/,/g, '');
+                if (text.includes('"')) { text = '"' + text.replace(/"/g, '""') + '"'; }
+                return text;
+            });
+            csv.push(safeCols.join(','));
+        }
+    });
+    downloadCSV(csv.join('\n'), 'ani_stats_export.csv');
 }
 
 function exportReadstatsToCSV() {
@@ -227,6 +254,7 @@ $(document).ready(function () {
             filterBedcovTable();
             filterSVTable();
             filterPhaseTable();
+            filterAniTable();
             filterTable();
         });
     $('#regionFilter').select2({ placeholder: "Filter regions...", allowClear: true, closeOnSelect: true })
@@ -241,6 +269,7 @@ $(document).ready(function () {
     filterVariantsTable();
     filterBedcovTable();
     filterSVTable();
+    filterAniTable();
     filterTable();
 
     // Default Sorts
@@ -250,12 +279,14 @@ $(document).ready(function () {
     bedcovSortDirection[0] = 'desc';
     svSortDirection[0] = 'desc';
     phaseSortDirection[0] = 'desc';
+    aniSortDirection[0] = 'desc';
     sortReadstatsTable(0);
     sortSamtoolsTable(0);
     sortVariantsTable(0);
     sortBedcovTable(0);
     sortSVTable(0);
     sortPhaseTable(0);
+    sortAniTable(0);
 });
 
 function sortReadstatsTable(columnIndex) {
@@ -767,4 +798,49 @@ function toggleHistMode(element) {
         table.classList.remove('hist-mode-bases');
         table.classList.add('hist-mode-reads');
     }
+}
+
+function filterAniTable() {
+    const selectedSamples = $('#sampleFilter').val() || [];
+    const table = document.getElementById('aniTable');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const sample = row.getAttribute('data-sample');
+        const showSample = selectedSamples.length === 0 || selectedSamples.includes(sample);
+        row.style.display = showSample ? '' : 'none';
+    });
+}
+
+function sortAniTable(columnIndex) {
+    const table = document.getElementById('aniTable');
+    if (!table) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    aniSortDirection[columnIndex] = aniSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+    const isAsc = aniSortDirection[columnIndex] === 'asc';
+
+    const headers = table.querySelectorAll('th.sortable');
+    headers.forEach(h => h.classList.remove('asc', 'desc'));
+    if (headers[columnIndex]) headers[columnIndex].classList.add(isAsc ? 'asc' : 'desc');
+
+    rows.sort((a, b) => {
+        let aVal = a.cells[columnIndex].textContent.toLowerCase().trim();
+        let bVal = b.cells[columnIndex].textContent.toLowerCase().trim();
+        
+        // No % to remove for Adjusted ANI, but remove for Containment if present
+        if (columnIndex === 2 || columnIndex === 3) {
+            return isAsc ? parseFloat(aVal) - parseFloat(bVal) : parseFloat(bVal) - parseFloat(aVal);
+        }
+        if (columnIndex === 4) {
+            let aNum = parseFloat(aVal.replace('%', ''));
+            let bNum = parseFloat(bVal.replace('%', ''));
+            if (isNaN(aNum)) aNum = 0;
+            if (isNaN(bNum)) bNum = 0;
+            return isAsc ? aNum - bNum : bNum - aNum;
+        }
+        
+        return isAsc ? aVal.localeCompare(bVal, undefined, { numeric: true }) : bVal.localeCompare(aVal, undefined, { numeric: true });
+    });
+    rows.forEach(row => tbody.appendChild(row));
 }

@@ -61,6 +61,7 @@ def empty_variants = file("${workflow.workDir}/empty_variants")
 def empty_sv_variants = file("${workflow.workDir}/empty_sv_variants")
 def empty_phase_stats = file("${workflow.workDir}/empty_phase_stats")
 def empty_readhists = file("${workflow.workDir}/empty_readhists")
+def empty_ani_stats = file("${workflow.workDir}/empty_ani_stats")
 
 
 // Workflow properties - create CSV content as a string
@@ -178,6 +179,7 @@ workflow {
         return
     }
 
+    ch_read_anis = Channel.fromPath(empty_ani_stats)
     if (params.ref) {
         ch_ref = Channel.fromPath(params.ref, checkIfExists: true)
         REF_STATS(ch_ref)
@@ -185,6 +187,7 @@ workflow {
         ch_genome = REF_STATS.out.ch_genome
         // get read ANI to reference
         READ_ANI(ch_ref.combine(ch_fastq).map { [it[0], it[1]] })
+        ch_read_anis = READ_ANI.out.collect()
 
     } else {
         ch_ref = Channel.empty()
@@ -214,7 +217,8 @@ workflow {
             Channel.fromPath(empty_variants),
             Channel.fromPath(empty_sv_variants),
             Channel.fromPath(empty_phase_stats),
-            ch_asfile
+            ch_asfile,
+            ch_read_anis
         )
         return
     }
@@ -369,7 +373,8 @@ workflow {
         params.snp ? VCF_STATS_SNP.out[0].collect() : Channel.fromPath(empty_variants),
         params.sv ? VCF_STATS_SV.out[0].collect() : Channel.fromPath(empty_sv_variants),
         params.phase ? ch_phase_stats : Channel.fromPath(empty_phase_stats),
-        ch_asfile
+        ch_asfile,
+        ch_read_anis
     )  
 
 }

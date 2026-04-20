@@ -353,6 +353,24 @@ def parse_as_file(filepath):
         print(f"Error parsing adaptive sampling file {filepath}: {e}", file=sys.stderr)
         return None
 
+def parse_ani_file(filepath):
+    """Parse a sylph query ANI TSV file"""
+    data = []
+    try:
+        with open(filepath, 'r') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            for row in reader:
+                data.append({
+                    'sample': row.get('Sample_file', ''),
+                    'genome': row.get('Genome_file', ''),
+                    'ani': row.get('Adjusted_ANI', '0'),
+                    'cov': row.get('Eff_cov', '0'),
+                    'cont': row.get('Containment_ind', '0')
+                })
+    except Exception as e:
+        print(f"Error parsing ANI file {filepath}: {e}", file=sys.stderr)
+    return data
+
 def parse_runinfo_csv(filepath):
     """Parse a run info CSV file and return a list of dictionaries (one per row)"""
     run_info = []
@@ -1271,6 +1289,75 @@ def render_read_hists_section(samples_readhists):
     """
     return html
 
+def render_ani_table(ani_data):
+    """Render the Average Nucleotide Identity (ANI) table"""
+    if not ani_data:
+        return ""
+    
+    html = """
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Read Average Nucleotide Identity to Ref (Containment)</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportAniToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="aniTable">
+            <thead>
+              <tr>
+                <th class="sample-col sortable" onclick="sortAniTable(0)">Sample</th>
+                <th class="sortable" onclick="sortAniTable(1)">Genome</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(2)">Adjusted ANI</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(3)">Eff cov</th>
+                <th style="text-align: right;" class="sortable" onclick="sortAniTable(4)">Containment %</th>
+              </tr>
+            </thead>
+            <tbody>
+    """
+    
+    # Flatten ani_data if it's a list of lists/dicts
+    all_ani = []
+    if isinstance(ani_data, dict):
+        for sample in ani_data:
+            all_ani.extend(ani_data[sample])
+    else:
+        all_ani = ani_data
+
+    for row in sorted(all_ani, key=lambda x: natural_sort_key(x.get('sample', ''))):
+        sample = row.get('sample', '')
+        genome = row.get('genome', '')
+        ani = row.get('ani', '0')
+        cov = row.get('cov', '0')
+        cont = row.get('cont', '0')
+        # Evaluate containment ratio as percentage if possible
+        display_cont = cont
+        try:
+            if '/' in cont:
+                num, den = map(float, cont.split('/'))
+                if den > 0:
+                    display_cont = f"{(num / den * 100):.2f}"
+        except (ValueError, ZeroDivisionError):
+            pass
+
+        html += f"""
+            <tr data-sample="{sample.lower()}">
+              <td class="sample-col">{sample}</td>
+              <td>{genome}</td>
+              <td style="text-align: right;">{ani}</td>
+              <td style="text-align: right;">{cov}</td>
+              <td style="text-align: right;">{display_cont}</td>
+            </tr>
+        """
+        
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
 def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, output_file, samples_readhists, args):
     """Generate HTML report from multiple samples"""
     
@@ -1318,6 +1405,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     read_hists_block = render_read_hists_section(samples_readhists)
+    ani_table = render_ani_table(args.ani_data if hasattr(args, 'ani_data') else [])
     output_structure_block = render_output_section(args)
     
     # Assemble HTML
@@ -1360,6 +1448,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       
       {readstats_table}
       {read_hists_block}
+      {ani_table}
       {samtools_table}
       {bed_coverage_table}
       {coverage_table}
@@ -1395,6 +1484,7 @@ def main():
     parser.add_argument('--phasestats', nargs='*', default=[], help='One or more phasing stats TSV files')
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('--readhists', nargs='*', default=[], help='One or more read histogram .hist files')
+    parser.add_argument('--anis', nargs='*', default=[], help='One or more sylph ANI TSV files')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
@@ -1524,6 +1614,16 @@ def main():
         if sample_name not in samples_readhists:
             samples_readhists[sample_name] = {}
         samples_readhists[sample_name][hist_type] = parse_read_hist_file(f)
+
+    ani_data = {}
+    for f in args.anis:
+        path = Path(f)
+        sample_name = path.name.replace('.ani.tsv', '')
+        print(f"Processing ANI stats {f} (Sample: {sample_name})...")
+        result = parse_ani_file(f)
+        if result:
+            ani_data[sample_name] = result
+    args.ani_data = ani_data
 
     generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_stats, samtools_stats, variants_data, sv_data, bed_coverage_data, phasing_data, as_counts, args.output, samples_readhists, args)
 

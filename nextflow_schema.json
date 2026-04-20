@@ -167,7 +167,7 @@
           "description": "Minimap2 alignment parameters",
           "fa_icon": "fas fa-cogs",
           "default": "-ax map-ont",
-          "help_text": "Minimap2 alignment parameters. Default is '-ax map-ont'. See how to use [Minimap2](https://github.com/lh3/minimap2)."
+          "help_text": "Additional minimap2 alignment parameters. Default is '-ax map-ont'. See how to use [Minimap2](https://github.com/lh3/minimap2)."
         },
         "mods": {
           "type": "boolean",
