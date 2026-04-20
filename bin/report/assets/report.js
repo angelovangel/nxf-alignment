@@ -287,6 +287,19 @@ $(document).ready(function () {
     sortSVTable(0);
     sortPhaseTable(0);
     sortAniTable(0);
+
+    // Global Tooltip listener for [data-tooltip] elements
+    // This avoids clipping issues with table containers
+    $(document).on('mouseenter', '[data-tooltip]', function(e) {
+        const text = $(this).attr('data-tooltip');
+        if (text) {
+            showGlobalTooltip(e, text);
+        }
+    }).on('mouseleave', '[data-tooltip]', function() {
+        hideGlobalTooltip();
+    }).on('mousemove', '[data-tooltip]', function(e) {
+        showGlobalTooltip(e, $(this).attr('data-tooltip'));
+    });
 });
 
 function sortReadstatsTable(columnIndex) {
@@ -720,27 +733,14 @@ function sortReadHistsTable(columnIndex) {
 }
 
 // Histogram Tooltip Management
-function getHistTooltip() {
-    let tooltip = document.getElementById('hist-tooltip');
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'hist-tooltip';
-        tooltip.className = 'custom-tooltip';
-        document.body.appendChild(tooltip);
-    }
-    return tooltip;
-}
-
-function showHistTooltip(event, text) {
+function showGlobalTooltip(event, text) {
     const e = event || window.event;
     if (!e) return;
 
-    const tooltip = getHistTooltip();
+    const tooltip = getGlobalTooltip();
     tooltip.innerHTML = text;
     tooltip.style.display = 'block';
 
-    // Position near mouse
-    // Try pageX/Y first, then clientX/Y + scroll
     let x = e.pageX;
     let y = e.pageY;
 
@@ -755,23 +755,32 @@ function showHistTooltip(event, text) {
     tooltip.style.left = x + 'px';
     tooltip.style.top = y + 'px';
 
-    // Check for overflow - horizontal
     const rect = tooltip.getBoundingClientRect();
     if (x + rect.width > window.innerWidth) {
         tooltip.style.left = (x - rect.width - 30) + 'px';
     }
 
-    // Check for overflow - vertical
     if (y + rect.height > window.innerHeight + window.scrollY) {
         tooltip.style.top = (y - rect.height - 30) + 'px';
     }
 }
 
-function hideHistTooltip() {
+function hideGlobalTooltip() {
     const tooltip = document.getElementById('hist-tooltip');
     if (tooltip) {
         tooltip.style.display = 'none';
     }
+}
+
+function getGlobalTooltip() {
+    let tooltip = document.getElementById('hist-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'hist-tooltip';
+        tooltip.className = 'custom-tooltip';
+        document.body.appendChild(tooltip);
+    }
+    return tooltip;
 }
 
 // Toggle Read Histograms Mode (Reads vs Bases)

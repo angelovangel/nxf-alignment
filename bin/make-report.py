@@ -32,6 +32,66 @@ def format_si(num):
 
     return f"{num_float:.0f}{suffixes[suffix_index]}"
 
+COLUMN_HELP = {
+    # Read Statistics
+    "N50": "The read length such that 50% of the total bases are in reads of this length or longer.",
+    "Q20 %": "Percentage of bases with a quality score of 20 or higher (99% accuracy).",
+    "Mods": "Detected base modifications (e.g., 5mC, 6mA).",
+    
+    # Coverage (Samtools)
+    "Primary Mapped Reads": "Number of reads that mapped to the reference genome (primary alignments).",
+    "Bases on Target": "Total number of bases falling within the specified target regions (BED).",
+    "Mean Target Coverage": "Average depth of coverage across all specified target regions.",
+    
+    # Variants
+    "PASS Variants": "Number of small variants (SNPs/Indels) that passed all quality filters.",
+    "High Qual (≥Q30)": "Number of variants with a QUAL score of 30 or higher (99.9% accuracy).",
+    "Ts/Tv Ratio": "Ratio of transition mutations to transversion mutations. Typically ~2.0 for human whole genome data.",
+    
+    # SVs
+    "Translocations (BND)": "Number of breakend (translocation) structural variants.",
+    
+    # Phasing
+    "Phased Variants": "Number of variants successfully assigned to a haplotype block.",
+    "Blocks": "Total number of phase blocks (sets of variants linked together).",
+    "Singletons": "Number of phase blocks containing only a single variant.",
+    "Avg Block Size (bp)": "Average genomic distance spanned by the phase blocks.",
+    
+    # Breadth of Coverage
+    "≥1x (%)": "Percentage of the region with at least 1x coverage depth.",
+    "≥10x (%)": "Percentage of the region with at least 10x coverage depth.",
+    "≥20x (%)": "Percentage of the region with at least 20x coverage depth.",
+    "≥30x (%)": "Percentage of the region with at least 30x coverage depth.",
+    
+    # ANI (Sylph)
+    "Read Abundance %": "Percentage of reads in the sample that belong to this specific reference.",
+    "Adjusted ANI": "Average Nucleotide Identity (ANI) adjusted for containment by sylph.",
+    "Eff cov": "Effective coverage depth on the reference calculated by sylph.",
+    "Containment %": "Percentage of the reference genome covered by the sequencing reads."
+}
+
+def render_th(label, extra_classes="", onclick=None, style="", rowspan=None, colspan=None):
+    """Render a table header with a help tooltip if description exists"""
+    tooltip = COLUMN_HELP.get(label)
+    
+    # Build attributes
+    attrs = []
+    if extra_classes: attrs.append(f'class="{extra_classes}"')
+    if onclick: attrs.append(f'onclick="{onclick}"')
+    if style: attrs.append(f'style="{style}"')
+    if rowspan: attrs.append(f'rowspan="{rowspan}"')
+    if colspan: attrs.append(f'colspan="{colspan}"')
+    
+    attr_str = " " + " ".join(attrs) if attrs else ""
+    
+    if tooltip:
+        # Include help icon with tooltip
+        header_content = f'<span class="help-icon" data-tooltip="{tooltip}">ⓘ</span> {label}'
+    else:
+        header_content = label
+        
+    return f'<th{attr_str}>{header_content}</th>'
+
 def parse_hist_file(filepath):
     """Parse a .hist file and return list of records"""
     data = []
@@ -624,7 +684,7 @@ def render_readstats_table(readstats_data):
     if not readstats_data:
         return ""
     
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -636,16 +696,15 @@ def render_readstats_table(readstats_data):
           <table id="readstatsTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortReadstatsTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(1)">Reads</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(2)">Bases</th>
-                
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(4)">Min Length</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(5)">Max Length</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(6)">N50</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(7)">GC %</th>
-                <th style="text-align: right;" class="sortable" onclick="sortReadstatsTable(8)">Q20 %</th>
-                <th style="text-align: right;">Mods</th>
+                {render_th("Sample", "sample-col sortable", "sortReadstatsTable(0)")}
+                {render_th("Reads", "sortable", "sortReadstatsTable(1)", "text-align: right;")}
+                {render_th("Bases", "sortable", "sortReadstatsTable(2)", "text-align: right;")}
+                {render_th("Min Length", "sortable", "sortReadstatsTable(4)", "text-align: right;")}
+                {render_th("Max Length", "sortable", "sortReadstatsTable(5)", "text-align: right;")}
+                {render_th("N50", "sortable", "sortReadstatsTable(6)", "text-align: right;")}
+                {render_th("GC %", "sortable", "sortReadstatsTable(7)", "text-align: right;")}
+                {render_th("Q20 %", "sortable", "sortReadstatsTable(8)", "text-align: right;")}
+                {render_th("Mods", "", None, "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -690,7 +749,7 @@ def render_samtools_table(samtools_data):
     if not samtools_data:
         return ""
 
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -702,13 +761,13 @@ def render_samtools_table(samtools_data):
           <table id="samtoolsTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortSamtoolsTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(1)">Primary Mapped</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(2)">Primary Mapped %</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(3)">Bases on Target</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(4)">Mean Target Coverage</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(5)">Bases on Non-target</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSamtoolsTable(6)">Mean Non-target Coverage</th>
+                {render_th("Sample", "sample-col sortable", "sortSamtoolsTable(0)")}
+                {render_th("Primary Mapped Reads", "sortable", "sortSamtoolsTable(1)", "text-align: right;")}
+                {render_th("Primary Mapped %", "sortable", "sortSamtoolsTable(2)", "text-align: right;")}
+                {render_th("Bases on Target", "sortable", "sortSamtoolsTable(3)", "text-align: right;")}
+                {render_th("Mean Target Coverage", "sortable", "sortSamtoolsTable(4)", "text-align: right;")}
+                {render_th("Bases on Non-target", "sortable", "sortSamtoolsTable(5)", "text-align: right;")}
+                {render_th("Mean Non-target Coverage", "sortable", "sortSamtoolsTable(6)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -733,7 +792,7 @@ def render_samtools_table(samtools_data):
                 data-ntcov="{comp_mean}">
               <td class="sample-col">{sample_name}</td>
               <td style="text-align: right;">{flagstat['primary_mapped']:,}</td>
-              <td style="text-align: right;">{flagstat['primary_mapped_pct']:.2f}%</td>
+              <td style="text-align: right;">{flagstat['primary_mapped_pct']:.2f}</td>
               <td style="text-align: right;">{target['cov']:,}</td>
               <td style="text-align: right;">{target_mean:.2f}</td>
               <td style="text-align: right;">{comp['cov']:,}</td>
@@ -754,7 +813,7 @@ def render_variants_table(variants_data):
     if not variants_data:
         return ""
 
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -766,14 +825,14 @@ def render_variants_table(variants_data):
           <table id="variantsTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortVariantsTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(1)">PASS Variants</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(2)">SNPs</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(3)">Indels</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(4)">High Qual (≥Q30)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(5)">High Qual SNPs</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(6)">High Qual Indels</th>
-                <th style="text-align: right;" class="sortable" onclick="sortVariantsTable(7)">Ts/Tv Ratio</th>
+                {render_th("Sample", "sample-col sortable", "sortVariantsTable(0)")}
+                {render_th("PASS Variants", "sortable", "sortVariantsTable(1)", "text-align: right;")}
+                {render_th("SNPs", "sortable", "sortVariantsTable(2)", "text-align: right;")}
+                {render_th("Indels", "sortable", "sortVariantsTable(3)", "text-align: right;")}
+                {render_th("High Qual (≥Q30)", "sortable", "sortVariantsTable(4)", "text-align: right;")}
+                {render_th("High Qual SNPs", "sortable", "sortVariantsTable(5)", "text-align: right;")}
+                {render_th("High Qual Indels", "sortable", "sortVariantsTable(6)", "text-align: right;")}
+                {render_th("Ts/Tv Ratio", "sortable", "sortVariantsTable(7)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -815,7 +874,7 @@ def render_sv_table(sv_data):
     if not sv_data:
         return ""
 
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -827,14 +886,14 @@ def render_sv_table(sv_data):
           <table id="svTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortSVTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(1)">Total SVs</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(2)">Deletions (DEL)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(3)">Insertions (INS)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(4)">Duplications (DUP)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(5)">Inversions (INV)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(6)">Translocations (BND)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortSVTable(7)">Other</th>
+                {render_th("Sample", "sample-col sortable", "sortSVTable(0)")}
+                {render_th("Total SVs", "sortable", "sortSVTable(1)", "text-align: right;")}
+                {render_th("Deletions (DEL)", "sortable", "sortSVTable(2)", "text-align: right;")}
+                {render_th("Insertions (INS)", "sortable", "sortSVTable(3)", "text-align: right;")}
+                {render_th("Duplications (DUP)", "sortable", "sortSVTable(4)", "text-align: right;")}
+                {render_th("Inversions (INV)", "sortable", "sortSVTable(5)", "text-align: right;")}
+                {render_th("Translocations (BND)", "sortable", "sortSVTable(6)", "text-align: right;")}
+                {render_th("Other", "sortable", "sortSVTable(7)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -876,7 +935,7 @@ def render_phasing_table(phasing_data):
     if not phasing_data:
         return ""
 
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -888,13 +947,13 @@ def render_phasing_table(phasing_data):
           <table id="phaseTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortPhaseTable(0)">Sample</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(1)">Phased Variants</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(2)">Unphased Variants</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(3)">Phased (%)</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(4)">Blocks</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(5)">Singletons</th>
-                <th style="text-align: right;" class="sortable" onclick="sortPhaseTable(6)">Avg Block Size (bp)</th>
+                {render_th("Sample", "sample-col sortable", "sortPhaseTable(0)")}
+                {render_th("Phased Variants", "sortable", "sortPhaseTable(1)", "text-align: right;")}
+                {render_th("Unphased Variants", "sortable", "sortPhaseTable(2)", "text-align: right;")}
+                {render_th("Phased (%)", "sortable", "sortPhaseTable(3)", "text-align: right;")}
+                {render_th("Blocks", "sortable", "sortPhaseTable(4)", "text-align: right;")}
+                {render_th("Singletons", "sortable", "sortPhaseTable(5)", "text-align: right;")}
+                {render_th("Avg Block Size (bp)", "sortable", "sortPhaseTable(6)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -935,7 +994,7 @@ def render_coverage_table(samples_data, genes):
     if not samples_data or all(not v for v in samples_data.values()):
         return ""
     
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -957,17 +1016,17 @@ def render_coverage_table(samples_data, genes):
             </colgroup>
             <thead>
               <tr>
-                <th rowspan="2" class="sample-col sortable" onclick="sortTable(0)">Sample</th>
-                <th rowspan="2" class="chr-col sortable" onclick="sortTable(1)">Chr</th>
-                <th rowspan="2" class="gene-col sortable" onclick="sortTable(2)">Gene/Region</th>
-                <th rowspan="2" class="size-col sortable" onclick="sortTable(3)">Region size</th>
+                {render_th("Sample", "sample-col sortable", "sortTable(0)", "", 2)}
+                {render_th("Chr", "chr-col sortable", "sortTable(1)", "", 2)}
+                {render_th("Gene/Region", "gene-col sortable", "sortTable(2)", "", 2)}
+                {render_th("Region size", "size-col sortable", "sortTable(3)", "", 2)}
                 <th colspan="4" style="text-align: center; border-bottom: 1px solid #cbd5e1;">Percentage of region with at least X coverage</th>
               </tr>
               <tr>
-                <th class="breadth-col sortable" onclick="sortTable(4)">≥1x (%)</th>
-                <th class="breadth-col sortable" onclick="sortTable(5)">≥10x (%)</th>
-                <th class="breadth-col sortable" onclick="sortTable(6)">≥20x (%)</th>
-                <th class="breadth-col sortable" onclick="sortTable(7)">≥30x (%)</th>
+                {render_th("≥1x (%)", "breadth-col sortable", "sortTable(4)")}
+                {render_th("≥10x (%)", "breadth-col sortable", "sortTable(5)")}
+                {render_th("≥20x (%)", "breadth-col sortable", "sortTable(6)")}
+                {render_th("≥30x (%)", "breadth-col sortable", "sortTable(7)")}
               </tr>
             </thead>
             <tbody>
@@ -1295,7 +1354,7 @@ def render_ani_table(ani_data):
     if not ani_data:
         return ""
     
-    html = """
+    html = f"""
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -1307,12 +1366,12 @@ def render_ani_table(ani_data):
           <table id="aniTable">
             <thead>
               <tr>
-                <th class="sample-col sortable" onclick="sortAniTable(0)">Sample</th>
-                <th class="sortable" onclick="sortAniTable(1)">Genome</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(2)">Read Abundance %</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(3)">Adjusted ANI</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(4)">Eff cov</th>
-                <th style="text-align: right;" class="sortable" onclick="sortAniTable(5)">Containment %</th>
+                {render_th("Sample", "sample-col sortable", "sortAniTable(0)")}
+                {render_th("Genome", "sortable", "sortAniTable(1)")}
+                {render_th("Read Abundance %", "sortable", "sortAniTable(2)", "text-align: right;")}
+                {render_th("Adjusted ANI", "sortable", "sortAniTable(3)", "text-align: right;")}
+                {render_th("Eff cov", "sortable", "sortAniTable(4)", "text-align: right;")}
+                {render_th("Containment %", "sortable", "sortAniTable(5)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
