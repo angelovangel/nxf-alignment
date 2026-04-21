@@ -148,7 +148,7 @@ process READ_ANI {
 
     script:
     """
-    sylph profile -t 4 -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
+    sylph profile -t ${task.cpus} -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
 
     cat <<- END_VERSIONS > versions.txt
     ${task.process}: sylph v\$(sylph --version 2>&1 | sed 's/^sylph //')
