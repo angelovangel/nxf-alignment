@@ -185,11 +185,14 @@ workflow {
         REF_STATS(ch_ref)
         ch_ref_stats = REF_STATS.out.ch_ref_stats
         ch_genome = REF_STATS.out.ch_genome
-        SYLPH_SKETCH_REF(ch_ref)
-        // get read ANI to reference
-        READ_ANI(SYLPH_SKETCH_REF.out.sketch.combine(ch_fastq.map { it[0] }))
-        ch_read_anis = READ_ANI.out[0].collect()
-        ch_versions = ch_versions.mix(READ_ANI.out.versions)
+        
+        if (params.sylph) {
+            SYLPH_SKETCH_REF(ch_ref)
+            // get read ANI to reference
+            READ_ANI(SYLPH_SKETCH_REF.out.sketch.combine(ch_fastq.map { it[0] }))
+            ch_read_anis = READ_ANI.out[0].collect()
+            ch_versions = ch_versions.mix(READ_ANI.out.versions)
+        }
 
     } else {
         ch_ref = Channel.empty()

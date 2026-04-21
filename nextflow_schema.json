@@ -182,10 +182,20 @@
           "fa_icon": "fas fa-filter",
           "default": 5,
           "help_text": "Filter coverage threshold for base modifications analysis (Nvalidcov)"
+        },
+        "sylph": {
+          "type": "boolean",
+          "description": "Enable Sylph profiling to estimate read ANI to reference",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable Sylph profiling to estimate read ANI (Average Nucleotide Identity) of the reads to the reference."
         }
       },
       "dependencies": {
         "mods": [
+          "ref"
+        ],
+        "sylph": [
           "ref"
         ]
       }

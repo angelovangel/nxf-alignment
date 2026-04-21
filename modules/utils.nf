@@ -51,5 +51,6 @@ ${c.yellow}Processing options:${c.reset}
     ${c.green}--anno_filterQ${c.reset}         Filter out variants with quality lower than this before annotation (default: 20)
     ${c.green}--mods${c.reset}                 Perform base modifications analysis using modkit (requires --ref, read data must have mods)
     ${c.green}--mods_filter${c.reset}          Minimum coverage for base modifications calls (default: 5)
+    ${c.green}--sylph${c.reset}                Enable Sylph profiling to estimate read ANI to reference
     """.stripIndent()
 }
