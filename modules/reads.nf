@@ -166,10 +166,8 @@ process READ_ANI {
     script:
     """
     export RAYON_NUM_THREADS=${task.cpus}
-    # Explicitly sketch reads first to ensure multithreading
-    sylph sketch -t ${task.cpus} ${reads}
     
-    sylph profile -t ${task.cpus} -m 80 ${ref_sketch} ${reads}.sylsp > ${reads.simpleName}.ani.tsv
+    sylph profile -t ${task.cpus} -m 80 ${ref_sketch} ${reads} > ${reads.simpleName}.ani.tsv
 
     cat <<- END_VERSIONS > versions.txt
     ${task.process}: sylph v\$(sylph --version 2>&1 | sed 's/^sylph //')
