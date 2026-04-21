@@ -145,6 +145,7 @@ process SYLPH_SKETCH_REF {
 
     script:
     """
+    export RAYON_NUM_THREADS=${task.cpus}
     sylph sketch -t ${task.cpus} ${ref} -o ${ref.simpleName}
     """
 }
@@ -164,6 +165,7 @@ process READ_ANI {
 
     script:
     """
+    export RAYON_NUM_THREADS=${task.cpus}
     # Explicitly sketch reads first to ensure multithreading
     sylph sketch -t ${task.cpus} ${reads}
     
