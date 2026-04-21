@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI;CONVERT_READS} from './modules/reads.nf'
+include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
 include {REPORT; VERSIONS} from './modules/report.nf'
@@ -185,8 +185,9 @@ workflow {
         REF_STATS(ch_ref)
         ch_ref_stats = REF_STATS.out.ch_ref_stats
         ch_genome = REF_STATS.out.ch_genome
+        SYLPH_SKETCH_REF(ch_ref)
         // get read ANI to reference
-        READ_ANI(ch_ref.combine(ch_fastq).map { [it[0], it[1]] })
+        READ_ANI(SYLPH_SKETCH_REF.out.sketch.combine(ch_fastq.map { it[0] }))
         ch_read_anis = READ_ANI.out[0].collect()
         ch_versions = ch_versions.mix(READ_ANI.out.versions)
 

@@ -133,6 +133,22 @@ process CONVERT_READS {
     """
 }
 
+process SYLPH_SKETCH_REF {
+    container 'docker.io/staphb/sylph:latest'
+    tag "${ref.simpleName}"
+
+    input:
+        path ref
+
+    output:
+        path "*.syldb", emit: sketch
+
+    script:
+    """
+    sylph sketch -t ${task.cpus} ${ref} -o ${ref.simpleName}
+    """
+}
+
 process READ_ANI {
     container 'docker.io/staphb/sylph:latest'
     publishDir "${params.outdir}/00-basecall/readqc", mode: 'copy', pattern: '*ani.tsv'
@@ -140,7 +156,7 @@ process READ_ANI {
     cpus 4
 
     input:
-        tuple path(ref), path(reads)
+        tuple path(ref_sketch), path(reads)
 
     output:
         path "*.tsv"
@@ -148,7 +164,10 @@ process READ_ANI {
 
     script:
     """
-    sylph profile -t ${task.cpus} -m 80 ${ref} ${reads} > ${reads.simpleName}.ani.tsv
+    # Explicitly sketch reads first to ensure multithreading
+    sylph sketch -t ${task.cpus} ${reads}
+    
+    sylph profile -t ${task.cpus} -m 80 ${ref_sketch} ${reads}.sylsp > ${reads.simpleName}.ani.tsv
 
     cat <<- END_VERSIONS > versions.txt
     ${task.process}: sylph v\$(sylph --version 2>&1 | sed 's/^sylph //')
