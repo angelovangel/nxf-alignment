@@ -32,6 +32,19 @@ def format_si(num):
 
     return f"{num_float:.0f}{suffixes[suffix_index]}"
 
+def get_color_class(value):
+    """Return a CSS class based on numeric value (percentage)"""
+    try:
+        val = float(value)
+        if val > 90:
+            return "text-green"
+        elif val >= 80:
+            return "text-yellow"
+        else:
+            return "text-red"
+    except (ValueError, TypeError):
+        return ""
+
 COLUMN_HELP = {
     # Read Statistics
     "N50": "The read length such that 50% of the total bases are in reads of this length or longer.",
@@ -1429,10 +1442,10 @@ def render_ani_table(ani_data):
             <tr data-sample="{sample.lower()}">
               <td class="sample-col">{sample}</td>
               <td>{genome}</td>
-              <td style="text-align: right;">{display_abund}</td>
-              <td style="text-align: right;">{ani}</td>
+              <td style="text-align: right;" class="{get_color_class(display_abund)}">{display_abund}</td>
+              <td style="text-align: right;" class="{get_color_class(ani)}">{ani}</td>
               <td style="text-align: right;">{display_cov}</td>
-              <td style="text-align: right;">{display_cont}</td>
+              <td style="text-align: right;" class="{get_color_class(display_cont)}">{display_cont}</td>
             </tr>
         """
         
