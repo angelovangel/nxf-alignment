@@ -772,6 +772,10 @@ function hideGlobalTooltip() {
     }
 }
 
+// Aliases for backward compatibility
+function showHistTooltip(e, text) { showGlobalTooltip(e, text); }
+function hideHistTooltip() { hideGlobalTooltip(); }
+
 function getGlobalTooltip() {
     let tooltip = document.getElementById('hist-tooltip');
     if (!tooltip) {

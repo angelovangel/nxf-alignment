@@ -113,6 +113,15 @@ def parse_hist_file(filepath):
                     'fraction': float(parts[7])
                 })
     return data
+def strip_extensions(name):
+    """Remove common bioinformatics extensions from a name"""
+    for ext in ['.fastq.gz', '.fq.gz', '.fastq', '.fq', '.fasta', '.fa', '.fna', '.syldb', '.sylsp', '.bam', '.sam']:
+        if name.endswith(ext):
+            name = name[:-len(ext)]
+            break
+    if '.' in name:
+        name = os.path.splitext(name)[0]
+    return name
 
 def parse_readstats_file(filepath):
     """Parse a readstats.tsv file and return a dictionary with stats"""
@@ -420,9 +429,13 @@ def parse_ani_file(filepath):
         with open(filepath, 'r') as f:
             reader = csv.DictReader(f, delimiter='\t')
             for row in reader:
+                # Remove common extensions for cleaner report
+                sample = strip_extensions(row.get('Sample_file', ''))
+                genome = strip_extensions(row.get('Genome_file', ''))
+
                 data.append({
-                    'sample': row.get('Sample_file', ''),
-                    'genome': row.get('Genome_file', ''),
+                    'sample': sample,
+                    'genome': genome,
                     'ani': row.get('Adjusted_ANI', '0'),
                     'cov': row.get('Eff_cov', '0'),
                     'cont': row.get('Containment_ind', '0'),
@@ -1251,7 +1264,7 @@ def render_svg_histogram(values, counts, title, x_label, y_label, color="#5f708b
         
         svg += f"""
         <rect x="{x}" y="{y}" width="{max(1, bar_width-0.5)}" height="{display_h}" fill="{fill_color}" rx="0.5"
-              onmousemove="showHistTooltip(event, '{tooltip_js}')" onmouseleave="hideHistTooltip()">
+              data-tooltip="{tooltip_js}">
         </rect>"""
     
     if not sparkline and norm_values:
@@ -1392,6 +1405,11 @@ def render_ani_table(ani_data):
         cov = row.get('cov', '0')
         cont = row.get('cont', '0')
         seq_abund = row.get('seq_abund', '0')
+        display_cov = cov
+        try:
+          display_cov = f"{float(cov):.2f}"
+        except (ValueError, TypeError):
+          pass
         # Evaluate containment ratio as percentage if possible
         display_cont = cont
         try:
@@ -1413,7 +1431,7 @@ def render_ani_table(ani_data):
               <td>{genome}</td>
               <td style="text-align: right;">{display_abund}</td>
               <td style="text-align: right;">{ani}</td>
-              <td style="text-align: right;">{cov}</td>
+              <td style="text-align: right;">{display_cov}</td>
               <td style="text-align: right;">{display_cont}</td>
             </tr>
         """
@@ -1588,7 +1606,7 @@ def main():
 
     for hist_file in args.hist:
         path = Path(hist_file)
-        sample_name = path.name.replace('.hist.tsv', '')
+        sample_name = strip_extensions(path.name.replace('.hist.tsv', ''))
         # 
         print(f"Processing {hist_file} (Sample: {sample_name})...")
         samples_data[sample_name] = parse_hist_file(hist_file)
@@ -1596,13 +1614,13 @@ def main():
     for readstats_file in args.readstats:
         path = Path(readstats_file)
         # Assuming filename format is sample.readstats.tsv
-        sample_name = path.name.replace('.readstats.tsv', '')
+        sample_name = strip_extensions(path.name.replace('.readstats.tsv', ''))
         print(f"Processing stats {readstats_file} (Sample: {sample_name})...")
         readstats_data[sample_name] = parse_readstats_file(readstats_file)
 
     for query_file in args.vcf_query:
         path = Path(query_file)
-        sample_name = path.name.replace('.snp.query', '').replace('.vcf', '').replace('.variants', '')
+        sample_name = strip_extensions(path.name.replace('.snp.query', '').replace('.vcf', '').replace('.variants', ''))
         print(f"Processing query {query_file} (Sample: {sample_name})...")
         result = parse_bcftools_query(query_file)
         if result is not None:
@@ -1621,6 +1639,7 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
+        name = strip_extensions(name)
         
         # Summary data
         result = parse_bedcov_file(f)
@@ -1640,6 +1659,7 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
+        name = strip_extensions(name)
         result = parse_bedcov_file(f)
         if result is not None:
             if name not in samtools_stats: samtools_stats[name] = {}
@@ -1652,6 +1672,7 @@ def main():
              if name.endswith(suffix):
                  name = name[:-len(suffix)]
                  break
+        name = strip_extensions(name)
         result = parse_flagstat_file(f)
         if result is not None:
             if name not in samtools_stats: samtools_stats[name] = {}
@@ -1659,7 +1680,7 @@ def main():
 
     for vcf_file in args.sv_vcf:
         path = Path(vcf_file)
-        sample_name = path.name.replace('.sv.query', '').replace('.query', '').replace('.vcf.gz', '').replace('.vcf', '')
+        sample_name = strip_extensions(path.name.replace('.sv.query', '').replace('.query', '').replace('.vcf.gz', '').replace('.vcf', ''))
         print(f"Processing SV query {vcf_file} (Sample: {sample_name})...")
         result = parse_sv_query(vcf_file)
         if result is not None:
@@ -1667,7 +1688,7 @@ def main():
             
     for phase_file in args.phasestats:
         path = Path(phase_file)
-        sample_name = path.name.replace('.phase.tsv', '')
+        sample_name = strip_extensions(path.name.replace('.phase.tsv', ''))
         print(f"Processing phasing stats {phase_file} (Sample: {sample_name})...")
         result = parse_phase_file(phase_file)
         if result:
@@ -1677,7 +1698,7 @@ def main():
         path = Path(f)
         # sample.len.hist, sample.gc.hist, sample.qual.hist
         parts = path.name.split('.')
-        sample_name = parts[0]
+        sample_name = strip_extensions(parts[0])
         hist_type = parts[1] # len, gc, or qual
         if sample_name not in samples_readhists:
             samples_readhists[sample_name] = {}
@@ -1686,7 +1707,7 @@ def main():
     ani_data = {}
     for f in args.anis:
         path = Path(f)
-        sample_name = path.name.replace('.ani.tsv', '')
+        sample_name = strip_extensions(path.name.replace('.ani.tsv', ''))
         print(f"Processing ANI stats {f} (Sample: {sample_name})...")
         result = parse_ani_file(f)
         if result:

@@ -189,8 +189,8 @@ workflow {
         if (params.sylph) {
             SYLPH_SKETCH_REF(ch_ref)
             // get read ANI to reference
-            READ_ANI(SYLPH_SKETCH_REF.out.sketch.combine(ch_fastq.map { it[0] }))
-            ch_read_anis = READ_ANI.out[0].collect()
+            READ_ANI(SYLPH_SKETCH_REF.out.sketch.first(), ch_fastq.map { it[0] }.collect())
+            ch_read_anis = READ_ANI.out[0]
             ch_versions = ch_versions.mix(READ_ANI.out.versions)
         }
 

@@ -153,11 +153,9 @@ process SYLPH_SKETCH_REF {
 process READ_ANI {
     container 'docker.io/staphb/sylph:latest'
     publishDir "${params.outdir}/00-basecall/readqc", mode: 'copy', pattern: '*ani.tsv'
-    tag "${reads.simpleName}"
-    cpus 4
-
     input:
-        tuple path(ref_sketch), path(reads)
+        path ref_sketch
+        path reads
 
     output:
         path "*.tsv"
@@ -167,7 +165,7 @@ process READ_ANI {
     """
     export RAYON_NUM_THREADS=${task.cpus}
     
-    sylph profile -t ${task.cpus} -m 80 ${ref_sketch} ${reads} > ${reads.simpleName}.ani.tsv
+    sylph profile -t ${task.cpus} -m 80 ${ref_sketch} ${reads} > sylph_profile.ani.tsv
 
     cat <<- END_VERSIONS > versions.txt
     ${task.process}: sylph v\$(sylph --version 2>&1 | sed 's/^sylph //')
