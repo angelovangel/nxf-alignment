@@ -174,14 +174,13 @@ process MERGE_VARIANTS {
     tag "${snp_vcf.simpleName}"
 
     input:
-    tuple path(snp_vcf), path(snp_tbi), path(sv_vcf), path(sv_tbi)
+    tuple val(sample), path(snp_vcf), path(snp_tbi), path(sv_vcf), path(sv_tbi)
 
     output:
-    tuple path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi")
+    tuple val(sample), path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi")
     path "versions.txt", emit: versions
 
     script:
-    def sample = snp_vcf.simpleName.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf', '').replace('.gz', '')
     """
     echo "$sample" > sample_name.txt
     
@@ -266,6 +265,36 @@ process VCF_PHASE {
     ${task.process}: whatshap v\$(whatshap --version)
     ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
     ${task.process}: tabix v\$(tabix --version 2>&1 | head -n 1 |sed 's/^tabix (htslib) //')
+    END_VERSIONS
+    """
+}
+
+process VCF_PANNO {
+    container 'docker.io/aangeloo/panno:0.3.1'
+    publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
+    tag "${sample}"
+
+    input:
+    tuple val(sample), path(vcf), path(vcf_tbi)
+    val population
+
+    output:
+    path("*.html")
+    path "versions.txt", emit: versions
+
+    script:
+    """
+    # PAnno requires decompressed VCF
+    if [[ "$vcf" == *.gz ]]; then
+        zcat $vcf > ${sample}.vcf
+    else
+        cp $vcf ${sample}.vcf
+    fi
+
+    panno -i ${sample}.vcf -p $population -s $sample -o .
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: panno v\$(panno --version 2>&1 | head -n 1 | sed 's/^panno //')
     END_VERSIONS
     """
 }

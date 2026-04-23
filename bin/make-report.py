@@ -596,6 +596,8 @@ def render_output_section(args):
             variant_subdirs.append(('phasing/', 'Phasing results: *.phase.vcf.gz, *.phase.gtf, *.phase.tsv'))
         if args.vcf_query and args.sv_vcf:
             variant_subdirs.append(('merged/', 'Merged SNP and SV callsets: *.merged.vcf.gz'))
+        if args.pgx:
+            variant_subdirs.append(('pgx/', 'Pharmacogenomics reports (PAnno): *.html'))
             
         outputs.append(('03-variants/', 'Variant calling and phasing results.', variant_subdirs))
 
@@ -1584,6 +1586,7 @@ def main():
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('--readhists', nargs='*', default=[], help='One or more read histogram .hist files')
     parser.add_argument('--anis', nargs='*', default=[], help='One or more sylph ANI TSV files')
+    parser.add_argument('--pgx', action='store_true', help='Pharmacogenomics (PAnno) analysis was performed')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()

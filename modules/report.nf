@@ -38,6 +38,7 @@ process REPORT {
     def asfile_arg = as_file.name.contains('EMPTY') ? '' : "--asfile ${as_file}"
     def readhists_arg = readhists.name.contains('empty_readhists') ? '' : "--readhists ${readhists}"
     def read_ani_arg = ani_stats.name.contains('empty_ani_stats') ? '' : "--anis ${ani_stats}"
+    def pgx_arg = params.pgx ? "--pgx" : ""
     """
     make-report.py \
         --runinfo $runinfo \
@@ -54,6 +55,7 @@ process REPORT {
         $asfile_arg \
         $readhists_arg \
         $read_ani_arg \
+        $pgx_arg \
         -o nxf-alignment-report.html
     """
 }
