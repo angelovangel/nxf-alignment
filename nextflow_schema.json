@@ -309,6 +309,31 @@
           "fa_icon": "fas fa-filter",
           "default": 20,
           "help_text": "Filter out variants with quality score lower than this before annotation."
+        },
+        "pgx": {
+          "type": "boolean",
+          "description": "Enable pharmacogenomic analysis with Panno and PharmCAT",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable pharmacogenomic analysis. Requires --snp."
+        },
+        "population": {
+          "type": "string",
+          "description": "Population to use for Panno analysis",
+          "fa_icon": "fas fa-users",
+          "default": "EUR",
+          "enum": [
+            "AAC",
+            "AME",
+            "EAS",
+            "EUR",
+            "LAT",
+            "NEA",
+            "OCE",
+            "SAS",
+            "SSA"
+          ],
+          "help_text": "Population to use for Panno analysis. Default is EUR."
         }
       },
       "dependencies": {
@@ -317,6 +342,12 @@
         ],
         "annotate": [
           "snp"
+        ],
+        "pgx": [
+          "snp"
+        ],
+        "population": [
+          "pgx"
         ]
       }
     },

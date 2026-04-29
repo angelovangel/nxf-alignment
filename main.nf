@@ -289,6 +289,9 @@ workflow {
         VCF_STATS_SNP(ch_vcf_raw, 'snp')
         ch_versions = ch_versions.mix(VCF_STATS_SNP.out.versions.first())
 
+        // Initialize ch_vcf with raw variants
+        ch_vcf = ch_vcf_raw
+
         // Phasing 
         if (params.phase) {
             ch_bam_phase = DORADO_ALIGN.out[0].map{ bam, bai -> 
@@ -310,30 +313,24 @@ workflow {
             ch_versions = ch_versions.mix(VCF_PHASE.out.versions.first())
             
             // update ch_vcf to phased vcf
-            ch_vcf_phased = VCF_PHASE.out[0].map{ sample, vcf, index -> 
-                def vcf_file = vcf.find { it.name.endsWith('.vcf.gz') }
-                def tbi_file = vcf.find { it.name.endsWith('.tbi') }
+            ch_vcf = VCF_PHASE.out[0].map{ sample, vcf_list, gtf -> 
+                def vcf_file = vcf_list.find { it.name.endsWith('.vcf.gz') }
+                def tbi_file = vcf_list.find { it.name.endsWith('.tbi') }
                 tuple(vcf_file, tbi_file) 
             }
-        } else {
-            ch_vcf_phased = ch_vcf_raw
         }
 
         // Annotation
         if (params.annotate) {
-            ch_vcf_phased | VCF_ANNOTATE
+            ch_vcf | VCF_ANNOTATE
             ch_versions = ch_versions.mix(VCF_ANNOTATE.out.versions.first())
             VCF_ANNOTATE.out.ch_vcfann_stats.collect() | VCF_ANNOTATE_REPORT
             
             VCF_BGZIP(VCF_ANNOTATE.out[0])
             
             // update ch_vcf to annotated vcf
-            ch_vcf_annotated = VCF_BGZIP.out
-        } else {
-            ch_vcf_annotated = ch_vcf_phased
+            ch_vcf = VCF_BGZIP.out
         }
-        
-        ch_vcf = ch_vcf_annotated
     }
     //SNP end
     
