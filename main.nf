@@ -1,6 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP; VCF_PANNO} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
+include {VCF_PANNO; VCF_PHARMCAT} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
@@ -360,17 +361,18 @@ workflow {
 
     if (params.pgx) {
         if (params.snp && params.sv) {
-            ch_panno_input = MERGE_VARIANTS.out[0]
+            ch_pgx_input = MERGE_VARIANTS.out[0]
         } else if (params.snp) {
-             ch_panno_input = ch_vcf.map { vcf, tbi -> 
+             ch_pgx_input = ch_vcf.map { vcf, tbi -> 
                 def sample = vcf.name.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf.gz', '')
                 tuple(sample, vcf, tbi)
             }
         } else {
-            error "PAnno requires at least SNP variants to be called. Please use --snp."
+            error "PGx analysis requires at least SNP variants to be called. Please use --snp."
         }
-        VCF_PANNO(ch_panno_input, params.population)
-        ch_versions = ch_versions.mix(VCF_PANNO.out.versions.first())
+        VCF_PANNO(ch_pgx_input, params.population)
+        VCF_PHARMCAT(ch_pgx_input)
+        ch_versions = ch_versions.mix(VCF_PANNO.out.versions.first(), VCF_PHARMCAT.out.versions.first())
     }
 
     if (params.mods) {

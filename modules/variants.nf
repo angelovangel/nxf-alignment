@@ -21,7 +21,7 @@ process VCF_CLAIR3 {
     def platform = "${params.clair3_platform}"
     """
     samtools faidx $ref
-
+    
     /opt/bin/run_clair3.sh \
     --bam_fn=$bam \
     --ref_fn=$ref \
@@ -268,34 +268,3 @@ process VCF_PHASE {
     END_VERSIONS
     """
 }
-
-process VCF_PANNO {
-    container 'docker.io/aangeloo/panno:0.3.1'
-    publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
-    tag "${sample}"
-
-    input:
-    tuple val(sample), path(vcf), path(vcf_tbi)
-    val population
-
-    output:
-    path("*.html")
-    path "versions.txt", emit: versions
-
-    script:
-    """
-    # PAnno requires decompressed VCF
-    if [[ "$vcf" == *.gz ]]; then
-        zcat $vcf > ${sample}.vcf
-    else
-        cp $vcf ${sample}.vcf
-    fi
-
-    panno -i ${sample}.vcf -p $population -s $sample -o .
-
-    cat <<-END_VERSIONS > versions.txt
-    ${task.process}: panno v\$(panno --version 2>&1 | head -n 1 | sed 's/^panno //')
-    END_VERSIONS
-    """
-}
-    
