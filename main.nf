@@ -370,9 +370,9 @@ workflow {
         } else {
             error "PGx analysis requires at least SNP variants to be called. Please use --snp."
         }
-        VCF_PANNO(ch_pgx_input, params.population)
-        VCF_PHARMCAT(ch_pgx_input)
-        ch_versions = ch_versions.mix(VCF_PANNO.out.versions.first(), VCF_PHARMCAT.out.versions.first())
+        PGX_PANNO(ch_pgx_input, params.population)
+        PGX_PHARMCAT(ch_pgx_input)
+        ch_versions = ch_versions.mix(PGX_PANNO.out.versions.first(), PGX_PHARMCAT.out.versions.first())
     }
 
     if (params.mods) {
