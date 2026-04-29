@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {VCF_PANNO; VCF_PHARMCAT} from './modules/pgx.nf'
+include {PGX_PANNO; PGX_PHARMCAT} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'

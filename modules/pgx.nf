@@ -1,4 +1,4 @@
-process VCF_PANNO {
+process PGX_PANNO {
     container 'docker.io/aangeloo/panno:0.3.1'
     publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
     tag "${sample}"
@@ -28,7 +28,7 @@ process VCF_PANNO {
     """
 }
 
-process VCF_PHARMCAT {
+process PGX_PHARMCAT {
     container 'docker.io/pgkb/pharmcat:latest'
     publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
     tag "${sample}"
