@@ -238,7 +238,12 @@ workflow {
         ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
     }
 
-    DORADO_ALIGN(ch_ref.combine(ch_reads))
+    DORADO_ALIGN(
+        ch_reads
+        .map { it -> [it.simpleName, it] }
+        .combine(ch_ref)
+        .map { sample, reads, ref -> [sample, ref, reads] }
+    )
 
     DORADO_ALIGN.out[0]
     .combine( ch_bedfile )
@@ -294,15 +299,9 @@ workflow {
 
         // Phasing 
         if (params.phase) {
-            ch_bam_phase = DORADO_ALIGN.out[0].map{ bam, bai -> 
-                def sample = bam.simpleName.replace('.align', '')
-                tuple(sample, bam, bai)
-            }
+            ch_bam_phase = DORADO_ALIGN.out[0]
 
-            ch_vcf_phase_input = ch_vcf_raw.map{ vcf, tbi -> 
-                def sample = vcf.simpleName.replace('.align.snp', '').replace('.snp', '')
-                tuple(sample, vcf, tbi)
-            }
+            ch_vcf_phase_input = ch_vcf_raw
             
             VCF_PHASE(
                 ch_bam_phase.join(ch_vcf_phase_input),
@@ -316,7 +315,7 @@ workflow {
             ch_vcf = VCF_PHASE.out[0].map{ sample, vcf_list, gtf -> 
                 def vcf_file = vcf_list.find { it.name.endsWith('.vcf.gz') }
                 def tbi_file = vcf_list.find { it.name.endsWith('.tbi') }
-                tuple(vcf_file, tbi_file) 
+                tuple(sample, vcf_file, tbi_file) 
             }
         }
 
@@ -336,21 +335,7 @@ workflow {
     
     // Merging logic
     if (params.snp && params.sv) {
-        // VCF_SNIFFLES2 out: tuple path(vcf), path(tbi)
-        // ch_vcf (final SNPs): tuple path(vcf), path(tbi)
-
-        // Map to sample key for joining
-        ch_snp_join = ch_vcf.map { vcf, tbi -> 
-            def sample = vcf.name.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf.gz', '')
-            tuple(sample, vcf, tbi)
-        }
-
-        ch_sv_join = ch_sv.map { vcf, tbi ->
-             def sample = vcf.name.replace('.sv', '').replace('.align', '').replace('.vcf.gz', '')
-             tuple(sample, vcf, tbi)
-        }
-
-        ch_snp_join.join(ch_sv_join).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
+        ch_vcf.join(ch_sv).map { sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi ->
             tuple(sample, snp_vcf, snp_tbi, sv_vcf, sv_tbi)
         } | MERGE_VARIANTS
         ch_versions = ch_versions.mix(MERGE_VARIANTS.out.versions.first())
@@ -360,10 +345,7 @@ workflow {
         if (params.snp && params.sv) {
             ch_pgx_input = MERGE_VARIANTS.out[0]
         } else if (params.snp) {
-             ch_pgx_input = ch_vcf.map { vcf, tbi -> 
-                def sample = vcf.name.replace('.snp', '').replace('.align', '').replace('.ann', '').replace('.phase', '').replace('.vcf.gz', '')
-                tuple(sample, vcf, tbi)
-            }
+             ch_pgx_input = ch_vcf
         } else {
             error "PGx analysis requires at least SNP variants to be called. Please use --snp."
         }

@@ -7,13 +7,13 @@ process VCF_CLAIR3 {
 
     publishDir "${params.outdir}/03-variants/snps", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
     errorStrategy 'ignore'
-    tag "${bam.simpleName}, ${task.cpus} cpus"
+    tag "${sample}, ${task.cpus} cpus"
 
     input:
-    tuple path(bam), path(bai), path(ref), path(bedfile)
+    tuple val(sample), path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
+    tuple val(sample), path("${sample}.snp.vcf.gz"), path("${sample}.snp.vcf.gz.tbi")
     path "versions.txt", emit: versions
 
     script:
@@ -26,14 +26,14 @@ process VCF_CLAIR3 {
     --bam_fn=$bam \
     --ref_fn=$ref \
     --bed_fn=$bedfile \
-    --sample_name=${bam.simpleName} \
+    --sample_name=${sample} \
     --platform=$platform \
     --model_path="/opt/models/$model" \
     --threads=${task.cpus} \
     --output="clair3_output"
 
-    mv clair3_output/merge_output.vcf.gz ${bam.simpleName}.snp.vcf.gz
-    mv clair3_output/merge_output.vcf.gz.tbi ${bam.simpleName}.snp.vcf.gz.tbi
+    mv clair3_output/merge_output.vcf.gz ${sample}.snp.vcf.gz
+    mv clair3_output/merge_output.vcf.gz.tbi ${sample}.snp.vcf.gz.tbi
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: clair3 v\$(/opt/bin/run_clair3.sh --version 2>&1 | sed 's/^Clair3 v//')
@@ -44,13 +44,13 @@ process VCF_CLAIR3 {
 process VCF_DEEPVARIANT {
     //container 'docker.io/google/deepvariant:1.10.0-beta-gpu'
     publishDir "${params.outdir}/03-variants/snps", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
-    tag "${bam.simpleName} ${task.cpus} cpus"
+    tag "${sample} ${task.cpus} cpus"
 
     input:
-    tuple path(bam), path(bai), path(ref), path(bedfile)
+    tuple val(sample), path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.snp.vcf.gz"), path("${bam.simpleName}.snp.vcf.gz.tbi")
+    tuple val(sample), path("${sample}.snp.vcf.gz"), path("${sample}.snp.vcf.gz.tbi")
     path "versions.txt", emit: versions
 
     script:
@@ -62,7 +62,8 @@ process VCF_DEEPVARIANT {
     --ref=$ref \
     --reads=$bam \
     --regions=$bedfile \
-    --output_vcf=${bam.simpleName}.snp.vcf.gz \
+    --output_vcf=${sample}.snp.vcf.gz \
+    --sample_name=${sample} \
     --num_shards=${task.cpus}
 
     cat <<-END_VERSIONS > versions.txt
@@ -75,14 +76,14 @@ process VCF_STATS {
     
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
     errorStrategy 'ignore'
-    tag "${vcf.simpleName}"
+    tag "${sample}"
 
     input:
-    tuple path(vcf), path(vcf_tbi)
+    tuple val(sample), path(vcf), path(vcf_tbi)
     val vcftype
 
     output:
-    path("${vcf.simpleName}.${vcftype}.query")
+    path("${sample}.${vcftype}.query")
     path "versions.txt", emit: versions
 
     script:
@@ -90,7 +91,7 @@ process VCF_STATS {
     def sv_header = "%CHROM\t%POS\t%REF\t%ALT\t%TYPE\t%FILTER\t%QUAL\t%INFO/SVTYPE\n"
     def format = vcftype == 'sv' ? sv_header : snp_header
     """
-    bcftools query -f '$format' $vcf > ${vcf.simpleName}.${vcftype}.query
+    bcftools query -f '$format' $vcf > ${sample}.${vcftype}.query
     
     echo "${task.process}: bcftools v\$(bcftools --version | head -n 1 | sed 's/^bcftools //')" > versions.txt
     """
@@ -99,13 +100,13 @@ process VCF_STATS {
 process VCF_SNIFFLES2 {
     container 'docker.io/hydragenetics/sniffles2:2.6.3'
     publishDir "${params.outdir}/03-variants/sv", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
-    tag "${bam.simpleName}"
+    tag "${sample}"
 
     input:
-    tuple path(bam), path(bai), path(ref), path(bedfile)
+    tuple val(sample), path(bam), path(bai), path(ref), path(bedfile)
 
     output:
-    tuple path("${bam.simpleName}.sv.vcf.gz"), path("${bam.simpleName}.sv.vcf.gz.tbi")
+    tuple val(sample), path("${sample}.sv.vcf.gz"), path("${sample}.sv.vcf.gz.tbi")
     path "versions.txt", emit: versions
 
     script:
@@ -113,7 +114,7 @@ process VCF_SNIFFLES2 {
     sniffles \
     --input $bam \
     --regions $bedfile \
-    --vcf ${bam.simpleName}.sv.vcf.gz \
+    --vcf ${sample}.sv.vcf.gz \
     --threads ${task.cpus}
 
     echo "${task.process}: sniffles2 v\$(sniffles --version | head -n 1 | sed 's/^Sniffles2, Version //')" > versions.txt
@@ -126,14 +127,14 @@ process VCF_ANNOTATE {
     errorStrategy 'ignore'
     
     //publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{ann.vcf,stats.csv}"
-    tag "${vcf.simpleName} (filterQ >= ${params.anno_filterQ})"
+    tag "${sample} (filterQ >= ${params.anno_filterQ})"
 
     input:
-    tuple path(vcf), path(vcf_tbi)
+    tuple val(sample), path(vcf), path(vcf_tbi)
 
     output:
-    path("${vcf.simpleName}.ann.vcf")
-    path("${vcf.simpleName}.stats.csv"), emit: ch_vcfann_stats
+    tuple val(sample), path("${sample}.ann.vcf")
+    path("${sample}.stats.csv"), emit: ch_vcfann_stats
     path "versions.txt", emit: versions
 
     script:
@@ -142,7 +143,7 @@ process VCF_ANNOTATE {
     mkdir -p ./snpeff_data
 
     SnpSift filter "(QUAL>=${params.anno_filterQ})" $vcf > filtered.vcf
-    snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${vcf.simpleName}.stats.csv ${params.anno_db} filtered.vcf > ${vcf.simpleName}.ann.vcf
+    snpEff ann -dataDir \$PWD/snpeff_data -csvStats ${sample}.stats.csv ${params.anno_db} filtered.vcf > ${sample}.ann.vcf
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: snpEff v\$(snpEff -version | head -n 1 | sed 's/^SnpEff//' | awk '{print \$1, \$2}')
@@ -153,18 +154,18 @@ process VCF_ANNOTATE {
 process VCF_BGZIP {
     container 'quay.io/biocontainers/bcftools:1.23--h3a4d415_0'
     publishDir "${params.outdir}/03-variants/annotations", mode: 'copy', pattern: "*.{vcf.gz,vcf.gz.tbi}"
-    tag "${vcf.simpleName}"
+    tag "${sample}"
 
     input:
-    path vcf
+    tuple val(sample), path(vcf)
 
     output:
-    tuple path("${vcf.simpleName}.vcf.gz"), path("${vcf.simpleName}.vcf.gz.tbi")
+    tuple val(sample), path("${sample}.ann.vcf.gz"), path("${sample}.ann.vcf.gz.tbi")
 
     script:
     """
-    bgzip -c $vcf > ${vcf.simpleName}.vcf.gz
-    tabix ${vcf.simpleName}.vcf.gz
+    bgzip -c $vcf > ${sample}.ann.vcf.gz
+    tabix ${sample}.ann.vcf.gz
     """
 }
 

@@ -44,6 +44,7 @@ process PGX_PHARMCAT {
     script:
     """
     pharmcat_pipeline $vcf \
+        -s $sample \
         -o ${sample}_pharmcat \
         -bf ${sample} \
         -reporterHtml \

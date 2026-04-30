@@ -4,19 +4,18 @@ process DORADO_ALIGN {
     container 'docker.io/nanoporetech/dorado:latest'
 
     publishDir "${params.outdir}/01-align", mode: 'copy', pattern: "*.align.bam*"
-    tag "${reads.simpleName}, ${task.cpus} cpus"
+    tag "${sample}, ${task.cpus} cpus"
 
     input:
-        tuple path(ref), path(reads)
+        tuple val(sample), path(ref), path(reads)
 
     output:
-        tuple path("*.align.bam"), path("*.align.bam.bai")
+        tuple val(sample), path("${sample}.align.bam"), path("${sample}.align.bam.bai")
         path "versions.txt", emit: versions
 
     script:
     """
     # Calculate a balanced distribution of threads to avoid oversubscribing task.cpus
-    # fastq: 2-4 threads, sort: ~1/4 of total, minimap2: the rest
     FASTQ_CPUS=\$(( ${task.cpus} > 8 ? 4 : 1 ))
     SORT_CPUS=\$(( ${task.cpus} > 4 ? ${task.cpus} / 4 : 1 ))
     MAP_CPUS=\$(( ${task.cpus} - \$FASTQ_CPUS - \$SORT_CPUS ))
@@ -24,19 +23,16 @@ process DORADO_ALIGN {
 
     samtools fastq -@ \$FASTQ_CPUS -T '*' ${reads} | \
     minimap2 ${params.mmap2} -t \$MAP_CPUS -y ${ref} - | \
-    samtools sort -@ \$SORT_CPUS -m 2G -T "sort_tmp" -o ${reads.simpleName}.align.bam -
+    samtools sort -@ \$SORT_CPUS -m 2G -T "sort_tmp" -o ${sample}.align.bam -
 
-    
     # exit here if no reads map to ref
-    nreads=\$(samtools view -@ ${task.cpus} -c ${reads.simpleName}.align.bam)
+    nreads=\$(samtools view -@ ${task.cpus} -c ${sample}.align.bam)
     if [ "\$nreads" -eq 0 ]; then
         echo "No reads mapped to reference. Exiting."
         exit 1
     fi
 
-    if [ ! -f ${reads.simpleName}.align.bam.bai ]; then
-        samtools index -@ ${task.cpus} ${reads.simpleName}.align.bam
-    fi
+    samtools index -@ ${task.cpus} ${sample}.align.bam
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: minimap2 v\$(minimap2 --version)
@@ -66,10 +62,10 @@ process BEDTOOLS_COV {
 
     publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*hist.tsv'
     publishDir "${params.outdir}/logs", mode: 'copy', pattern: '*.bed'
-    tag "${bam.simpleName}"
+    tag "${sample}"
 
     input:
-        tuple path(bam), path(bai), path(bed)
+        tuple val(sample), path(bam), path(bai), path(bed)
 
     output:
         path "*hist.tsv", emit: ch_hist
@@ -78,8 +74,8 @@ process BEDTOOLS_COV {
 
     script:
     """
-    echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${bam.simpleName}.hist.tsv
-    bedtools coverage -a ${bed} -b ${bam} -hist >> ${bam.simpleName}.hist.tsv
+    echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${sample}.hist.tsv
+    bedtools coverage -a ${bed} -b ${bam} -hist >> ${sample}.hist.tsv
     cp $bed nxf-alignment.bed
 
     cat <<-END_VERSIONS > versions.txt
@@ -107,12 +103,12 @@ process BEDTOOLS_COMPLEMENT {
 
 process SAMTOOLS_BEDCOV {
     container 'docker.io/aangeloo/nxf-tgs:latest'
-    tag "${bam.simpleName}"
+    tag "${sample}"
 
     publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.bedcov.tsv'
 
     input:
-        tuple path(bam), path(bai), path(bed), path(bedcomplement)
+        tuple val(sample), path(bam), path(bai), path(bed), path(bedcomplement)
 
     output:
         path "*bedcov.tsv", emit: ch_bedcov
@@ -121,20 +117,20 @@ process SAMTOOLS_BEDCOV {
 
     script:
     """
-    samtools bedcov -c ${bed} ${bam} > ${bam.simpleName}.bedcov.tsv
-    samtools bedcov -c ${bedcomplement} ${bam} > ${bam.simpleName}.bedcov.compl.tsv
-    samtools flagstat -O json ${bam} > ${bam.simpleName}.flagstat.json
+    samtools bedcov -c ${bed} ${bam} > ${sample}.bedcov.tsv
+    samtools bedcov -c ${bedcomplement} ${bam} > ${sample}.bedcov.compl.tsv
+    samtools flagstat -O json ${bam} > ${sample}.flagstat.json
     """
 }
 
 process DEEPTOOLS_BIGWIG {
     container 'mgibio/deeptools:3.5.3'
-    tag "${bam.simpleName}"
+    tag "${sample}"
 
     publishDir "${params.outdir}/02-coverage", mode: 'copy', pattern: '*.bigwig'
 
     input:
-        tuple path(bam), path(bai)
+        tuple val(sample), path(bam), path(bai)
 
     output:
         path "*.bigwig"
@@ -142,7 +138,7 @@ process DEEPTOOLS_BIGWIG {
 
     script:
     """
-    bamCoverage -b ${bam} -o ${bam.simpleName}.bigwig -p ${task.cpus}
+    bamCoverage -b ${bam} -o ${sample}.bigwig -p ${task.cpus}
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: deeptools v\$(bamCoverage --version | sed 's/^bamCoverage //')

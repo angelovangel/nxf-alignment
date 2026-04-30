@@ -9,10 +9,10 @@ process MODKIT {
         }
         return 'ignore'
     }
-    tag "${bam.simpleName}"
+    tag "${sample}"
 
     input:
-        tuple path(bam), path(bai)
+        tuple val(sample), path(bam), path(bai)
 
     output:
     tuple path("*.bedmethyl.gz"), path("*.bedmethyl.gz.tbi")
@@ -28,13 +28,13 @@ process MODKIT {
     ${task.process}: tabix v\$(tabix --version 2>&1 | head -n 1 | sed 's/^tabix (htslib) //')
     END_VERSIONS
 
-    modkit modbam summary ${bam} > ${bam.simpleName}.summary.tsv
-    nreads=\$(grep "# total_reads_used" ${bam.simpleName}.summary.tsv | awk '{print \$NF}')
+    modkit modbam summary ${bam} > ${sample}.summary.tsv
+    nreads=\$(grep "# total_reads_used" ${sample}.summary.tsv | awk '{print \$NF}')
 
     if [ "\$nreads" -gt 0 ]; then
-        modkit sample-probs -o modprobs --hist --prefix ${bam.simpleName} ${bam}
-        modkit pileup --filter-threshold 0.7 --threads ${task.cpus} ${bam} - | awk '\$10 > ${filter}' | bgzip -c > ${bam.simpleName}.bedmethyl.gz
-        tabix -p bed ${bam.simpleName}.bedmethyl.gz
+        modkit sample-probs -o modprobs --hist --prefix ${sample} ${bam}
+        modkit pileup --filter-threshold 0.7 --threads ${task.cpus} ${bam} - | awk '\$10 > ${filter}' | bgzip -c > ${sample}.bedmethyl.gz
+        tabix -p bed ${sample}.bedmethyl.gz
         
     else
         echo "No modified reads detected in ${bam}"
