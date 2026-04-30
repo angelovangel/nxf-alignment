@@ -1,7 +1,7 @@
 
 process MODKIT {
     container 'docker.io/ontresearch/modkit:latest'
-    publishDir "${params.outdir}/04-modifications", mode: 'copy'
+    publishDir "${params.outdir}/05-modifications", mode: 'copy'
     errorStrategy { 
         if (task.exitStatus == 42) {
             println "MODKIT: [WARNING] No modified reads detected for ${task.tag}. Skipping."

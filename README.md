@@ -10,6 +10,7 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **SNP Variant Calling**: Uses Clair3 or DeepVariant for SNP variant calling (ONT or HiFi data)
 - **Structural Variant Calling**: Uses Sniffles2 for structural variant calling (ONT or HiFi data)
 - **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
+- **Pharmacogenomics**: Uses PharmCAT and PAnno for genotype-phenotype annotation
 - **Base Modifications Analysis**: Uses modkit for base modifications analysis (ONT or HiFi data)
 - **Interactive HTML Report**: Generates an interactive report with read statistics, coverage, variants and annotations metrics
 
@@ -33,7 +34,8 @@ nextflow run angelovangel/nxf-alignment \
   --bed /path/to/regions.bed \ # optional, if provided the report contains coverage analysis per region from bed file 
   --ref /path/to/ref.fasta \
   --snp \
-  --annotate
+  --annotate \
+  --pgx
 ```
 #### Barcoded run (Basecalling + Alignment)
 For a barcoded run, provide a [samplesheet](#sample-sheet-barcoded-runs) and kit name
@@ -59,6 +61,7 @@ nextflow run angelovangel/nxf-alignment \
   --snp \
   --sv \
   --annotate \
+  --pgx \
   --mods
 ```
 #### Skip alignment (basecalling only)
@@ -108,6 +111,7 @@ nextflow run angelovangel/nxf-alignment \
 | `annotate` | boolean | false | Annotate SNP variants using snpEff (use only with `--snp`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
 | `anno_filterQ` | int | `20` | Filter out SNP variants with quality lower than this before annotation |
+| `pgx` | boolean | false | Perform PGx analysis (use only with `--snp` and `--ref`, only for hg38 reference genome) |
 | `mods` | boolean | false | Perform base modification analysis using modkit (`--ref` is required)|
 | `mods_filter` | int | `5` | Minimum coverage for base modifications calls |
 
@@ -143,7 +147,10 @@ output/
 │   ├── reads.snp.vcf                   # SNP variants
 │   ├── reads.sv.vcf                    # SV variants
 │   └── reads.ann.vcf                   # Annotated variants
-├── 04-modifications/
+├── 04-pgx/
+│   ├── reads.panno.html                # PAnno html report
+│   └── reads.pharmcat.html             # PharmCAT html report
+├── 05-modifications/
 │   ├── reads.bedmethyl                 # Output of modkit pileup
 │   └── reads.summary.tsv               # Base modification summary
 ├── nxf-alignment-report.html           # Workflow report

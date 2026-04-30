@@ -1,6 +1,6 @@
 process PGX_PANNO {
     container 'docker.io/aangeloo/panno:0.3.1'
-    publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
+    publishDir "${params.outdir}/04-pgx", mode: 'copy'
     tag "${sample}"
 
     input:
@@ -122,7 +122,7 @@ process PHARMCAT_MERGE {
 
 process PGX_PHARMCAT {
     container 'docker.io/pgkb/pharmcat:latest'
-    publishDir "${params.outdir}/03-variants/pgx", mode: 'copy'
+    publishDir "${params.outdir}/04-pgx", mode: 'copy'
     tag "${sample}"
 
     input:
