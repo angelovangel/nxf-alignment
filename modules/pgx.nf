@@ -13,12 +13,15 @@ process PGX_PANNO {
 
     script:
     """
-    # PAnno requires decompressed VCF
+    # PAnno requires decompressed VCF and crashes on missing genotypes (./.)
     if [[ "$vcf" == *.gz ]]; then
-        zcat $vcf > ${sample}.vcf
+        zcat $vcf > unfiltered.vcf
     else
-        cp $vcf ${sample}.vcf
+        cp $vcf unfiltered.vcf
     fi
+    
+    grep "^#" unfiltered.vcf > ${sample}.vcf
+    grep -v "^#" unfiltered.vcf | awk '\$10 !~ /^[.]/ {print}' >> ${sample}.vcf
 
     panno -i ${sample}.vcf -p $population -s $sample -o .
 
