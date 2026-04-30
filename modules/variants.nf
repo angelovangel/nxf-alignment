@@ -241,7 +241,6 @@ process VCF_PHASE {
     whatshap phase \
     --reference $ref \
     --ignore-read-groups \
-    --tag HP \
     -o ${sample}.phase.vcf.gz \
     $vcf \
     $bam 
