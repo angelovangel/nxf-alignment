@@ -10,7 +10,7 @@ process DORADO_ALIGN {
         tuple val(sample), path(ref), path(reads)
 
     output:
-        tuple val(sample), path("${sample}.align.bam"), path("${sample}.align.bam.bai")
+        tuple val(sample), path("${sample}.align.bam"), path("${sample}.align.bam.bai"), emit: bam
         path "versions.txt", emit: versions
 
     script:

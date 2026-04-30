@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {PGX_PANNO; PGX_PHARMCAT} from './modules/pgx.nf'
+include {PGX_PANNO; PGX_PHARMCAT; PHARMCAT_PREPARE; PHARMCAT_GENOTYPE; PHARMCAT_MERGE} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
@@ -343,20 +343,49 @@ workflow {
 
     if (params.pgx) {
         if (params.snp && params.sv) {
-            ch_pgx_input = MERGE_VARIANTS.out[0]
+            ch_pgx_input = MERGE_VARIANTS.out.vcf
         } else if (params.snp) {
              ch_pgx_input = ch_vcf
         } else {
             error "PGx analysis requires at least SNP variants to be called. Please use --snp."
         }
-        PGX_PANNO(ch_pgx_input, params.population)
-        PGX_PHARMCAT(ch_pgx_input)
-        ch_versions = ch_versions.mix(PGX_PANNO.out.versions.first(), PGX_PHARMCAT.out.versions.first())
+
+        if (params.pharmcat_fill_from_bam) {
+             PHARMCAT_PREPARE()
+             
+             // join vcf with bam (DORADO_ALIGN.out.bam is [sample, bam, bai])
+             ch_pgx_with_bam = ch_pgx_input.join(DORADO_ALIGN.out.bam)
+             
+             PHARMCAT_GENOTYPE(
+                 ch_pgx_with_bam.map{ s, v, t, b, i -> tuple(s, b, i) }, 
+                 ch_ref.first(), 
+                 ch_genome.first(),
+                 PHARMCAT_PREPARE.out.vcf, 
+                 PHARMCAT_PREPARE.out.tbi
+             )
+             
+             // join variants with genotypes
+             ch_merge_input = ch_pgx_input.join(PHARMCAT_GENOTYPE.out.vcf)
+             
+             PHARMCAT_MERGE(ch_merge_input)
+             ch_pgx_final = PHARMCAT_MERGE.out.vcf
+             
+             ch_versions = ch_versions.mix(
+                 PHARMCAT_GENOTYPE.out.versions, 
+                 PHARMCAT_MERGE.out.versions
+             )
+        } else {
+             ch_pgx_final = ch_pgx_input
+        }
+
+        PGX_PANNO(ch_pgx_final, params.population)
+        PGX_PHARMCAT(ch_pgx_final)
+        ch_versions = ch_versions.mix(PGX_PANNO.out.versions, PGX_PHARMCAT.out.versions)
     }
 
     if (params.mods) {
         DORADO_ALIGN.out[0] | MODKIT
-        ch_versions = ch_versions.mix(MODKIT.out.versions.first())
+        ch_versions = ch_versions.mix(MODKIT.out.versions)
     }
 
     VERSIONS(ch_versions.collect(), ch_summary_file)

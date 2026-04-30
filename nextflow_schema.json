@@ -317,6 +317,13 @@
           "default": false,
           "help_text": "Set to true to enable pharmacogenomic analysis. Requires --snp."
         },
+        "pharmcat_fill_from_bam": {
+          "type": "boolean",
+          "description": "Genotype PharmCAT positions from alignment (BAM)",
+          "fa_icon": "fas fa-search-plus",
+          "default": true,
+          "help_text": "Set to true to explicitly genotype PharmCAT's required genetic positions from the alignment (BAM). This avoids assuming reference calls for missing data."
+        },
         "population": {
           "type": "string",
           "description": "Population to use for Panno analysis",

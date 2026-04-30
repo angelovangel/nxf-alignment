@@ -178,7 +178,7 @@ process MERGE_VARIANTS {
     tuple val(sample), path(snp_vcf), path(snp_tbi), path(sv_vcf), path(sv_tbi)
 
     output:
-    tuple val(sample), path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi")
+    tuple val(sample), path("*.merged.vcf.gz"), path("*.merged.vcf.gz.tbi"), emit: vcf
     path "versions.txt", emit: versions
 
     script:
