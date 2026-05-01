@@ -379,7 +379,7 @@ workflow {
         }
 
         PGX_PANNO(ch_pgx_final, params.population)
-        PGX_PHARMCAT(ch_pgx_final)
+        PGX_PHARMCAT(ch_pgx_final, ch_ref.first(), ch_genome.first())
         ch_versions = ch_versions.mix(PGX_PANNO.out.versions, PGX_PHARMCAT.out.versions)
     }
 

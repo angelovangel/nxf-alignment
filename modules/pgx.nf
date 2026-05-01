@@ -130,6 +130,8 @@ process PGX_PHARMCAT {
 
     input:
     tuple val(sample), path(vcf), path(vcf_tbi)
+    path ref
+    path fai
 
     output:
     path "${sample}_pharmcat/*"
@@ -138,12 +140,23 @@ process PGX_PHARMCAT {
 
     script:
     """
-    pharmcat_pipeline $vcf \
-        -s $sample \
-        -o ${sample}_pharmcat \
-        -bf ${sample} \
-        -reporterHtml \
+    # Manually preprocess to ensure the VCF is sorted after normalization
+    # PharmCAT's internal preprocessor sometimes fails to produce a sorted VCF after left-alignment
+    bcftools view -s $sample -R /pharmcat/pharmcat_regions.bed $vcf | \\
+    bcftools norm -f $ref -m -any -c ws -Ou | \\
+    bcftools sort -Oz -o ${sample}.preprocessed.vcf.gz
+    bcftools index -t ${sample}.preprocessed.vcf.gz
+
+    # Run the core PharmCAT tool on the sorted, normalized VCF
+    pharmcat \\
+        -vcf ${sample}.preprocessed.vcf.gz \\
+        -o ${sample}_pharmcat \\
+        -bf ${sample} \\
+        -matcher \\
+        -phenotyper \\
+        -reporterHtml \\
         -reporterJson
+    
     mv ${sample}_pharmcat/${sample}.report.html ${sample}.pharmcat.html
 
     cat <<-END_VERSIONS > versions.txt
