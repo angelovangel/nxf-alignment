@@ -96,6 +96,8 @@ process PHARMCAT_MERGE {
 
     input:
     tuple val(sample), path(variants_vcf), path(variants_tbi), path(genotypes_vcf), path(genotypes_tbi)
+    path ref
+    path fai
 
     output:
     tuple val(sample), path("${sample}.merged_pgx.vcf.gz"), path("${sample}.merged_pgx.vcf.gz.tbi"), emit: vcf
@@ -112,6 +114,7 @@ process PHARMCAT_MERGE {
 
     # concat prioritizing variants_rh (variants first)
     bcftools concat -a variants_rh.vcf.gz genotypes_rh.vcf.gz | \
+    bcftools norm -f $ref -m -any | \
     bcftools sort | \
     bcftools norm -d all -Oz -o ${sample}.merged_pgx.vcf.gz
     bcftools index -t ${sample}.merged_pgx.vcf.gz

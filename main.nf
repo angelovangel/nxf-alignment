@@ -367,7 +367,7 @@ workflow {
              // join variants with genotypes
              ch_merge_input = ch_pgx_input.join(PHARMCAT_GENOTYPE.out.vcf)
              
-             PHARMCAT_MERGE(ch_merge_input)
+             PHARMCAT_MERGE(ch_merge_input, ch_ref.first(), ch_genome.first())
              ch_pgx_final = PHARMCAT_MERGE.out.vcf
              
              ch_versions = ch_versions.mix(
