@@ -114,7 +114,7 @@ process PHARMCAT_MERGE {
 
     # concat prioritizing variants_rh (variants first)
     bcftools concat -a variants_rh.vcf.gz genotypes_rh.vcf.gz | \
-    bcftools norm -c w -f $ref -m -any -Ou | \
+    bcftools norm -c ws -f $ref -m -any -Ou | \
     bcftools sort -Ou | \
     bcftools norm -d all -Oz -o ${sample}.merged_pgx.vcf.gz
     bcftools index -t ${sample}.merged_pgx.vcf.gz
