@@ -154,6 +154,7 @@ process PGX_PHARMCAT {
         -bf ${sample} \\
         -matcher \\
         -phenotyper \\
+        -reporter \\
         -reporterHtml \\
         -reporterJson
     
