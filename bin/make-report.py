@@ -530,7 +530,7 @@ def render_details_block(title, info_list, add_top_border=False):
     border_style = "border-top: 1px solid rgba(255, 255, 255, 0.2);" if add_top_border else ""
     html = f"""
     <details style="padding-top: 5px; margin-top: 5px; {border_style} text-align: left;">
-      <summary style="font-size: 0.8em; cursor: pointer; color: white;">{title}</summary>
+      <summary style="font-size: 0.9em; cursor: pointer; color: white;">{title}</summary>
       <div style="padding-top: 5px; text-align: left; width: 100%;">
         <table style="width: 100%; border-collapse: collapse; margin-top: 5px; color: white; border: none; background: inherit;">
           <tbody>
@@ -596,10 +596,17 @@ def render_output_section(args):
             variant_subdirs.append(('phasing/', 'Phasing results: *.phase.vcf.gz, *.phase.gtf, *.phase.tsv'))
         if args.vcf_query and args.sv_vcf:
             variant_subdirs.append(('merged/', 'Merged SNP and SV callsets: *.merged.vcf.gz'))
-        if args.pgx:
-            variant_subdirs.append(('pgx/', 'Pharmacogenomics reports (PAnno): *.html'))
+
             
         outputs.append(('03-variants/', 'Variant calling and phasing results.', variant_subdirs))
+
+    if args.pgx:
+        outputs.append(('04-pgx/', 'Pharmacogenomics analysis including clinical interpretation and drug recommendations.', [
+            ('*.pgx-report.html', 'Interactive clinical PGx report (VCF + PharmCAT).'),
+            ('*.pharmcat.html', 'Standard PharmCAT HTML report.'),
+            ('*.panno.html', 'PAnno pharmacogenomics annotation report.'),
+            ('*_pharmcat/', 'Raw PharmCAT output directory (JSON, match, and phenotype files).')
+        ]))
 
     outputs.append(('logs/', 'Pipeline execution summary and software version logs.', []))
     outputs.append(('nxf-alignment-report.html', 'The interactive HTML report (this file).', []))
@@ -607,11 +614,11 @@ def render_output_section(args):
     html = """
     <details class="collapsible-section" style="margin-bottom: 20px;">
       <summary>
-        <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Output Directory and Files</h3>
+        <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Output Directory and Files</h3>
       </summary>
       <div style="padding: 15px; background: #fafafa;">
-        <p style="margin-bottom: 10px; font-size: 0.9em; color: #475569;">The following directories were generated based on the pipeline components executed in this run:</p>
-        <div class="directory-structure" style="font-family: 'Courier New', monospace; font-size: 0.85em;">
+        <p style="margin-bottom: 10px; font-size: 0.8em; color: #475569;">The following directories were generated based on the pipeline components executed in this run:</p>
+        <div class="directory-structure" style="font-family: 'Courier New', monospace; font-size: 0.75em;">
     """
     
     for item_name, desc, subdirs in outputs:
@@ -621,13 +628,13 @@ def render_output_section(args):
             html += f'<div class="dir-item"><code>{item_name}</code> - {desc}</div>'
 
         if subdirs:
-            html += '<ul style="list-style: none; padding-left: 25px; margin: 5px 0 10px 0;">'
+            html += '<ul style="list-style: none; padding-left: 18px; margin: 1px 0 4px 0;">'
             for sub_name, sub_desc in subdirs:
                 label = f'<strong>{sub_name}</strong>' if sub_name.endswith('/') else f'<code>{sub_name}</code>'
                 html += f'<li><span style="opacity: 0.6;">└──</span> {label}: {sub_desc}</li>'
             html += '</ul>'
         else:
-            html += '<div style="margin-bottom: 10px;"></div>'
+            html += '<div style="margin-bottom: 4px;"></div>'
             
     html += """
         </div>
@@ -716,7 +723,7 @@ def render_readstats_table(readstats_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Read Statistics</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Read Statistics</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportReadstatsToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -781,7 +788,7 @@ def render_samtools_table(samtools_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Coverage</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Coverage</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportSamtoolsToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -845,7 +852,7 @@ def render_variants_table(variants_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Small Variants (SNPs/Indels)</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Small Variants (SNPs/Indels)</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportVariantsToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -906,7 +913,7 @@ def render_sv_table(sv_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Structural Variants (SVs)</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Structural Variants (SVs)</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportSVToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -967,7 +974,7 @@ def render_phasing_table(phasing_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Small Variants (Phasing Statistics)</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Small Variants (Phasing Statistics)</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportPhaseToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -1026,7 +1033,7 @@ def render_coverage_table(samples_data, genes):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Breadth of Coverage</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Breadth of Coverage</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportCoverageToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -1123,7 +1130,7 @@ def render_bed_coverage_table(bed_coverage_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Bed Coverage</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Bed Coverage</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportBedcovToCSV()">Export CSV</button>
           </div>
         </summary>
@@ -1308,8 +1315,8 @@ def render_read_hists_section(samples_readhists):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Read Histograms</h3>
-            <div class="toggle-container" style="display: flex; align-items: center; gap: 10px; font-size: 0.85em; font-weight: normal;">
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Read Histograms</h3>
+            <div class="toggle-container" style="display: flex; align-items: center; gap: 10px; font-size: 0.8em; font-weight: normal;">
                 <span style="color: inherit;">Show:</span>
                 <div class="toggle-switch" onclick="event.preventDefault(); event.stopPropagation(); toggleHistMode(this)">
                     <div class="toggle-option active" data-mode="reads">Reads</div>
@@ -1386,7 +1393,7 @@ def render_ani_table(ani_data):
       <details class="collapsible-section" open>
         <summary>
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 style="margin: 0; font-size: 1.1em; color: inherit;">Read Average Nucleotide Identity to Ref (Containment)</h3>
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Read Average Nucleotide Identity to Ref (Containment)</h3>
             <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportAniToCSV()">Export CSV</button>
           </div>
         </summary>
