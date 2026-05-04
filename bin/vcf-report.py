@@ -4,11 +4,7 @@ vcf_report.py — VCF + PharmCAT JSON → HTML Clinical Report
 Usage:
     python vcf_report.py --vcf sample.vcf.gz --report pharmcat_report.json [options]
 
-Optional PharmCAT inputs:
-    --match   pharmcat_match.json
-    --pheno   pharmcat_phenotype.json
-
-Output:
+Optional inputs:
     --out     report.html  (default: <sample>_report.html)
 """
 
@@ -54,13 +50,21 @@ def parse_info(info_str: str) -> dict:
     return result
 
 
-def gt_zygosity(gt: str) -> str:
-    gt_clean = gt.replace('|', '/')
-    alleles = gt_clean.split('/')
-    non_ref = [a for a in alleles if a not in ('.', '0')]
-    if not non_ref:
+def gt_zygosity(gt: str, ref: str = None) -> str:
+    if not gt or gt == './.': return 'REF'
+    parts = gt.replace('|', '/').split('/')
+    
+    def is_ref_allele(p):
+        if p == '.': return True
+        if p.isdigit(): return p == '0'
+        return p == ref if ref else False
+
+    if all(is_ref_allele(p) for p in parts):
         return 'REF'
-    if len(set(non_ref)) == 1 and len(non_ref) > 1:
+    
+    called = [p for p in parts if p != '.']
+    if not called: return 'REF'
+    if len(set(called)) == 1 and len(called) > 1:
         return 'HOM'
     return 'HET'
 
@@ -155,7 +159,7 @@ def parse_vcf(vcf_path: str) -> tuple[str, dict[tuple[str, int], dict], dict]:
             fmt = {fmt_keys[i]: smp_vals[i] if i < len(smp_vals) else '.' for i in range(len(fmt_keys))}
 
             gt = fmt.get('GT', './.')
-            zyg = gt_zygosity(gt)
+            zyg = gt_zygosity(gt, ref)
             sample_af = compute_sample_af(fmt)
 
             # Rescue 0/0 calls with alt read support (Clair3/bcftools style)
@@ -597,30 +601,27 @@ def render_variants_table(variants: list[dict]) -> str:
     """Render a filterable HTML table of all variants."""
     rows = []
     for i, v in enumerate(variants):
-        gene_cell = f'<span class="italic text-indigo-700 font-medium">{v["gene"]}</span>' if v['gene'] else '<span class="text-gray-300">—</span>'
+        gene_cell = f"""<button onclick="goToGene('{v['gene']}')" class="italic text-indigo-700 font-medium hover:underline text-left">{v['gene']}</button>""" if v['gene'] else '<span class="text-gray-300">—</span>'
         zyg = zygosity_badge(v['zygosity'])
         ref_disp = (v['ref'][:7] + '…') if len(v['ref']) > 10 else v['ref']
         
         # Highlight non-ref alleles
         # If call is different from ref (e.g. call=G/A, ref=G)
-        call_val = v['call'] or './.'
-        is_variant = False
-        if v['ref'] and call_val and call_val != './.':
-            parts = call_val.replace('|', '/').split('/')
-            if any(p != v['ref'] and p != '.' for p in parts):
-                is_variant = True
+        is_variant = (v['zygosity'] != 'REF')
         
         cell_class = "bg-amber-50 font-bold text-amber-900" if is_variant else ""
         
         # Phasing badge
         phasing_html = '<span class="text-indigo-600" title="Phased">🔗</span>' if v.get('phased') else '<span class="text-gray-300">—</span>'
         
+        call_display = v['call'] if v['call'] and v['call'] != './.' else '<span class="text-gray-400 italic">No call</span>'
+        
         rows.append(
             f'<tr class="hover:bg-gray-50 border-b border-gray-100 variant-row text-xs"'
             f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}">'
             f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
             f'<td class="px-2 py-2 font-mono text-xs text-indigo-600">{v["rsid"]}</td>'
-            f'<td class="px-2 py-2 font-mono whitespace-nowrap {cell_class}">{v["call"]}</td>'
+            f'<td class="px-2 py-2 font-mono whitespace-nowrap {cell_class}">{call_display}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap text-center">{phasing_html}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap">{v["ref"]}</td>'
             f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
@@ -660,10 +661,10 @@ def render_gene_cards(pgx_data: dict) -> str:
             act_score = f'<div class="mt-1 text-xs text-gray-500">Activity score: <span class="font-mono font-medium">{g["activity_score"]}</span></div>'
 
         cards.append(
-            f'<div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">'
+            f'<div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm gene-card" data-gene="{gene_sym}">'
             f'  <div class="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-start justify-between gap-2">'
             f'    <div>'
-            f'      <div class="font-semibold text-gray-900 text-base italic">{gene_sym}</div>'
+            f"""      <div class="font-semibold text-gray-900 text-base italic"><button onclick="goToGene('{gene_sym}')" class="hover:underline text-left">{gene_sym}</button></div>"""
             f'      <div class="text-xs text-gray-500 mt-0.5 font-mono">{g["diplotype"]}</div>'
             f'    </div>'
             f'    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border mt-0.5"'
@@ -715,8 +716,8 @@ def render_drug_cards(drugs: list[dict]) -> str:
         pheno_html = ''
         if isinstance(d['phenotypes'], dict) and d['phenotypes']:
             pills = ' '.join(
-                f'<span class="font-mono text-xs bg-indigo-50 text-indigo-700 rounded px-1.5 py-0.5">'
-                f'<i>{gene}</i>: {pheno}</span>'
+                f"""<button onclick="goToGene('{gene}')" class="font-mono text-xs bg-indigo-50 text-indigo-700 rounded px-1.5 py-0.5 hover:bg-indigo-100 transition-colors">"""
+                f"<i>{gene}</i>: {pheno}</button>"
                 for gene, pheno in d['phenotypes'].items()
             )
             pheno_html = f'<div class="flex flex-wrap gap-1 mt-2">{pills}</div>'
@@ -742,7 +743,7 @@ def render_drug_cards(drugs: list[dict]) -> str:
         header_cls = 'bg-red-50' if d['dosing_info'] or d['alt_drug'] else 'bg-gray-50'
 
         cards.append(
-            f'<div class="bg-white border {border_cls} rounded-xl overflow-hidden shadow-sm drug-card">'
+            f'<div class="bg-white border {border_cls} rounded-xl overflow-hidden shadow-sm drug-card" data-genes="{",".join(d["genes_involved"])}">'
             f'  <div class="{header_cls} border-b border-gray-100 px-4 py-3 flex items-start justify-between gap-2">'
             f'    <div>'
             f'      <div class="font-semibold text-gray-900 capitalize">{d["name"]}</div>'
@@ -803,8 +804,8 @@ def _pheno_pills_html(phenotypes: dict) -> str:
     if not isinstance(phenotypes, dict) or not phenotypes:
         return ''
     pills = ' '.join(
-        f'<span class="font-mono text-xs bg-indigo-50 text-indigo-700 rounded px-1.5 py-0.5">'
-        f'<i>{gene}</i>: {pheno}</span>'
+        f"""<button onclick="goToGene('{gene}')" class="font-mono text-xs bg-indigo-50 text-indigo-700 rounded px-1.5 py-0.5 hover:bg-indigo-100 transition-colors">"""
+        f"<i>{gene}</i>: {pheno}</button>"
         for gene, pheno in phenotypes.items()
     )
     return f'<div class="flex flex-wrap gap-1 mb-2">{pills}</div>'
@@ -840,7 +841,7 @@ def _render_actionable_drugs(pgx: dict | None) -> str:
             url_html = f'<a href="{d["urls"][0]}" target="_blank" class="text-xs text-indigo-400 hover:underline">Full guideline ↗</a>'
 
         card = (
-            f'<div class="bg-white border border-red-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">'
+            f'<div class="bg-white border border-red-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow drug-card" data-genes="{",".join(d["genes_involved"])}">'
             f'  <div class="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center justify-between gap-2">'
             f'    <div class="flex items-center gap-2">'
             f'      <div class="font-semibold capitalize text-gray-900">{d["name"]}</div>'
@@ -888,6 +889,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
     n_genes = len(pgx['genes']) if pgx else 0
     n_drugs = len(pgx['drugs']) if pgx else 0
     n_actionable = sum(1 for d in (pgx['drugs'] if pgx else []) if d['dosing_info'] or d['alt_drug'])
+    n_nonref = sum(1 for v in variants if v.get('zygosity') != 'REF')
 
     # High/moderate impact variants for summary table
     # Significant Variants for summary table
@@ -955,7 +957,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
     <div class="mt-4 flex flex-wrap gap-4 text-xs text-indigo-300">
       <span>📄 VCF: <span class="text-white font-mono">{qc["vcf_path"]}</span></span>
       <span>🔬 PharmCAT: <span class="text-white">{pharmcat_version}</span></span>
-      <span>📚 Data: <span class="text-white">{data_version}</span></span>
+      <span>📚 PharmCAT data: <span class="text-white">{data_version}</span></span>
       <span>🧬 Sample: <span class="text-white font-mono">{sample_name}</span></span>
       <span>📊 Variants: <span class="text-white font-mono">{qc["total"]:,}</span></span>
     </div>
@@ -976,8 +978,21 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
     <button class="tab-btn active px-4 py-3 text-sm transition-colors" onclick="showTab('summary')">Summary</button>
     <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('pgx-genes')">PGx Genes ({n_genes})</button>
     <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('drugs')">Drug Recommendations ({n_drugs})</button>
-    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('variants')">All Variants ({qc["total"]:,})</button>
-    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('qc')">QC Metrics</button>
+    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('variants')">All Variants ({len(variants):,} total, {n_nonref:,} non-ref)</button>
+    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab(\'qc\')">QC Metrics</button>
+  </div>
+</div>
+
+<div class="active-filter-info hidden bg-indigo-600 text-white shadow-lg sticky top-[53px] z-20">
+  <div class="max-w-screen-xl mx-auto px-6 py-2.5 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="bg-white/20 p-1.5 rounded-lg text-lg">🧬</span>
+      <div>
+        <div class="text-[10px] text-indigo-200 uppercase font-bold tracking-wider leading-none mb-0.5">Active Filter</div>
+        <div class="text-sm font-medium">Showing information for <span class="active-gene-name font-bold italic underline decoration-indigo-300"></span> gene</div>
+      </div>
+    </div>
+    <button onclick="resetFilters()" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg border border-white/20 transition-all font-semibold backdrop-blur-sm">Clear Filter</button>
   </div>
 </div>
 
@@ -1006,8 +1021,8 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         </thead>
         <tbody>
           {''.join(
-            f'<tr class="border-b border-gray-100 hover:bg-gray-50">'
-            f'<td class="px-4 py-2 font-medium italic text-indigo-700">{g["gene"]}</td>'
+            f'<tr class="border-b border-gray-100 hover:bg-gray-50 summary-gene-row" data-gene="{g["gene"]}">'
+            f"""<td class="px-4 py-2 font-medium italic text-indigo-700"><button onclick="goToGene('{g['gene']}')" class="hover:underline text-left">{g['gene']}</button></td>"""
             f'<td class="px-4 py-2 font-mono text-xs text-gray-500">{g["called"]} / {g["total"]}</td>'
             f'<td class="px-4 py-2 font-mono text-xs">{g["diplotype"]}</td>'
             f'<td class="px-4 py-2">'
@@ -1117,7 +1132,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         </select>
       </div>
       <button onclick="resetFilters()" class="text-xs text-gray-400 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg">Reset</button>
-      <span id="variantCount" class="text-xs text-gray-400 ml-auto self-center font-mono">{qc["total"]:,} variants</span>
+      <span id="variantCount" class="text-xs text-gray-400 ml-auto self-center font-mono">{len(variants):,} total ({n_nonref:,} non-ref)</span>
     </div>
   </div>
 
@@ -1237,7 +1252,23 @@ function showTab(name) {{
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  
+  // Update button state
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(btn => {{
+    if (btn.getAttribute('onclick').includes("'" + name + "'")) {{
+      btn.classList.add('active');
+    }}
+  }});
+}}
+
+function goToGene(gene) {{
+  const filterEl = document.getElementById('filterGene');
+  if (filterEl) {{
+    filterEl.value = gene;
+  }}
+  applyFilters();
+  showTab('variants');
 }}
 
 function toggleSection(id) {{
@@ -1252,36 +1283,71 @@ function toggleSection(id) {{
   }}
 }}
 
-function filterVariants() {{
-  const gene = document.getElementById('filterGene').value.toLowerCase();
+function applyFilters() {{
+  const geneVal = document.getElementById('filterGene').value;
+  const gene = geneVal.toLowerCase();
   const zyg = document.getElementById('filterZyg').value;
-  const rows = document.querySelectorAll('.variant-row');
-  let visible = 0;
-  rows.forEach(row => {{
-    const show = (
-      (!gene || row.dataset.gene.toLowerCase() === gene) &&
-      (!zyg || row.dataset.zyg === zyg)
-    );
+  const actionableOnly = document.getElementById('filterActionable') ? document.getElementById('filterActionable').checked : false;
+
+  // 1. Update Global Banner
+  const infoEls = document.querySelectorAll('.active-filter-info');
+  const geneNameEls = document.querySelectorAll('.active-gene-name');
+  if (geneVal) {{
+    infoEls.forEach(el => el.classList.remove('hidden'));
+    geneNameEls.forEach(el => el.textContent = geneVal);
+  }} else {{
+    infoEls.forEach(el => el.classList.add('hidden'));
+  }}
+
+  // 2. Filter Variants Table
+  let visibleVariants = 0;
+  let visibleNonRef = 0;
+  document.querySelectorAll('.variant-row').forEach(row => {{
+    const show = (!gene || row.dataset.gene.toLowerCase() === gene) &&
+                 (!zyg || row.dataset.zyg === zyg);
     row.style.display = show ? '' : 'none';
-    if (show) visible++;
+    if (show) {{
+      visibleVariants++;
+      if (row.dataset.zyg !== 'REF') visibleNonRef++;
+    }}
   }});
-  document.getElementById('variantCount').textContent = visible + ' variants';
+  const countEl = document.getElementById('variantCount');
+  if (countEl) countEl.textContent = visibleVariants + ' total (' + visibleNonRef + ' non-ref)';
+
+  // 3. Filter Gene Cards (PGx Genes tab)
+  document.querySelectorAll('.gene-card').forEach(card => {{
+    const show = !gene || card.dataset.gene.toLowerCase() === gene;
+    card.style.display = show ? '' : 'none';
+  }});
+
+  // 4. Filter Drug Cards (Drug Recommendations tab & Summary tab)
+  document.querySelectorAll('.drug-card').forEach(card => {{
+    const geneMatch = !gene || (card.dataset.genes && card.dataset.genes.toLowerCase().split(',').includes(gene));
+    const actionMatch = !actionableOnly || card.classList.contains('border-red-200');
+    card.style.display = (geneMatch && actionMatch) ? '' : 'none';
+  }});
+
+  // 5. Filter Summary Gene Table
+  document.querySelectorAll('.summary-gene-row').forEach(row => {{
+    const show = !gene || row.dataset.gene.toLowerCase() === gene;
+    row.style.display = show ? '' : 'none';
+  }});
 }}
 
-function resetFilters() {{
-  ['filterGene','filterZyg'].forEach(id => {{
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  }});
-  filterVariants();
+function filterVariants() {{
+  applyFilters();
 }}
 
 function filterDrugs() {{
-  const actionableOnly = document.getElementById('filterActionable').checked;
-  document.querySelectorAll('.drug-card').forEach(card => {{
-    const isActionable = card.querySelector('.border-red-200') !== null || card.classList.contains('border-red-200');
-    card.style.display = (actionableOnly && !card.classList.contains('border-red-200')) ? 'none' : '';
-  }});
+  applyFilters();
+}}
+
+function resetFilters() {{
+  const gEl = document.getElementById('filterGene');
+  const zEl = document.getElementById('filterZyg');
+  if (gEl) gEl.value = '';
+  if (zEl) zEl.value = '';
+  applyFilters();
 }}
 </script>
 </body>
@@ -1298,8 +1364,7 @@ def main():
     )
     parser.add_argument('--vcf',    required=True, help='Annotated VCF file (.vcf, .vcf.gz, .bgz)')
     parser.add_argument('--report', required=True, help='PharmCAT report JSON (e.g. sample_report.json)')
-    parser.add_argument('--match',  default=None,  help='PharmCAT match JSON (optional)')
-    parser.add_argument('--pheno',  default=None,  help='PharmCAT phenotype JSON (optional)')
+
     parser.add_argument('--out',    default=None,  help='Output HTML file (default: <sample>_report.html)')
     args = parser.parse_args()
 
@@ -1350,7 +1415,7 @@ def main():
                 'impact': 'MODIFIER',
                 'hgvsc': '',
                 'hgvsp': '',
-                'zygosity': 'HOM' if pv['call'] and (len(pv['call'].split('/')) < 2 or pv['call'].split('/')[0] == pv['call'].split('/')[1]) else 'HET',
+                'zygosity': gt_zygosity(pv['call'] or './.', pv['ref']),
                 'gt': pv['call'] or './.',
                 'dp': '.',
                 'af': 0.0,
