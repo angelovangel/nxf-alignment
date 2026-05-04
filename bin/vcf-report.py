@@ -350,6 +350,11 @@ def parse_pharmcat_report(report_path: str) -> dict:
         related_drugs = [d.get('name', '') for d in gdata.get('relatedDrugs', [])]
         uncalled = gdata.get('uncalledHaplotypes', [])
 
+        # Calculate coverage from variants list
+        vars_list = gdata.get('variants', [])
+        total_count = len(vars_list)
+        called_count = sum(1 for v in vars_list if v.get('call') and v.get('call') != './.')
+
         genes[gene_sym] = {
             'gene': gene_sym,
             'chr': gdata.get('chr', ''),
@@ -366,6 +371,8 @@ def parse_pharmcat_report(report_path: str) -> dict:
             'related_drugs': related_drugs,
             'uncalled_haplotypes': uncalled,
             'has_undocumented': gdata.get('hasUndocumentedVariations', False),
+            'called': called_count,
+            'total': total_count
         }
 
     # Also include unannotated gene calls
@@ -374,6 +381,11 @@ def parse_pharmcat_report(report_path: str) -> dict:
         if gene_sym and gene_sym not in genes:
             dips = gdata.get('sourceDiplotypes', [])
             diplotype_label = dips[0].get('label', 'Unknown') if dips else 'Unknown'
+            # Unannotated calls often have fewer variant details, but we can still count them
+            uvars = gdata.get('variants', [])
+            utotal = len(uvars)
+            ucalled = sum(1 for v in uvars if v.get('call') and v.get('call') != './.')
+
             genes[gene_sym] = {
                 'gene': gene_sym,
                 'chr': gdata.get('chr', ''),
@@ -390,6 +402,8 @@ def parse_pharmcat_report(report_path: str) -> dict:
                 'related_drugs': [],
                 'uncalled_haplotypes': [],
                 'has_undocumented': gdata.get('hasUndocumentedVariations', False),
+                'called': ucalled,
+                'total': utotal
             }
 
     # ── Drug Recommendations ──
@@ -983,6 +997,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         <thead>
           <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
             <th class="px-4 py-3 text-left">Gene</th>
+            <th class="px-4 py-3 text-left">Genotypes</th>
             <th class="px-4 py-3 text-left">Diplotype</th>
             <th class="px-4 py-3 text-left">Phenotype</th>
             <th class="px-4 py-3 text-left">Related Drugs</th>
@@ -993,6 +1008,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
           {''.join(
             f'<tr class="border-b border-gray-100 hover:bg-gray-50">'
             f'<td class="px-4 py-2 font-medium italic text-indigo-700">{g["gene"]}</td>'
+            f'<td class="px-4 py-2 font-mono text-xs text-gray-500">{g["called"]} / {g["total"]}</td>'
             f'<td class="px-4 py-2 font-mono text-xs">{g["diplotype"]}</td>'
             f'<td class="px-4 py-2">'
             f'  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border"'
@@ -1001,8 +1017,8 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
             f'<td class="px-4 py-2 text-xs text-gray-500">{", ".join(g["related_drugs"][:4]) or "—"}</td>'
             f'<td class="px-4 py-2 text-xs text-gray-400">{g["call_source"]}</td>'
             f'</tr>'
-            for g in (pgx['genes'].values() if pgx else [])
-          ) or "<tr><td colspan='5' class='text-center text-gray-400 py-6 text-sm'>No PharmCAT gene data</td></tr>"}
+            for g in sorted(pgx['genes'].values(), key=lambda x: x['gene'])
+          ) or "<tr><td colspan='6' class='text-center text-gray-400 py-6 text-sm'>No PharmCAT gene data</td></tr>"}
         </tbody>
       </table>
     </div>
@@ -1052,6 +1068,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
       </div>
     </div>
   </section>
+
 
 </div><!-- /summary -->
 
