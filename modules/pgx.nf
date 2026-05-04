@@ -83,7 +83,8 @@ process PHARMCAT_GENOTYPE {
 
     set -o pipefail
     bcftools mpileup -f $ref -R \$pos_vcf $bam -a FORMAT/DP,FORMAT/AD | \\
-    bcftools call -m -Oz -o ${sample}.pharmcat_genotypes.vcf.gz
+    bcftools call -m -Ou | \\
+    bcftools view -i 'FORMAT/DP>0' -Oz -o ${sample}.pharmcat_genotypes.vcf.gz
     bcftools index -t ${sample}.pharmcat_genotypes.vcf.gz
 
     echo "${task.process}: bcftools v\$(bcftools --version | head -n 1 | sed 's/^bcftools //')" > versions.txt
@@ -136,6 +137,7 @@ process PGX_PHARMCAT {
     output:
     path "${sample}_pharmcat/*"
     path "${sample}.pharmcat.html"
+    path "${sample}.pgx-report.html"
     path "versions.txt", emit: versions
 
     script:
@@ -158,7 +160,15 @@ process PGX_PHARMCAT {
         -reporterHtml \\
         -reporterJson
     
-    mv ${sample}_pharmcat/${sample}.report.html ${sample}.pharmcat.html
+    if [[ -f "${sample}_pharmcat/${sample}.report.html" ]]; then
+        mv ${sample}_pharmcat/${sample}.report.html ${sample}.pharmcat.html
+        echo "PharmCAT report generated: ${sample}.pharmcat.html"
+        # generate report
+        vcf-report.py --vcf ${sample}.preprocessed.vcf.gz --report ${sample}_pharmcat/${sample}.report.json --out ${sample}.pgx-report.html
+    else
+        echo "PharmCAT report could not be generated for sample: ${sample}"
+        exit 1
+    fi
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: \$(pharmcat --version 2>&1 | head -n 1)

@@ -371,8 +371,8 @@ workflow {
              ch_pgx_final = PHARMCAT_MERGE.out.vcf
              
              ch_versions = ch_versions.mix(
-                 PHARMCAT_GENOTYPE.out.versions, 
-                 PHARMCAT_MERGE.out.versions
+                 PHARMCAT_GENOTYPE.out.versions.first(), 
+                 PHARMCAT_MERGE.out.versions.first()
              )
         } else {
              ch_pgx_final = ch_pgx_input
@@ -380,12 +380,12 @@ workflow {
 
         PGX_PANNO(ch_pgx_final, params.population)
         PGX_PHARMCAT(ch_pgx_final, ch_ref.first(), ch_genome.first())
-        ch_versions = ch_versions.mix(PGX_PANNO.out.versions, PGX_PHARMCAT.out.versions)
+        ch_versions = ch_versions.mix(PGX_PANNO.out.versions.first(), PGX_PHARMCAT.out.versions.first())
     }
 
     if (params.mods) {
         DORADO_ALIGN.out[0] | MODKIT
-        ch_versions = ch_versions.mix(MODKIT.out.versions)
+        ch_versions = ch_versions.mix(MODKIT.out.versions.first())
     }
 
     VERSIONS(ch_versions.collect(), ch_summary_file)

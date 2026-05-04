@@ -19,6 +19,7 @@ process VCF_CLAIR3 {
     script:
     def model = "${params.clair3_model}"
     def platform = "${params.clair3_platform}"
+    def clair3_threads = Math.max(1, (int)(task.cpus / 2))
     """
     samtools faidx $ref
     
@@ -29,7 +30,7 @@ process VCF_CLAIR3 {
     --sample_name=${sample} \
     --platform=$platform \
     --model_path="/opt/models/$model" \
-    --threads=${task.cpus} \
+    --threads=${clair3_threads} \
     --output="clair3_output"
 
     mv clair3_output/merge_output.vcf.gz ${sample}.snp.vcf.gz
