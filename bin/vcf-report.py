@@ -589,6 +589,18 @@ def zygosity_badge(zyg: str) -> str:
     return '<span class="text-blue-600 text-xs">HET</span>'
 
 
+def variant_classification_badge(cls: str) -> str:
+    colors = {
+        'Pathogenic': 'bg-red-100 text-red-700 border-red-200',
+        'Likely Pathogenic': 'bg-orange-100 text-orange-700 border-orange-200',
+        'VUS': 'bg-amber-100 text-amber-700 border-amber-200',
+        'Likely Benign': 'bg-green-100 text-green-700 border-green-200',
+        'Benign': 'bg-gray-100 text-gray-500 border-gray-200',
+    }
+    style = colors.get(cls, 'bg-gray-50 text-gray-400 border-gray-100')
+    return f'<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border {style}">{cls or "—"}</span>'
+
+
 def classification_label(c: str) -> str:
     cls_order = {'Strong': 0, 'Moderate': 1, 'Optional': 2, 'Unspecified': 3, 'No recommendation': 4}
     colors = {
@@ -661,16 +673,17 @@ def render_variants_table(variants: list[dict]) -> str:
         
         rows.append(
             f'<tr class="hover:bg-gray-50 border-b border-gray-100 variant-row text-xs"'
-            f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}">'
-            f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
+            f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}" data-cls="{v.get("classification", "")}">'
             f'<td class="px-2 py-2">{rsid_link}</td>'
+            f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
             f'<td class="px-2 py-2 font-mono text-gray-500">{v.get("dp", ".")}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap {cell_class}">{call_display}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap text-center">{phasing_html}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap">{v["ref"]}</td>'
-            f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
-            f'<td class="px-2 py-2 text-[10px] text-gray-700 leading-tight" title="{v["related_ann"]}">{v["related_ann"]}</td>'
             f'<td class="px-2 py-2 whitespace-nowrap">{zyg}</td>'
+            f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
+            f'<td class="px-2 py-2">{variant_classification_badge(v.get("classification"))}</td>'
+            f'<td class="px-2 py-2 text-[10px] text-gray-700 leading-tight" title="{v["related_ann"]}">{v["related_ann"]}</td>'
             f'</tr>'
         )
     return '\n'.join(rows)
@@ -1161,15 +1174,16 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         <table class="w-full text-sm">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
-              <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
               <th class="px-2 py-2 text-left font-semibold">RSID</th>
+              <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
               <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
               <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
               <th class="px-2 py-2 text-center font-semibold">Phase</th>
               <th class="px-2 py-2 text-left font-semibold">Reference</th>
-              <th class="px-2 py-2 text-left font-semibold">Gene</th>
-              <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
               <th class="px-2 py-2 text-left font-semibold">Zyg</th>
+              <th class="px-2 py-2 text-left font-semibold">Gene</th>
+              <th class="px-2 py-2 text-left font-semibold">Classification</th>
+              <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
             </tr>
           </thead>
           <tbody>{sig_rows}</tbody>
@@ -1225,6 +1239,17 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
           <option>HET</option>
         </select>
       </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Classification</label>
+        <select id="filterCls" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-400" onchange="filterVariants()">
+          <option value="">All</option>
+          <option>Pathogenic</option>
+          <option>Likely Pathogenic</option>
+          <option>VUS</option>
+          <option>Likely Benign</option>
+          <option>Benign</option>
+        </select>
+      </div>
       <button onclick="resetFilters()" class="text-xs text-gray-400 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg">Reset</button>
       <span id="variantCount" class="text-xs text-gray-400 ml-auto self-center font-mono">{len(variants):,} total ({n_nonref:,} non-ref)</span>
     </div>
@@ -1235,15 +1260,16 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
       <table class="w-full text-sm" id="variantsTable">
         <thead>
           <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
-            <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
             <th class="px-2 py-2 text-left font-semibold">RSID</th>
+            <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
             <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
             <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
             <th class="px-2 py-2 text-center font-semibold">Phase</th>
             <th class="px-2 py-2 text-left font-semibold">Reference</th>
-            <th class="px-2 py-2 text-left font-semibold">Gene</th>
-            <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
             <th class="px-2 py-2 text-left font-semibold">Zyg</th>
+            <th class="px-2 py-2 text-left font-semibold">Gene</th>
+            <th class="px-2 py-2 text-left font-semibold">Classification</th>
+            <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
           </tr>
         </thead>
         <tbody id="variantsBody">
@@ -1382,6 +1408,7 @@ function applyFilters() {{
   const geneVal = document.getElementById('filterGene').value;
   const gene = geneVal.toLowerCase();
   const zyg = document.getElementById('filterZyg').value;
+  const cls = document.getElementById('filterCls').value;
   const actionableOnly = document.getElementById('filterActionable') ? document.getElementById('filterActionable').checked : false;
 
   // 1. Update Global Banner
@@ -1399,7 +1426,8 @@ function applyFilters() {{
   let visibleNonRef = 0;
   document.querySelectorAll('.variant-row').forEach(row => {{
     const show = (!gene || row.dataset.gene.toLowerCase() === gene) &&
-                 (!zyg || row.dataset.zyg === zyg);
+                 (!zyg || row.dataset.zyg === zyg) &&
+                 (!cls || row.dataset.cls === cls);
     row.style.display = show ? '' : 'none';
     if (show) {{
       visibleVariants++;
@@ -1440,8 +1468,10 @@ function filterDrugs() {{
   function resetFilters() {{
     const gEl = document.getElementById('filterGene');
     const zEl = document.getElementById('filterZyg');
+    const cEl = document.getElementById('filterCls');
     if (gEl) gEl.value = '';
     if (zEl) zEl.value = '';
+    if (cEl) cEl.value = '';
     applyFilters();
   }}
 
@@ -1485,7 +1515,9 @@ function filterDrugs() {{
       const aResponse = await fetch('https://api.clinpgx.org/v1/data/clinicalAnnotation?location.variant.accessionId=' + variantId);
       const aData = await aResponse.json();
 
-      if (!aData.data || aData.data.length === 0) {{
+      const annotations = Array.isArray(aData.data) ? aData.data : [];
+
+      if (annotations.length === 0) {{
         content.innerHTML = `
           <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-sm text-gray-600">No clinical summary annotations found for this variant.</p>
@@ -1497,7 +1529,7 @@ function filterDrugs() {{
         return;
       }}
 
-      renderClinicalAnnotations(aData.data, content, rsid);
+      renderClinicalAnnotations(annotations, content, rsid);
     }} catch (err) {{
       content.innerHTML = `
         <div class="bg-red-50 text-red-700 p-4 rounded-lg text-sm">
