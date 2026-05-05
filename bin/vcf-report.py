@@ -634,7 +634,7 @@ def render_variants_table(variants: list[dict]) -> str:
 
 def render_gene_cards(pgx_data: dict) -> str:
     if not pgx_data:
-        return '<p class="text-gray-400 text-sm">No PharmCAT gene data available.</p>'
+        return '<p class="text-gray-400 text-xs">No PharmCAT gene data available.</p>'
 
     cards = []
     for gene_sym, g in sorted(pgx_data.items()):
@@ -692,7 +692,7 @@ def render_gene_cards(pgx_data: dict) -> str:
 
 def render_drug_cards(drugs: list[dict]) -> str:
     if not drugs:
-        return '<p class="text-gray-400 text-sm">No drug recommendations available.</p>'
+        return '<p class="text-gray-400 text-xs">No drug recommendations available.</p>'
 
     cards = []
     for d in drugs:
@@ -756,7 +756,7 @@ def render_drug_cards(drugs: list[dict]) -> str:
             f'  <div class="px-4 py-3">'
             f'    {pheno_html}'
             f'    {impl_html}'
-            f'    <p class="text-sm text-gray-800 mt-3 leading-relaxed">{d["recommendation"]}</p>'
+            f'    <p class="text-xs text-gray-700 mt-3 leading-relaxed">{d["recommendation"]}</p>'
             f'    <div class="mt-3 flex items-center gap-3 flex-wrap">'
             f'      {citations_html} {url_html}'
             f'    </div>'
@@ -852,14 +852,14 @@ def _render_actionable_drugs(pgx: dict | None) -> str:
             f'  <div class="px-4 py-3">'
             f'    {pheno_html}'
             f'    {impl_html}'
-            f'    <p class="text-sm text-gray-800 mt-3 leading-relaxed font-medium">{d["recommendation"]}</p>'
+            f'    <p class="text-xs text-gray-700 mt-3 leading-relaxed font-medium">{d["recommendation"]}</p>'
             f'    <div class="mt-3">{url_html}</div>'
             f'  </div>'
             f'</div>'
         )
         cards.append(card)
     if not cards:
-        return '<p class="text-gray-400 text-sm">No dosing-specific recommendations found.</p>'
+        return '<p class="text-gray-400 text-xs">No dosing-specific recommendations found.</p>'
     return '\n'.join(cards)
 
 def build_html(vcf_path: str, report_path: str, sample_name: str,
