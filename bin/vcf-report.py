@@ -674,6 +674,7 @@ def render_variants_table(variants: list[dict]) -> str:
         rows.append(
             f'<tr class="hover:bg-gray-50 border-b border-gray-100 variant-row text-xs"'
             f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}" data-cls="{v.get("classification", "")}">'
+            f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
             f'<td class="px-2 py-2">{rsid_link}</td>'
             f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
             f'<td class="px-2 py-2 font-mono text-gray-500">{v.get("dp", ".")}</td>'
@@ -681,7 +682,6 @@ def render_variants_table(variants: list[dict]) -> str:
             f'<td class="px-2 py-2 font-mono whitespace-nowrap text-center">{phasing_html}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap">{v["ref"]}</td>'
             f'<td class="px-2 py-2 whitespace-nowrap">{zyg}</td>'
-            f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
             f'<td class="px-2 py-2">{variant_classification_badge(v.get("classification"))}</td>'
             f'<td class="px-2 py-2 text-[10px] text-gray-700 leading-tight" title="{v["related_ann"]}">{v["related_ann"]}</td>'
             f'</tr>'
@@ -1174,6 +1174,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         <table class="w-full text-sm">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
+              <th class="px-2 py-2 text-left font-semibold">Gene</th>
               <th class="px-2 py-2 text-left font-semibold">RSID</th>
               <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
               <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
@@ -1181,7 +1182,6 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
               <th class="px-2 py-2 text-center font-semibold">Phase</th>
               <th class="px-2 py-2 text-left font-semibold">Reference</th>
               <th class="px-2 py-2 text-left font-semibold">Zyg</th>
-              <th class="px-2 py-2 text-left font-semibold">Gene</th>
               <th class="px-2 py-2 text-left font-semibold">Classification</th>
               <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
             </tr>
@@ -1260,6 +1260,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
       <table class="w-full text-sm" id="variantsTable">
         <thead>
           <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
+            <th class="px-2 py-2 text-left font-semibold">Gene</th>
             <th class="px-2 py-2 text-left font-semibold">RSID</th>
             <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
             <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
@@ -1267,7 +1268,6 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
             <th class="px-2 py-2 text-center font-semibold">Phase</th>
             <th class="px-2 py-2 text-left font-semibold">Reference</th>
             <th class="px-2 py-2 text-left font-semibold">Zyg</th>
-            <th class="px-2 py-2 text-left font-semibold">Gene</th>
             <th class="px-2 py-2 text-left font-semibold">Classification</th>
             <th class="px-2 py-2 text-left font-semibold">Related Alleles and Function</th>
           </tr>
