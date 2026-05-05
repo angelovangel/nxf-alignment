@@ -25,6 +25,11 @@ def open_vcf(path: str):
     if p.suffix in ('.gz', '.bgz') or path.endswith('.vcf.gz'):
         return gzip.open(path, 'rt', encoding='utf-8')
     return open(path, 'r', encoding='utf-8')
+    
+def norm_chr(c: str) -> str:
+    """Normalize chromosome names by removing 'chr' prefix."""
+    if not c: return ''
+    return c[3:] if c.lower().startswith('chr') else c
 
 
 def parse_ann(ann_str: str) -> dict:
@@ -165,8 +170,10 @@ def parse_vcf(vcf_path: str) -> tuple[str, dict[tuple[str, int], dict], dict]:
             # Rescue 0/0 calls with alt read support (Clair3/bcftools style)
             if zyg == 'REF' and sample_af > 0.05:
                 zyg = 'HET'
-            if zyg == 'REF':
-                continue
+            
+            # DO NOT skip REF variants - PharmCAT needs them for coverage info
+            # if zyg == 'REF':
+            #     continue
 
             # Parse ANN field (SnpEff)
             ann = {}
@@ -207,12 +214,21 @@ def parse_vcf(vcf_path: str) -> tuple[str, dict[tuple[str, int], dict], dict]:
 
             classification = acmg_classify(consequence, impact, gnomad_af)
 
-            dp = fmt.get('DP', '.')
-            gq = fmt.get('GQ', '.')
+            # Try FORMAT DP, then INFO DP, then sum(AD)
+            dp_val = fmt.get('DP') or info.get('DP')
+            if not dp_val or dp_val == '.':
+                if fmt.get('AD') and fmt['AD'] != '.':
+                    try:
+                        dp_val = sum(int(x) for x in fmt['AD'].split(',') if x.isdigit())
+                    except ValueError:
+                        dp_val = '.'
+            dp = str(dp_val) if dp_val is not None else '.'
+
+            gq = fmt.get('GQ') or info.get('GQ') or '.'
             ps = fmt.get('PS', '')
 
             variant_entry = {
-                'chr': chrom.lstrip('chr') if chrom.startswith('chr') else chrom,
+                'chr': norm_chr(chrom),
                 'chrom': chrom,
                 'pos': int(pos),
                 'id': vid if vid != '.' else '',
@@ -236,7 +252,7 @@ def parse_vcf(vcf_path: str) -> tuple[str, dict[tuple[str, int], dict], dict]:
                 'gt': gt,
                 'ps': ps,
             }
-            variant_map[(chrom, pos)] = variant_entry
+            variant_map[(norm_chr(chrom), int(pos))] = variant_entry
 
     # QC stats
     variants = list(variant_map.values())
@@ -568,6 +584,8 @@ def af_display_html(af: float) -> str:
 def zygosity_badge(zyg: str) -> str:
     if zyg == 'HOM':
         return '<span class="text-amber-600 font-semibold text-xs">HOM</span>'
+    if zyg == 'REF':
+        return '<span class="text-gray-400 text-xs">REF</span>'
     return '<span class="text-blue-600 text-xs">HET</span>'
 
 
@@ -581,7 +599,7 @@ def classification_label(c: str) -> str:
         'Unspecified':       'bg-gray-100 text-gray-500 border-gray-200',
     }
     cls = colors.get(c, 'bg-gray-100 text-gray-500 border-gray-200')
-    return f'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border {cls}">{c}</span>'
+    return f'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-normal border {cls}">{c}</span>'
 
 
 def source_badge(source: str, label: str) -> str:
@@ -594,7 +612,7 @@ def source_badge(source: str, label: str) -> str:
     cls = colors.get(source, 'bg-gray-50 text-gray-600')
     short = {'CPIC_GUIDELINE': 'CPIC', 'DPWG_GUIDELINE': 'DPWG',
              'FDA_LABEL': 'FDA Label', 'FDA_ASSOC': 'FDA Assoc'}
-    return f'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {cls}">{short.get(source, source)}</span>'
+    return f'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-normal {cls}">{short.get(source, source)}</span>'
 
 
 def render_variants_table(variants: list[dict]) -> str:
@@ -614,13 +632,39 @@ def render_variants_table(variants: list[dict]) -> str:
         # Phasing badge
         phasing_html = '<span class="text-indigo-600" title="Phased">🔗</span>' if v.get('phased') else '<span class="text-gray-300">—</span>'
         
-        call_display = v['call'] if v['call'] and v['call'] != './.' else '<span class="text-gray-400 italic">No call</span>'
+        # Decode numeric GT (0|1) to allele strings (G|T)
+        raw_call = v.get('call') or './.'
+        if raw_call and raw_call != './.':
+            sep = '|' if '|' in raw_call else '/'
+            indices = raw_call.replace('|', '/').split('/')
+            alts = v.get('alt', '').split(',') if v.get('alt') else []
+            alleles = [v['ref']] + alts
+            
+            decoded = []
+            for idx_str in indices:
+                if idx_str == '.':
+                    decoded.append('.')
+                else:
+                    try:
+                        idx = int(idx_str)
+                        if idx < len(alleles):
+                            decoded.append(alleles[idx])
+                        else:
+                            decoded.append(idx_str)
+                    except ValueError:
+                        decoded.append(idx_str)
+            call_display = sep.join(decoded)
+        else:
+            call_display = '<span class="text-gray-400 italic">No call</span>'
+        
+        rsid_link = f'<button onclick="showVariantInfo(\'{v["rsid"]}\')" class="hover:underline text-indigo-600 font-mono text-xs">{v["rsid"]}</button>' if v['rsid'] else '<span class="text-gray-300">—</span>'
         
         rows.append(
             f'<tr class="hover:bg-gray-50 border-b border-gray-100 variant-row text-xs"'
             f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}">'
             f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
-            f'<td class="px-2 py-2 font-mono text-xs text-indigo-600">{v["rsid"]}</td>'
+            f'<td class="px-2 py-2">{rsid_link}</td>'
+            f'<td class="px-2 py-2 font-mono text-gray-500">{v.get("dp", ".")}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap {cell_class}">{call_display}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap text-center">{phasing_html}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap">{v["ref"]}</td>'
@@ -658,7 +702,7 @@ def render_gene_cards(pgx_data: dict) -> str:
 
         act_score = ''
         if g['activity_score'] is not None:
-            act_score = f'<div class="mt-1 text-xs text-gray-500">Activity score: <span class="font-mono font-medium">{g["activity_score"]}</span></div>'
+            act_score = f'<div class="mt-1 text-xs text-gray-500">Activity score: <span class="font-mono font-normal">{g["activity_score"]}</span></div>'
 
         cards.append(
             f'<div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm gene-card" data-gene="{gene_sym}">'
@@ -667,7 +711,7 @@ def render_gene_cards(pgx_data: dict) -> str:
             f"""      <div class="font-semibold text-gray-900 text-base italic"><button onclick="goToGene('{gene_sym}')" class="hover:underline text-left">{gene_sym}</button></div>"""
             f'      <div class="text-xs text-gray-500 mt-0.5 font-mono">{g["diplotype"]}</div>'
             f'    </div>'
-            f'    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border mt-0.5"'
+            f'    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-normal border mt-0.5"'
             f'     style="background:{g["pheno_bg"]};color:{g["pheno_fg"]};border-color:{g["pheno_border"]}">'
             f'      {g["pheno_str"]}'
             f'    </span>'
@@ -675,8 +719,8 @@ def render_gene_cards(pgx_data: dict) -> str:
             f'  <div class="px-4 py-3">'
             f'    <div class="grid grid-cols-2 gap-x-4 text-xs mb-2">'
             f'      <div class="text-gray-500">Allele 1</div><div class="text-gray-500">Allele 2</div>'
-            f'      <div class="font-mono font-medium text-gray-800">{g["allele1_name"] or "—"}</div>'
-            f'      <div class="font-mono font-medium text-gray-800">{g["allele2_name"] or "—"}</div>'
+            f'      <div class="font-mono font-normal text-gray-800">{g["allele1_name"] or "—"}</div>'
+            f'      <div class="font-mono font-normal text-gray-800">{g["allele2_name"] or "—"}</div>'
             f'      <div class="text-gray-400">{g["allele1_fn"] or ""}</div>'
             f'      <div class="text-gray-400">{g["allele2_fn"] or ""}</div>'
             f'    </div>'
@@ -710,8 +754,8 @@ def render_drug_cards(drugs: list[dict]) -> str:
 
         impl_html = ''
         if d['implications']:
-            impl_items = ''.join(f'<li>{i}</li>' for i in d['implications'])
-            impl_html = f'<ul class="text-xs text-gray-600 mt-2 space-y-0.5 list-disc list-inside">{impl_items}</ul>'
+            impl_text = ' '.join(d['implications'])
+            impl_html = f'<p class="text-xs text-gray-600 mt-2">{impl_text}</p>'
 
         pheno_html = ''
         if isinstance(d['phenotypes'], dict) and d['phenotypes']:
@@ -729,7 +773,7 @@ def render_drug_cards(drugs: list[dict]) -> str:
                 f'class="text-xs text-indigo-500 hover:underline">PMID:{c["pmid"]}</a>'
                 for c in d['citations'][:3]
             )
-            citations_html = f'<div class="mt-2 flex flex-wrap gap-2">{cite_links}</div>'
+            citations_html = f'<div class="flex flex-wrap gap-2">{cite_links}</div>'
 
         url_html = ''
         if d['urls']:
@@ -756,7 +800,7 @@ def render_drug_cards(drugs: list[dict]) -> str:
             f'  <div class="px-4 py-3">'
             f'    {pheno_html}'
             f'    {impl_html}'
-            f'    <p class="text-xs text-gray-700 mt-3 leading-relaxed">{d["recommendation"]}</p>'
+            f'    <div class="text-xs text-gray-700 mt-3 leading-normal">{d["recommendation"]}</div>'
             f'    <div class="mt-3 flex items-center gap-3 flex-wrap">'
             f'      {citations_html} {url_html}'
             f'    </div>'
@@ -825,20 +869,29 @@ def _render_actionable_drugs(pgx: dict | None) -> str:
         # Implications
         impl_html = ''
         if d.get('implications'):
-            items = ''.join(f'<li>{i}</li>' for i in d['implications'])
-            impl_html = f'<ul class="text-xs text-gray-600 mt-2 space-y-0.5 list-disc list-inside">{items}</ul>'
+            impl_text = ' '.join(d['implications'])
+            impl_html = f'<p class="text-xs text-gray-600 mt-2">{impl_text}</p>'
 
         # Actionable flags
         flags = []
         if d['dosing_info']:
-            flags.append('<span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">💊 Dosing guidance</span>')
+            flags.append('<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">💊 Dosing guidance</span>')
         if d['alt_drug']:
-            flags.append('<span class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">⇄ Alt drug available</span>')
+            flags.append('<span class="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200">⇄ Alt drug available</span>')
         flags_html = ' '.join(flags)
+
+        citations_html = ''
+        if d.get('citations'):
+            cite_links = ' '.join(
+                f'<a href="https://pubmed.ncbi.nlm.nih.gov/{c["pmid"]}" target="_blank" '
+                f'class="text-xs text-indigo-500 hover:underline">PMID:{c["pmid"]}</a>'
+                for c in d['citations'][:3]
+            )
+            citations_html = f'<div class="flex flex-wrap gap-2">{cite_links}</div>'
 
         url_html = ''
         if d.get('urls'):
-            url_html = f'<a href="{d["urls"][0]}" target="_blank" class="text-xs text-indigo-400 hover:underline">Full guideline ↗</a>'
+            url_html = f'<a href="{d["urls"][0]}" target="_blank" class="text-xs text-indigo-400 hover:underline whitespace-nowrap">Full guideline ↗</a>'
 
         card = (
             f'<div class="bg-white border border-red-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow drug-card" data-genes="{",".join(d["genes_involved"])}">'
@@ -852,8 +905,8 @@ def _render_actionable_drugs(pgx: dict | None) -> str:
             f'  <div class="px-4 py-3">'
             f'    {pheno_html}'
             f'    {impl_html}'
-            f'    <p class="text-xs text-gray-700 mt-3 leading-relaxed font-medium">{d["recommendation"]}</p>'
-            f'    <div class="mt-3">{url_html}</div>'
+            f'    <div class="text-xs text-gray-700 mt-3 leading-normal">{d["recommendation"]}</div>'
+            f'    <div class="mt-3 flex items-center gap-3 flex-wrap">{citations_html} {url_html}</div>'
             f'  </div>'
             f'</div>'
         )
@@ -896,10 +949,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
     # Instead of just Pathogenic (which is rare in PGx), show any variant with a non-reference call
     # that has a PharmCAT related annotation.
     def is_variant_call(v):
-        call = v['call'] or './.'
-        if call == './.' or not v['ref']: return False
-        parts = call.replace('|', '/').split('/')
-        return any(p != v['ref'] and p != '.' for p in parts)
+        return v.get('zygosity') != 'REF' and v.get('zygosity') != 'UNKNOWN'
 
     sig_variants = [v for v in variants if is_variant_call(v) and v.get('related_ann')]
     sig_rows = render_variants_table(sig_variants) if sig_variants else '<tr><td colspan="12" class="text-center text-gray-400 py-6 text-sm">No non-reference clinical variants detected</td></tr>'
@@ -923,6 +973,49 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
   .tab-content {{ display: none; }}
   .tab-content.active {{ display: block; }}
   .tab-btn.active {{ background-color: #eef2ff; color: #4338ca; font-weight: 600; border-bottom: 2px solid #4338ca; }}
+  .drug-card ul, .gene-card ul {{ list-style-type: disc; margin-left: 1rem; }}
+  .drug-card li, .gene-card li {{ font-size: 0.75rem; line-height: 1rem; margin-top: 0.25rem; }}
+
+  /* Side Panel */
+  #side-panel {{
+    position: fixed;
+    right: -450px;
+    top: 0;
+    width: 450px;
+    height: 100%;
+    background: white;
+    box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+    z-index: 1000;
+    transition: right 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+  }}
+  #side-panel.open {{ right: 0; }}
+  #side-panel-overlay {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.3);
+    z-index: 999;
+    display: none;
+  }}
+  #side-panel-overlay.open {{ display: block; }}
+  
+  .evidence-badge {{
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+  }}
+  .loe-1a {{ background: #dcfce7; color: #166534; }}
+  .loe-1b {{ background: #dcfce7; color: #166534; }}
+  .loe-2a {{ background: #fef9c3; color: #854d0e; }}
+  .loe-2b {{ background: #fef9c3; color: #854d0e; }}
+  .loe-3 {{ background: #f3f4f6; color: #374151; }}
+  .loe-4 {{ background: #f3f4f6; color: #6b7280; }}
 </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -1012,10 +1105,10 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         <thead>
           <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
             <th class="px-4 py-3 text-left">Gene</th>
-            <th class="px-4 py-3 text-left">Genotypes</th>
+            <th class="px-4 py-3 text-left">Called genotypes</th>
             <th class="px-4 py-3 text-left">Diplotype</th>
             <th class="px-4 py-3 text-left">Phenotype</th>
-            <th class="px-4 py-3 text-left">Related Drugs</th>
+            <th class="px-4 py-3 text-left">Related drugs</th>
             <th class="px-4 py-3 text-left">Source</th>
           </tr>
         </thead>
@@ -1070,7 +1163,8 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
             <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
               <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
               <th class="px-2 py-2 text-left font-semibold">RSID</th>
-              <th class="px-2 py-2 text-left font-semibold">Call in VCF</th>
+              <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
+              <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
               <th class="px-2 py-2 text-center font-semibold">Phase</th>
               <th class="px-2 py-2 text-left font-semibold">Reference</th>
               <th class="px-2 py-2 text-left font-semibold">Gene</th>
@@ -1143,7 +1237,8 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
           <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
             <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
             <th class="px-2 py-2 text-left font-semibold">RSID</th>
-            <th class="px-2 py-2 text-left font-semibold">Call in VCF</th>
+            <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
+            <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
             <th class="px-2 py-2 text-center font-semibold">Phase</th>
             <th class="px-2 py-2 text-left font-semibold">Reference</th>
             <th class="px-2 py-2 text-left font-semibold">Gene</th>
@@ -1342,14 +1437,142 @@ function filterDrugs() {{
   applyFilters();
 }}
 
-function resetFilters() {{
-  const gEl = document.getElementById('filterGene');
-  const zEl = document.getElementById('filterZyg');
-  if (gEl) gEl.value = '';
-  if (zEl) zEl.value = '';
-  applyFilters();
-}}
+  function resetFilters() {{
+    const gEl = document.getElementById('filterGene');
+    const zEl = document.getElementById('filterZyg');
+    if (gEl) gEl.value = '';
+    if (zEl) zEl.value = '';
+    applyFilters();
+  }}
+
+  function closeSidePanel() {{
+    document.getElementById('side-panel').classList.remove('open');
+    document.getElementById('side-panel-overlay').classList.remove('open');
+  }}
+
+  async function showVariantInfo(rsid) {{
+    const panel = document.getElementById('side-panel');
+    const overlay = document.getElementById('side-panel-overlay');
+    const content = document.getElementById('side-panel-content');
+    const title = document.getElementById('side-panel-title');
+    const subtitle = document.getElementById('side-panel-subtitle');
+
+    title.innerText = "Variant: " + rsid;
+    subtitle.innerText = "Fetching clinical annotations...";
+    content.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-64 space-y-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <p class="text-xs text-gray-500">Querying ClinPGx API...</p>
+      </div>
+    `;
+
+    panel.classList.add('open');
+    overlay.classList.add('open');
+
+    try {{
+      // 1. Resolve RSID to accession ID
+      const vResponse = await fetch('https://api.clinpgx.org/v1/data/variant?symbol=' + rsid);
+      const vData = await vResponse.json();
+      
+      if (!vData.data || vData.data.length === 0) {{
+        throw new Error("Variant not found in ClinPGx");
+      }}
+      
+      const variantId = vData.data[0].id;
+      subtitle.innerText = "ClinPGx ID: " + variantId;
+
+      // 2. Fetch clinical annotations
+      const aResponse = await fetch('https://api.clinpgx.org/v1/data/clinicalAnnotation?location.variant.accessionId=' + variantId);
+      const aData = await aResponse.json();
+
+      if (!aData.data || aData.data.length === 0) {{
+        content.innerHTML = `
+          <div class="bg-gray-50 rounded-lg p-4 text-center">
+            <p class="text-sm text-gray-600">No clinical summary annotations found for this variant.</p>
+            <a href="https://www.clinpgx.org/rsid/${{rsid}}" target="_blank" class="text-xs text-indigo-600 hover:underline mt-2 inline-block">
+              View on ClinPGx website &rarr;
+            </a>
+          </div>
+        `;
+        return;
+      }}
+
+      renderClinicalAnnotations(aData.data, content, rsid);
+    }} catch (err) {{
+      content.innerHTML = `
+        <div class="bg-red-50 text-red-700 p-4 rounded-lg text-sm">
+          <p class="font-bold">Error fetching data</p>
+          <p class="mt-1">${{err.message}}</p>
+          <a href="https://www.clinpgx.org/rsid/${{rsid}}" target="_blank" class="text-xs text-red-600 hover:underline mt-2 inline-block">
+            Try opening ClinPGx manually &rarr;
+          </a>
+        </div>
+      `;
+    }}
+  }}
+
+  function renderClinicalAnnotations(annotations, container, rsid) {{
+    let html = "";
+    
+    // Sort by level of evidence
+    annotations.sort((a, b) => {{
+      const loeA = a.levelOfEvidence.term || "4";
+      const loeB = b.levelOfEvidence.term || "4";
+      return loeA.localeCompare(loeB);
+    }});
+
+    annotations.forEach(ann => {{
+      const loe = ann.levelOfEvidence.term;
+      const loeClass = "loe-" + loe.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      html += `
+        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div class="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-start">
+            <div class="flex-1">
+              <span class="evidence-badge ${{loeClass}}">Level ${{loe}}</span>
+              <h4 class="text-xs font-bold text-gray-900 mt-1">${{ann.name}}</h4>
+            </div>
+          </div>
+          <div class="p-3 space-y-3">
+            ${{ann.allelePhenotypes.map(ap => `
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-mono text-[10px] font-bold">${{ap.allele}}</span>
+                </div>
+                <p class="text-[11px] text-gray-700 leading-relaxed">${{ap.phenotype}}</p>
+              </div>
+            `).join('<div class="border-t border-gray-50 my-2"></div>')}}
+            
+            <div class="pt-2 border-t border-gray-100 flex justify-between items-center">
+              <span class="text-[9px] text-gray-400">ID: ${{ann.accessionId}}</span>
+              <a href="https://www.clinpgx.org/summaryAnnotation/${{ann.id}}" target="_blank" class="text-[10px] text-indigo-600 hover:underline">
+                Full Annotation &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }});
+
+    container.innerHTML = html;
+  }}
 </script>
+
+<div id="side-panel-overlay" onclick="closeSidePanel()"></div>
+<div id="side-panel">
+  <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+    <div>
+      <h3 id="side-panel-title" class="font-bold text-gray-900">Variant Information</h3>
+      <p id="side-panel-subtitle" class="text-xs text-gray-500 font-mono"></p>
+    </div>
+    <button onclick="closeSidePanel()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+  </div>
+  <div id="side-panel-content" class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div class="flex items-center justify-center h-32">
+      <p class="text-gray-400 italic">Select a variant to view clinical annotations</p>
+    </div>
+  </div>
+</div>
 </body>
 </html>'''
 
@@ -1379,14 +1602,10 @@ def main():
     # The table is now driven by PharmCAT variants, supplemented by VCF metrics
     final_variants = []
     for pv in pgx['variants']:
-        key = (pv['chr'], pv['pos'])
+        # Use normalized key for matching
+        key = (norm_chr(pv['chr']), pv['pos'])
         vcf_match = vcf_map.get(key)
         
-        if not vcf_match:
-            # Check without 'chr' prefix
-            alt_key = (pv['chr'][3:] if pv['chr'].startswith('chr') else f"chr{pv['chr']}", pv['pos'])
-            vcf_match = vcf_map.get(alt_key)
-
         if vcf_match:
             # Update with technical metrics from VCF
             pv.update({
@@ -1400,7 +1619,7 @@ def main():
                 'zygosity': vcf_match['zygosity'],
                 'gt': vcf_match['gt'],
                 'dp': vcf_match['dp'],
-                'af': vcf_match['af'],
+                'af': vcf_match['sample_af'],
                 'gnomad_af': vcf_match['gnomad_af'],
                 'classification': vcf_match['classification'],
             })
