@@ -41,6 +41,28 @@ process DORADO_ALIGN {
     """
 }
 
+process SAMTOOLS_INDEX {
+    container 'docker.io/aangeloo/nxf-tgs:latest'
+    tag "${sample}"
+    publishDir "${params.outdir}/01-align", mode: 'copy', pattern: "*.bam*"
+
+    input:
+        tuple val(sample), path(bam)
+
+    output:
+        tuple val(sample), path(bam), path("*.bai"), emit: bam
+        path "versions.txt", emit: versions
+
+    script:
+    """
+    samtools index -@ ${task.cpus} ${bam}
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: samtools v\$(samtools --version | head -n 1 | sed 's/^samtools //')
+    END_VERSIONS
+    """
+}
+
 process MAKE_BEDFILE {
     container 'docker.io/aangeloo/nxf-tgs:latest'
     

@@ -1,5 +1,5 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
-include {DORADO_ALIGN; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
+include {DORADO_ALIGN; SAMTOOLS_INDEX; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
 include {PGX_PANNO; PGX_PHARMCAT; PHARMCAT_PREPARE; PHARMCAT_GENOTYPE; PHARMCAT_MERGE} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
@@ -158,6 +158,13 @@ workflow {
         } else {
             ch_reads = Channel.fromPath(params.reads, checkIfExists: true)        
         }
+    } else if (params.alns) {
+        if ( file(params.alns).isDirectory() ) {
+            pattern = "*.{bam}"
+            ch_reads = Channel.fromPath(params.alns + "/" + pattern, type: 'file', checkIfExists: true)
+        } else {
+            ch_reads = Channel.fromPath(params.alns, checkIfExists: true)
+        }
     } else {
         // Otherwise, source the channel from the 'basecall' (or basecall + merge_reads) workflow's output.
         def bc_out = basecall()
@@ -238,30 +245,38 @@ workflow {
         ch_bedfile = Channel.fromPath(params.bed, checkIfExists: true)
     }
 
-    DORADO_ALIGN(
-        ch_reads
-        .map { it -> [it.simpleName, it] }
-        .combine(ch_ref)
-        .map { sample, reads, ref -> [sample, ref, reads] }
-    )
+    if (params.alns) {
+        SAMTOOLS_INDEX(ch_reads.map { [it.simpleName, it] })
+        ch_aligned_bam = SAMTOOLS_INDEX.out.bam
+        ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+    } else {
+        DORADO_ALIGN(
+            ch_reads
+            .map { it -> [it.simpleName, it] }
+            .combine(ch_ref)
+            .map { sample, reads, ref -> [sample, ref, reads] }
+        )
+        ch_aligned_bam = DORADO_ALIGN.out.bam
+        ch_versions = ch_versions.mix(DORADO_ALIGN.out.versions.first())
+    }
 
-    DORADO_ALIGN.out[0]
+    ch_aligned_bam
     .combine( ch_bedfile )
     | BEDTOOLS_COV
 
-    DORADO_ALIGN.out[0]
+    ch_aligned_bam
     .combine( ch_bedfile )
     .combine( BEDTOOLS_COMPLEMENT(ch_bedfile, ch_genome) )
     | SAMTOOLS_BEDCOV
 
-    ch_versions = ch_versions.mix(DORADO_ALIGN.out.versions.first(), BEDTOOLS_COV.out.versions.first())
+    ch_versions = ch_versions.mix(BEDTOOLS_COV.out.versions.first())
 
-    DORADO_ALIGN.out[0]
+    ch_aligned_bam
     | DEEPTOOLS_BIGWIG
 
     ch_versions = ch_versions.mix(DEEPTOOLS_BIGWIG.out.versions.first())
 
-    ch_vc_input = DORADO_ALIGN.out[0]
+    ch_vc_input = ch_aligned_bam
     .combine( ch_ref )
     .combine( ch_bedfile )
 
@@ -299,7 +314,7 @@ workflow {
 
         // Phasing 
         if (params.phase) {
-            ch_bam_phase = DORADO_ALIGN.out[0]
+            ch_bam_phase = ch_aligned_bam
 
             ch_vcf_phase_input = ch_vcf_raw
             
@@ -353,8 +368,8 @@ workflow {
         if (params.pharmcat_fill_from_bam) {
              PHARMCAT_PREPARE()
              
-             // join vcf with bam (DORADO_ALIGN.out.bam is [sample, bam, bai])
-             ch_pgx_with_bam = ch_pgx_input.join(DORADO_ALIGN.out.bam)
+             // join vcf with bam (ch_aligned_bam is [sample, bam, bai])
+             ch_pgx_with_bam = ch_pgx_input.join(ch_aligned_bam)
              
              PHARMCAT_GENOTYPE(
                  ch_pgx_with_bam.map{ s, v, t, b, i -> tuple(s, b, i) }, 
@@ -384,7 +399,7 @@ workflow {
     }
 
     if (params.mods) {
-        DORADO_ALIGN.out[0] | MODKIT
+        MODKIT(ch_aligned_bam, ch_genome.first())
         ch_versions = ch_versions.mix(MODKIT.out.versions.first())
     }
 

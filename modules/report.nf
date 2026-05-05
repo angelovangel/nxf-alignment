@@ -39,6 +39,7 @@ process REPORT {
     def readhists_arg = readhists.name.contains('empty_readhists') ? '' : "--readhists ${readhists}"
     def read_ani_arg = ani_stats.name.contains('empty_ani_stats') ? '' : "--anis ${ani_stats}"
     def pgx_arg = params.pgx ? "--pgx" : ""
+    def mods_arg = params.mods ? "--mods" : ""
     """
     make-report.py \
         --runinfo $runinfo \
@@ -56,6 +57,7 @@ process REPORT {
         $readhists_arg \
         $read_ani_arg \
         $pgx_arg \
+        $mods_arg \
         -o nxf-alignment-report.html
     """
 }

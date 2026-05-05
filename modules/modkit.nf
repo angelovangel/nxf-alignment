@@ -13,9 +13,11 @@ process MODKIT {
 
     input:
         tuple val(sample), path(bam), path(bai)
+        path(fai)
 
     output:
-    tuple path("*.bedmethyl.gz"), path("*.bedmethyl.gz.tbi")
+    path "*.bedmethyl"
+    path "*.bw"
     path "*.summary.tsv"
     path "modprobs"
     path "versions.txt", emit: versions
@@ -33,8 +35,19 @@ process MODKIT {
 
     if [ "\$nreads" -gt 0 ]; then
         modkit sample-probs -o modprobs --hist --prefix ${sample} ${bam}
-        modkit pileup --filter-threshold 0.7 --threads ${task.cpus} ${bam} - | awk '\$10 > ${filter}' | bgzip -c > ${sample}.bedmethyl.gz
-        tabix -p bed ${sample}.bedmethyl.gz
+        
+        # Generate bedmethyl
+        modkit pileup --filter-threshold 0.7 --threads ${task.cpus} ${bam} ${sample}.bedmethyl
+        
+        # Generate BigWig tracks for 5mC (m) and 5hmC (h) if present
+        if awk '\$4=="m"' ${sample}.bedmethyl | head -n 1 | grep -q "m"; then
+            modkit bedmethyl tobigwig ${sample}.bedmethyl ${sample}.5mC.bw --mod-code m -g ${fai}
+        fi
+        
+        # Try to generate 5hmC if it exists in the data
+        if awk '\$4=="h"' ${sample}.bedmethyl | head -n 1 | grep -q "h"; then
+            modkit bedmethyl tobigwig ${sample}.bedmethyl ${sample}.5hmC.bw --mod-code h -g ${fai}
+        fi
         
     else
         echo "No modified reads detected in ${bam}"

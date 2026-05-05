@@ -607,6 +607,11 @@ def render_output_section(args):
             ('*.panno.html', 'PAnno pharmacogenomics annotation report.'),
             ('*_pharmcat/', 'Raw PharmCAT output directory (JSON, match, and phenotype files).')
         ]))
+    if args.mods:
+        outputs.append(('05-modifications/', 'Base modifications calling results.', [
+            ('*.bedmethyl', 'Base modifications (bedMethyl) file.'),
+            ('*.bw', 'BigWig tracks for visualization of modification levels.')
+        ]))
 
     outputs.append(('logs/', 'Pipeline execution summary and software version logs.', []))
     outputs.append(('nxf-alignment-report.html', 'The interactive HTML report (this file).', []))
@@ -1594,6 +1599,7 @@ def main():
     parser.add_argument('--readhists', nargs='*', default=[], help='One or more read histogram .hist files')
     parser.add_argument('--anis', nargs='*', default=[], help='One or more sylph ANI TSV files')
     parser.add_argument('--pgx', action='store_true', help='Pharmacogenomics (PAnno) analysis was performed')
+    parser.add_argument('--mods', action='store_true', help='Base modifications analysis was performed')
     parser.add_argument('-o', '--output', required=True, help='Output HTML file')
     
     args = parser.parse_args()
