@@ -1543,6 +1543,9 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {run_info_block}
       {wf_info_block} 
     </div>
+    <div class="subtitle">
+      <strong>Research use only.</strong> This report is not a substitute for clinical laboratory testing or physician interpretation. Variant classifications are computational predictions and have not been clinically validated.
+    </div>
     <div class="content">
       {stats_cards}
       

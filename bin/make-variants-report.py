@@ -608,7 +608,9 @@ def main():
             <p style="text-align: right;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             {header_details}
         </div>
-        
+        <div class="subtitle">
+          <strong>Research use only.</strong> This report is not a substitute for clinical laboratory testing or physician interpretation. Variant classifications are computational predictions and have not been clinically validated.
+        </div>
         <div class="content">
             {summary_cards}
             {summary_table}

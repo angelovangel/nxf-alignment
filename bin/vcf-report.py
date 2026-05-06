@@ -671,11 +671,26 @@ def render_variants_table(variants: list[dict]) -> str:
         
         rsid_link = f'<button onclick="showVariantInfo(\'{v["rsid"]}\')" class="hover:underline text-indigo-600 font-mono text-xs">{v["rsid"]}</button>' if v['rsid'] else '<span class="text-gray-300">—</span>'
         
+        # gnomAD link
+        gnomad_link = ""
+        if v['rsid']:
+            gnomad_link = f'<a href="https://gnomad.broadinstitute.org/variant/{v["rsid"]}?dataset=gnomad_r4" target="_blank" class="text-indigo-600 hover:underline">↗</a>'
+        else:
+            alt = v.get('alt', '').split(',')[0]
+            if alt:
+                # Remove 'chr' prefix if present for gnomAD link consistency
+                chrom = v['chr'].replace('chr', '')
+                variant_id = f"{chrom}-{v['pos']}-{v['ref']}-{alt}"
+                gnomad_link = f'<a href="https://gnomad.broadinstitute.org/variant/{variant_id}?dataset=gnomad_r4" target="_blank" class="text-indigo-600 hover:underline">↗</a>'
+            else:
+                gnomad_link = '<span class="text-gray-300">—</span>'
+
         rows.append(
             f'<tr class="hover:bg-gray-50 border-b border-gray-100 variant-row text-xs"'
             f' data-gene="{v["gene"]}" data-zyg="{v["zygosity"]}" data-cls="{v.get("classification", "")}">'
             f'<td class="px-2 py-2 font-medium whitespace-nowrap">{gene_cell}</td>'
             f'<td class="px-2 py-2">{rsid_link}</td>'
+            f'<td class="px-2 py-2 text-center">{gnomad_link}</td>'
             f'<td class="px-2 py-2 text-gray-500 font-mono whitespace-nowrap">{v["chr"]}:{v["pos"]}</td>'
             f'<td class="px-2 py-2 font-mono text-gray-500">{v.get("dp", ".")}</td>'
             f'<td class="px-2 py-2 font-mono whitespace-nowrap {cell_class}">{call_display}</td>'
@@ -1073,8 +1088,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
 <!-- DISCLAIMER -->
 <div class="bg-amber-50 border-b border-amber-200">
   <div class="max-w-screen-xl mx-auto px-6 py-2 text-xs text-amber-800">
-    ⚠ <strong>Research use only.</strong> This report is not a substitute for clinical laboratory testing or physician interpretation. 
-    Variant classifications are computational predictions and have not been clinically validated.
+    ⚠ <strong>Research use only.</strong> This report is not a substitute for clinical laboratory testing or physician interpretation. Variant classifications are computational predictions and have not been clinically validated.
   </div>
 </div>
 
@@ -1085,7 +1099,8 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
     <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('pgx-genes')">PGx Genes ({n_genes})</button>
     <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('drugs')">Drug Recommendations ({n_drugs})</button>
     <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('variants')">All Variants ({len(variants):,} total, {n_nonref:,} non-ref)</button>
-    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab(\'qc\')">QC Metrics</button>
+    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('qc')">QC Metrics</button>
+    <button class="tab-btn px-4 py-3 text-sm text-gray-600 hover:text-gray-900" onclick="showTab('about')">About</button>
   </div>
 </div>
 
@@ -1176,6 +1191,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
             <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
               <th class="px-2 py-2 text-left font-semibold">Gene</th>
               <th class="px-2 py-2 text-left font-semibold">RSID</th>
+              <th class="px-2 py-2 text-center font-semibold">gnomAD</th>
               <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
               <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
               <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
@@ -1262,6 +1278,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
           <tr class="bg-gray-50 border-b border-gray-200 text-[10px] text-gray-500 uppercase tracking-wider">
             <th class="px-2 py-2 text-left font-semibold">Gene</th>
             <th class="px-2 py-2 text-left font-semibold">RSID</th>
+            <th class="px-2 py-2 text-center font-semibold">gnomAD</th>
             <th class="px-2 py-2 text-left font-semibold">Position in VCF</th>
             <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Seq coverage</th>
             <th class="px-2 py-2 text-left font-semibold whitespace-nowrap">Call in VCF</th>
@@ -1355,18 +1372,43 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         for gene, cnt in qc["top_genes"][:15]
       )}
     </div>
+</div>
+  </div>
+</div>
+
+<!-- ════ ABOUT TAB ════ -->
+<div id="tab-about" class="tab-content">
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+      <h2 class="text-xl font-bold text-gray-900 mb-6">About this Report</h2>
+      
+      <div class="space-y-6 text-sm text-gray-700 leading-relaxed">
+        <p class="font-medium text-gray-900">
+          The user recognizes that this report is a research tool and that they are using it at their own risk.
+        </p>
+        
+        <div>
+          <h3 class="font-bold text-gray-900 mb-2">No Guarantee of Clinical Benefit</h3>
+          <p>
+            This Report makes no promises or guarantees that a particular drug will be effective in the treatment of disease in any patient. 
+            This report also makes no promises or guarantees that a drug with a potential lack of clinical benefit will provide no clinical benefit.
+          </p>
+        </div>
+        
+        <div>
+          <h3 class="font-bold text-gray-900 mb-2">Treatment Decisions are Responsibility of Physician</h3>
+          <p>
+            Drugs referenced in this report may not be suitable for a particular patient. 
+            The selection of any, all, or none of the drugs associated with potential clinical benefit (or potential lack of clinical benefit) resides entirely within the discretion of the treating physician.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 </div><!-- /main container -->
 
-<!-- FOOTER -->
-<div class="border-t border-gray-200 bg-white mt-8 py-4">
-  <div class="max-w-screen-xl mx-auto px-6 text-xs text-gray-400 flex justify-between">
-    <span>VarPath · Generated {generated_at}</span>
-    <span>PharmCAT {pharmcat_version} · {data_version}</span>
-  </div>
-</div>
 
 <script>
 function showTab(name) {{
@@ -1613,7 +1655,7 @@ function filterDrugs() {{
 
 def main():
     parser = argparse.ArgumentParser(
-        description='VarPath: VCF + PharmCAT JSON → HTML Clinical Report',
+        description='VCF + PharmCAT → HTML Report',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
