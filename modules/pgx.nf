@@ -124,13 +124,73 @@ process PHARMCAT_MERGE {
     """
 }
 
+process PGX_ALDY {
+    container 'docker.io/aangeloo/aldy:latest'
+    publishDir "${params.outdir}/04-pgx/aldy", mode: 'copy'
+    tag "${sample}"
+
+    input:
+    tuple val(sample), path(bam), path(bai)
+
+    output:
+    tuple val(sample), path("${sample}.pharmcat_outside.tsv"), emit: outside_calls
+    path "*.aldy",                                             emit: aldy_files, optional: true
+    path "*.aldy.log",                                         emit: aldy_log, optional: true
+    path "versions.txt",                                       emit: versions
+
+    script:
+    """
+    # Run aldy for all supported pharmacogenes
+    aldy genotype \\
+        --gene CYP2B6,CYP2D6 \\
+        --profile pacbio-hifi-targeted \\
+        --param sam_long_reads=true \\
+        -o ${sample}.aldy \\
+        $bam > ${sample}.aldy.log 2>&1 \\
+    || echo "[WARN] aldy genotype exited with errors"
+
+    # Convert aldy #Solution 1 comment lines and data to PharmCAT outside-calls TSV
+    # Columns: Gene (HGNC), Diplotype (*X/*Y major alleles), Phenotype (cpic field)
+    echo -e 'Gene\tDiplotype\tPhenotype' > ${sample}.pharmcat_outside.tsv
+    for f in *.aldy; do
+        [[ -f "\$f" ]] || continue
+        awk -F'\t' '
+        /^#Solution 1:/ {
+            pheno = ""
+            if (match(\$0, /cpic=[^;]+/)) {
+                pheno = substr(\$0, RSTART+5, RLENGTH-5)
+                sub(/[[:space:]]+\$/, "", pheno)
+            }
+        }
+        !/^#/ && \$3 == "1" {
+            if (!seen[\$2]++) {
+                n = split(\$4, alleles, "/")
+                diplo = ""
+                for (i=1; i<=n; i++) {
+                    if (match(alleles[i], /[*][A-Za-z0-9]+/)) {
+                        clean = substr(alleles[i], RSTART, RLENGTH)
+                        diplo = (diplo == "" ? clean : diplo "/" clean)
+                    }
+                }
+                print \$2 "\t" diplo "\t" pheno
+            }
+        }' "\$f"
+    done >> ${sample}.pharmcat_outside.tsv
+
+    cat <<-END_VERSIONS > versions.txt
+    ${task.process}: \$(aldy help 2>&1 | head -n 1 | sed 's/^[[:space:]]*//')
+    END_VERSIONS
+    """
+}
+
+
 process PGX_PHARMCAT {
     container 'docker.io/pgkb/pharmcat:latest'
     publishDir "${params.outdir}/04-pgx", mode: 'copy'
     tag "${sample}"
 
     input:
-    tuple val(sample), path(vcf), path(vcf_tbi)
+    tuple val(sample), path(vcf), path(vcf_tbi), path(outside_calls)
     path ref
     path fai
 
@@ -154,6 +214,7 @@ process PGX_PHARMCAT {
         -vcf ${sample}.preprocessed.vcf.gz \\
         -o ${sample}_pharmcat \\
         -bf ${sample} \\
+        -po $outside_calls \\
         -matcher \\
         -phenotyper \\
         -reporter \\

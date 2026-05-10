@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+LABEL maintainer="angelovangel" \
+    description="Aldy: allelic decomposition and pharmacogene genotyping" \
+    version="4.x"
+
+# Install system dependencies required by pysam (htslib) and samtools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    wget \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libncurses5-dev \
+    samtools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Aldy (pulls in pysam, ortools/CBC solver, and all Python deps)
+RUN pip install --no-cache-dir aldy

@@ -98,7 +98,7 @@ process BEDTOOLS_COV {
     """
     echo -e "chr\tstart\tend\tlabel\tdepth\tbases_at_depth\tsize\tpercent_at_depth" > ${sample}.hist.tsv
     bedtools coverage -a ${bed} -b ${bam} -hist >> ${sample}.hist.tsv
-    cp $bed nxf-alignment.bed
+    [[ "$bed" != "nxf-alignment.bed" ]] && cp $bed nxf-alignment.bed || true
 
     cat <<-END_VERSIONS > versions.txt
     ${task.process}: bedtools v\$(bedtools --version | sed 's/^bedtools v//')

@@ -987,7 +987,7 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NXF-ALIGNMENT — {pgx_sample_id}</title>
+<title>PGX-REPORT - {pgx_sample_id}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap');
@@ -1386,6 +1386,17 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
         <p class="font-medium text-gray-900">
           The user recognizes that this report is a research tool and that they are using it at their own risk.
         </p>
+        
+        <div>
+          <h3 class="font-bold text-gray-900 mb-2">Genotyping Methodology</h3>
+          <p>
+            Pharmacogenomic (PGx) variant interpretation and diplotype assignments in this report 
+            were performed using the <strong>PharmCAT</strong> pipeline. 
+            Specific genes (<strong>CYP2B6</strong> and <strong>CYP2D6</strong>) were genotyped 
+            directly from aligned reads using <strong>Aldy</strong>, 
+            with the resulting outside calls provided to PharmCAT for interpretation.
+          </p>
+        </div>
         
         <div>
           <h3 class="font-bold text-gray-900 mb-2">No Guarantee of Clinical Benefit</h3>

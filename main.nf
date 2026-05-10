@@ -1,7 +1,7 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; SAMTOOLS_INDEX; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
 include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
-include {PGX_PANNO; PGX_PHARMCAT; PHARMCAT_PREPARE; PHARMCAT_GENOTYPE; PHARMCAT_MERGE} from './modules/pgx.nf'
+include {PGX_PANNO; PGX_PHARMCAT; PGX_ALDY; PHARMCAT_PREPARE; PHARMCAT_GENOTYPE; PHARMCAT_MERGE} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
 include {MODKIT} from './modules/modkit.nf'
@@ -393,8 +393,15 @@ workflow {
              ch_pgx_final = ch_pgx_input
         }
 
+        // Run aldy on BAM to generate PharmCAT outside calls
+        PGX_ALDY(ch_aligned_bam)
+        ch_versions = ch_versions.mix(PGX_ALDY.out.versions.first())
+
+        // Join VCF channel with aldy outside calls by sample, feed into PharmCAT
+        ch_pharmcat_input = ch_pgx_final.join(PGX_ALDY.out.outside_calls)
+
         PGX_PANNO(ch_pgx_final, params.population)
-        PGX_PHARMCAT(ch_pgx_final, ch_ref.first(), ch_genome.first())
+        PGX_PHARMCAT(ch_pharmcat_input, ch_ref.first(), ch_genome.first())
         ch_versions = ch_versions.mix(PGX_PANNO.out.versions.first(), PGX_PHARMCAT.out.versions.first())
     }
 

@@ -14,10 +14,7 @@ if ! docker buildx version > /dev/null 2>&1; then
 fi
 
 # Build the image
-# Note: To build for multiple platforms, you typically need to --push to a registry 
-# or use a local registry. If you just want to build for the local architecture, 
-# remove the --platform flag or use --load.
-
+# 
 echo "Running build command..."
 docker buildx build \
     --platform "$PLATFORMS" \
