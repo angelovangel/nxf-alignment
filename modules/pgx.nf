@@ -1,6 +1,6 @@
 process PGX_PANNO {
     container 'docker.io/aangeloo/panno:0.3.1'
-    publishDir "${params.outdir}/04-pgx", mode: 'copy'
+    publishDir "${params.outdir}/04-pgx/panno", mode: 'copy'
     tag "${sample}"
 
     input:
@@ -186,7 +186,9 @@ process PGX_ALDY {
 
 process PGX_PHARMCAT {
     container 'docker.io/pgkb/pharmcat:latest'
-    publishDir "${params.outdir}/04-pgx", mode: 'copy'
+    publishDir "${params.outdir}/04-pgx", mode: 'copy', pattern: "*.pgx-report.html"
+    publishDir "${params.outdir}/04-pgx/pharmcat", mode: 'copy', pattern: "*.pharmcat.html"
+    publishDir "${params.outdir}/04-pgx/pharmcat", mode: 'copy', pattern: "*_pharmcat/*"
     tag "${sample}"
 
     input:

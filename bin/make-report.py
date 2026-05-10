@@ -30,7 +30,9 @@ def format_si(num):
         num_float /= 1000.0
         suffix_index += 1
 
-    return f"{num_float:.0f}{suffixes[suffix_index]}"
+    if suffix_index == 0:
+        return f"{num_float:.0f}"
+    return f"{num_float:.1f}{suffixes[suffix_index]}"
 
 def get_color_class(value):
     """Return a CSS class based on numeric value (percentage)"""
@@ -602,10 +604,10 @@ def render_output_section(args):
 
     if args.pgx:
         outputs.append(('04-pgx/', 'Pharmacogenomics analysis including clinical interpretation and drug recommendations.', [
-            ('*.pgx-report.html', 'Interactive clinical PGx report (VCF + PharmCAT).'),
-            ('*.pharmcat.html', 'Standard PharmCAT HTML report.'),
-            ('*.panno.html', 'PAnno pharmacogenomics annotation report.'),
-            ('*_pharmcat/', 'Raw PharmCAT output directory (JSON, match, and phenotype files).')
+            ('*.pgx-report.html', 'Interactive PGx report (data from Aldy and PharmCAT).'),
+            ('pharmcat/', 'PharmCAT HTML reports and raw output directories.'),
+            ('panno/', 'PAnno pharmacogenomics annotation reports.'),
+            ('aldy/', 'Aldy genotyping outputs and logs.')
         ]))
     if args.mods:
         outputs.append(('05-modifications/', 'Base modifications calling results.', [

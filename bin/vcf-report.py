@@ -1391,9 +1391,9 @@ def build_html(vcf_path: str, report_path: str, sample_name: str,
           <h3 class="font-bold text-gray-900 mb-2">Genotyping Methodology</h3>
           <p>
             Pharmacogenomic (PGx) variant interpretation and diplotype assignments in this report 
-            were performed using the <strong>PharmCAT</strong> pipeline. 
+            were performed using the <strong><a href="https://pharmcat.org/" target="_blank" class="text-blue-600 hover:underline">PharmCAT</a></strong> pipeline. 
             Specific genes (<strong>CYP2B6</strong> and <strong>CYP2D6</strong>) were genotyped 
-            directly from aligned reads using <strong>Aldy</strong>, 
+            directly from aligned reads using <strong><a href="https://github.com/0xTCG/aldy" target="_blank" class="text-blue-600 hover:underline">Aldy</a></strong>, 
             with the resulting outside calls provided to PharmCAT for interpretation.
           </p>
         </div>
