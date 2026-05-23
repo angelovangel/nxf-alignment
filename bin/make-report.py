@@ -57,6 +57,7 @@ COLUMN_HELP = {
     "Primary Mapped Reads": "Number of reads that mapped to the reference genome (primary alignments).",
     "Bases on Target": "Total number of bases falling within the specified target regions (BED).",
     "Mean Target Coverage": "Average depth of coverage across all specified target regions.",
+    "Fold 80 Base Penalty": "Metric measuring target coverage uniformity. It indicates how much more sequencing (fold change) is needed to bring 80% of the target bases up to the observed mean coverage (perfect Fold-80 score is 1.0)",
     
     # Variants
     "PASS Variants": "Number of small variants (SNPs/Indels) that passed all quality filters.",
@@ -808,8 +809,9 @@ def render_samtools_table(samtools_data):
                 {render_th("Primary Mapped %", "sortable", "sortSamtoolsTable(2)", "text-align: right;")}
                 {render_th("Bases on Target", "sortable", "sortSamtoolsTable(3)", "text-align: right;")}
                 {render_th("Mean Target Coverage", "sortable", "sortSamtoolsTable(4)", "text-align: right;")}
-                {render_th("Bases on Non-target", "sortable", "sortSamtoolsTable(5)", "text-align: right;")}
-                {render_th("Mean Non-target Coverage", "sortable", "sortSamtoolsTable(6)", "text-align: right;")}
+                {render_th("Fold 80 Base Penalty", "sortable", "sortSamtoolsTable(5)", "text-align: right;")}
+                {render_th("Bases on Non-target", "sortable", "sortSamtoolsTable(6)", "text-align: right;")}
+                {render_th("Mean Non-target Coverage", "sortable", "sortSamtoolsTable(7)", "text-align: right;")}
               </tr>
             </thead>
             <tbody>
@@ -823,6 +825,7 @@ def render_samtools_table(samtools_data):
         
         target_mean = target['cov'] / target['len'] if target['len'] > 0 else 0
         comp_mean = comp['cov'] / comp['len'] if comp['len'] > 0 else 0
+        base_80_penalty = target.get('base_80_penalty', 0.0)
 
         html += f"""
             <tr data-sample="{sample_name.lower()}"
@@ -830,6 +833,7 @@ def render_samtools_table(samtools_data):
                 data-ppct="{flagstat['primary_mapped_pct']}"
                 data-tbases="{target['cov']}"
                 data-tcov="{target_mean}"
+                data-tpenalty="{base_80_penalty}"
                 data-ntbases="{comp['cov']}"
                 data-ntcov="{comp_mean}">
               <td class="sample-col">{sample_name}</td>
@@ -837,6 +841,7 @@ def render_samtools_table(samtools_data):
               <td style="text-align: right;">{flagstat['primary_mapped_pct']:.2f}</td>
               <td style="text-align: right;">{target['cov']:,}</td>
               <td style="text-align: right;">{target_mean:.2f}</td>
+              <td style="text-align: right;">{base_80_penalty:.2f}</td>
               <td style="text-align: right;">{comp['cov']:,}</td>
               <td style="text-align: right;">{comp_mean:.2f}</td>
             </tr>
@@ -1686,6 +1691,27 @@ def main():
         if regions:
             if name not in bed_coverage_data: bed_coverage_data[name] = []
             bed_coverage_data[name].extend(regions)
+            
+            # Calculate Fold 80 Base Penalty
+            nonzero_regions = [r for r in bed_coverage_data[name] if r['bases'] > 0]
+            total_target_len = sum(r['length'] for r in nonzero_regions)
+            if total_target_len > 0:
+                target_mean_cov = sum(r['bases'] for r in nonzero_regions) / total_target_len
+                sorted_regions = sorted(nonzero_regions, key=lambda x: x['mean_cov'])
+                running_len = 0
+                cov_at_20 = 0
+                for r in sorted_regions:
+                    running_len += r['length']
+                    if running_len >= 0.2 * total_target_len:
+                        cov_at_20 = r['mean_cov']
+                        break
+                base_80_penalty = (target_mean_cov / cov_at_20) if cov_at_20 > 0 else 0
+            else:
+                base_80_penalty = 0.0
+                
+            if name not in samtools_stats: samtools_stats[name] = {}
+            if 'target' not in samtools_stats[name]: samtools_stats[name]['target'] = {'len': 0, 'cov': 0}
+            samtools_stats[name]['target']['base_80_penalty'] = base_80_penalty
         
     for f in args.bedcov_compl:
         name = Path(f).name

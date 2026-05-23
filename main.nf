@@ -160,7 +160,7 @@ workflow {
         }
     } else if (params.alns) {
         if ( file(params.alns).isDirectory() ) {
-            pattern = "*.{bam}"
+            pattern = "*.bam"
             ch_reads = Channel.fromPath(params.alns + "/" + pattern, type: 'file', checkIfExists: true)
         } else {
             ch_reads = Channel.fromPath(params.alns, checkIfExists: true)

@@ -140,7 +140,7 @@ process PGX_ALDY {
 
     script:
     """
-    # Run aldy for all supported pharmacogenes
+    # Run aldy for CYP2B6 and CYP2D6 only
     aldy genotype \\
         --gene CYP2B6,CYP2D6 \\
         --profile pacbio-hifi-targeted \\

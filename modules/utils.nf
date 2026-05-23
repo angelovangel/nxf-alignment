@@ -24,6 +24,7 @@ ${c.yellow}Input options:${c.reset}
     ${c.green}--pod5 <dir>${c.reset}           Directory with POD5 files (use when basecalling)
     ${c.green}--samplename <str>${c.reset}     Sample name to use (if not provided, sample name is obtained from the pod5 file)
     ${c.green}--reads <file|dir>${c.reset}     BAM/FASTQ file or directory of reads (skips basecalling)
+    ${c.green}--alns <file|dir>${c.reset}      BAM file or directory of alignments (skips basecalling and alignment)
     ${c.green}--asfile <file>${c.reset}        Adaptive sampling CSV (filters reads to basecall)
     ${c.green}--kit${c.reset}                  Use for barcoded run - barcoding kit name (--samplesheet required)
     ${c.green}--samplesheet${c.reset}          Use for barcoded run - CSV or XLSX with columns: sample,barcode (--kit required)
@@ -49,6 +50,7 @@ ${c.yellow}Processing options:${c.reset}
     ${c.green}--annotate${c.reset}             Enable SNP variant annotation with snpEff (use only with --snp)
     ${c.green}--anno_db${c.reset}              snpEff database to use, only when --annotate is specified (default: hg38)
     ${c.green}--anno_filterQ${c.reset}         Filter out variants with quality lower than this before annotation (default: 20)
+    ${c.green}--pgx${c.reset}                  Run pharmacogenomics pipeline (default: false)
     ${c.green}--mods${c.reset}                 Perform base modifications analysis using modkit (requires --ref, read data must have mods)
     ${c.green}--mods_filter${c.reset}          Minimum coverage for base modifications calls (default: 5)
     ${c.green}--sylph${c.reset}                Enable Sylph profiling to estimate read ANI to reference
