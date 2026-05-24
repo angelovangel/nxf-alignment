@@ -99,7 +99,7 @@ function exportSamtoolsToCSV() {
     const table = document.getElementById('samtoolsTable');
     if (!table) { alert('Coverage table not found.'); return; }
     let csv = [];
-    const headers = ['Sample', 'Primary_Mapped', 'Primary_Mapped_Pct', 'Bases_On_Target', 'Mean_Target_Coverage', 'Bases_On_Non_Target', 'Mean_Non_Target_Coverage'];
+    const headers = ['Sample', 'Primary_Mapped', 'Primary_Mapped_Pct', 'Bases_On_Target', 'Mean_Target_Coverage', 'Fold_80_Base_Penalty', 'Bases_On_Non_Target', 'Mean_Non_Target_Coverage'];
     csv.push(headers.join(','));
     const dataRows = table.querySelectorAll('tbody tr');
     dataRows.forEach(row => {
@@ -108,6 +108,7 @@ function exportSamtoolsToCSV() {
                 row.getAttribute('data-sample'),
                 row.getAttribute('data-pmapped'), row.getAttribute('data-ppct'),
                 row.getAttribute('data-tbases'), row.getAttribute('data-tcov'),
+                row.getAttribute('data-tpenalty'),
                 row.getAttribute('data-ntbases'), row.getAttribute('data-ntcov')
             ];
             const safeCols = cols.map(text => {
@@ -371,7 +372,8 @@ function sortSamtoolsTable(columnIndex) {
             0: 'sample',
             1: 'pmapped', 2: 'ppct',
             3: 'tbases', 4: 'tcov',
-            5: 'ntbases', 6: 'ntcov'
+            5: 'tpenalty',
+            6: 'ntbases', 7: 'ntcov'
         };
         const dataKey = dataAttrMap[columnIndex];
         if (columnIndex === 0) {
