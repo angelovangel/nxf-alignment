@@ -9,6 +9,7 @@ A Nextflow workflow for basecalling (ONT only), aligning, and variant calling fo
 - **Coverage Analysis**: Calculates per-region coverage statistics with thresholds (1x, 10x, 20x, 30x)
 - **SNP Variant Calling**: Uses Clair3 or DeepVariant for SNP variant calling (ONT or HiFi data)
 - **Structural Variant Calling**: Uses Sniffles2 for structural variant calling (ONT or HiFi data)
+- **Copy Number Variant Calling**: Uses Spectre for copy number variant calling (ONT and HiFi data)
 - **Variant Annotation**: Uses snpEff for variant annotation (ONT or HiFi data)
 - **Pharmacogenomics**: Uses PharmCAT and PAnno for genotype-phenotype annotation
 - **Base Modifications Analysis**: Uses modkit for base modifications analysis (ONT or HiFi data)
@@ -107,6 +108,7 @@ nextflow run angelovangel/nxf-alignment \
 | `clair3_model` | string | `r1041_e82_400bps_hac_v500` | Model to use for Clair3 |
 | `deepvariant_model` | string | `ONT_R104` | Model to use for DeepVariant |
 | `sv` | boolean | false | Perform SV variant calling using Sniffles2 |
+| `cnv` | boolean | false | Perform CNV variant calling using Spectre |
 | `phase` | boolean | false | Perform SNP phasing using Whatshap (use only with `--snp`, only diploid cases supported) |
 | `annotate` | boolean | false | Annotate SNP variants using snpEff (use only with `--snp`) |
 | `anno_db` | string | `hg38` | Database to use for annotation |
@@ -146,6 +148,7 @@ output/
 ├── 03-variants/
 │   ├── reads.snp.vcf                   # SNP variants
 │   ├── reads.sv.vcf                    # SV variants
+│   ├── reads.cnv.vcf                   # CNV variants
 │   └── reads.ann.vcf                   # Annotated variants
 ├── 04-pgx/
 │   ├── reads.panno.html                # PAnno html report

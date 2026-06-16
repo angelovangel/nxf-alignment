@@ -1,6 +1,6 @@
 include {DORADO_BASECALL; DORADO_BASECALL_BARCODING;DORADO_CORRECT} from './modules/basecall.nf'
 include {DORADO_ALIGN; SAMTOOLS_INDEX; MAKE_BEDFILE; BEDTOOLS_COV; BEDTOOLS_COMPLEMENT; SAMTOOLS_BEDCOV; DEEPTOOLS_BIGWIG; REF_STATS} from './modules/align.nf'
-include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP} from './modules/variants.nf'
+include {VCF_CLAIR3; VCF_DEEPVARIANT; VCF_STATS as VCF_STATS_SNP; VCF_STATS as VCF_STATS_SV; VCF_SNIFFLES2; VCF_PHASE; VCF_ANNOTATE; VCF_ANNOTATE_REPORT; MERGE_VARIANTS; VCF_BGZIP; MOSDEPTH; VCF_SPECTRE} from './modules/variants.nf'
 include {PGX_PANNO; PGX_PHARMCAT; PGX_ALDY; PHARMCAT_PREPARE; PHARMCAT_GENOTYPE; PHARMCAT_MERGE} from './modules/pgx.nf'
 include {MERGE_READS; READ_STATS; READ_HIST; CONVERT_EXCEL; VALIDATE_SAMPLESHEET; READ_ANI; SYLPH_SKETCH_REF; CONVERT_READS} from './modules/reads.nf'
 include {RUN_INFO} from './modules/runinfo.nf'
@@ -347,6 +347,42 @@ workflow {
         }
     }
     //SNP end
+
+    // CNV start
+    ch_cnv = Channel.empty()
+    if (params.cnv) {
+        // Run MOSDEPTH
+        ch_aligned_bam | MOSDEPTH
+        ch_versions = ch_versions.mix(MOSDEPTH.out.versions.first())
+
+        if (params.snp) {
+            // Join mosdepth coverage with snp VCF
+            ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
+                .join(ch_vcf)                   // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi]
+                .combine(ch_ref.first())        // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref]
+                .combine(ch_genome.first())     // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai]
+                .map { sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai ->
+                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, snp_vcf, snp_tbi)
+                }
+        } else {
+            // Create dummy file paths for SNV
+            def dummy_vcf = file("${workflow.workDir}/NO_VCF")
+            if (!dummy_vcf.exists()) {
+                dummy_vcf.text = ""
+            }
+            ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
+                .combine(ch_ref.first())
+                .combine(ch_genome.first())
+                .map { sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai ->
+                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, dummy_vcf, dummy_vcf)
+                }
+        }
+
+        ch_spectre_input | VCF_SPECTRE
+        ch_cnv = VCF_SPECTRE.out[0]
+        ch_versions = ch_versions.mix(VCF_SPECTRE.out.versions.first())
+    }
+    // CNV end
     
     // Merging logic
     if (params.snp && params.sv) {

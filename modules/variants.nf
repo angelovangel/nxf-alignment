@@ -122,6 +122,73 @@ process VCF_SNIFFLES2 {
     """ 
 }
 
+process MOSDEPTH {
+    container 'docker.io/brentp/mosdepth:v0.3.3'
+    containerOptions '--entrypoint ""'
+    //publishDir "${params.outdir}/03-variants/cnv/mosdepth", mode: 'copy', pattern: "*.{regions.bed.gz,regions.bed.gz.csi,mosdepth.summary.txt}"
+    tag "${sample}"
+
+    input:
+    tuple val(sample), path(bam), path(bai)
+
+    output:
+    tuple val(sample), path("${sample}.regions.bed.gz"), path("${sample}.regions.bed.gz.csi"), path("${sample}.mosdepth.summary.txt")
+    path "versions.txt", emit: versions
+
+    script:
+    """
+    mosdepth -t ${task.cpus} -Q 20 -b 1000 ${sample} ${bam}
+
+    echo "${task.process}: mosdepth v\$(mosdepth --version 2>&1 || echo '0.3.8')" > versions.txt
+    """
+}
+
+process VCF_SPECTRE {
+    container 'docker.io/ontresearch/spectre:latest'
+    publishDir "${params.outdir}/03-variants/cnv", mode: 'copy', pattern: "*.{vcf,bed,spc.gz}"
+    tag "${sample}"
+
+    input:
+    tuple val(sample), path(cov_bed), path(cov_tbi), path(cov_summary), path(ref), path(ref_fai), path(snp_vcf), path(snp_tbi)
+
+    output:
+    tuple val(sample), path("${sample}.cnv.vcf")
+    path "${sample}.cnv.bed"
+    path "${sample}.spc.gz"
+    path "versions.txt", emit: versions
+
+    script:
+    def snv_opt = snp_vcf.name != "NO_VCF" ? "--snv ${snp_vcf}" : ""
+    """
+
+    # Create coverage directory and link files (required by ONT spectre)
+    mkdir -p cov_dir
+    ln -s \$(readlink -f ${cov_bed}) cov_dir/${cov_bed.name}
+    ln -s \$(readlink -f ${cov_tbi}) cov_dir/${cov_tbi.name}
+    ln -s \$(readlink -f ${cov_summary}) cov_dir/${cov_summary.name}
+
+    # Link reference index
+    ln -s ${ref_fai} ${ref}.fai
+
+    # Run Spectre
+    spectre CNVCaller \
+        --bin-size 1000 \
+        --coverage cov_dir \
+        --sample-id ${sample} \
+        --output-dir output_dir \
+        --reference ${ref} \
+        ${snv_opt}
+
+    # Prepare outputs
+    cp output_dir/${sample}.vcf ./${sample}.cnv.vcf
+    cp output_dir/${sample}_cnv.bed ./${sample}.cnv.bed
+    cp output_dir/${sample}.spc.gz ./${sample}.spc.gz
+
+    echo "${task.process}: spectre v\$(spectre --version 2>&1 || echo '0.3.x')" > versions.txt
+    """
+}
+
+
 process VCF_ANNOTATE {
     container 'docker.io/dceoy/snpeff:latest'
     containerOptions '--entrypoint ""' 

@@ -46,6 +46,7 @@ ${c.yellow}Processing options:${c.reset}
     ${c.green}--clair3_platform${c.reset}      Clair3 platform to use, only when --snp and --snp_caller clair3 is specified (default: ONT)
     ${c.green}--clair3_model${c.reset}         Clair3 model to use, only when --snp and --snp_caller clair3 is specified (default: r1041_e82_400bps_hac_v500)
     ${c.green}--sv${c.reset}                   Enable structural variant calling with sniffles2
+    ${c.green}--cnv${c.reset}                  Enable copy number variant calling with Spectre
     ${c.green}--phase${c.reset}                Enable SNP phasing with Whatshap (use only with --snp, only diploid cases supported)
     ${c.green}--annotate${c.reset}             Enable SNP variant annotation with snpEff (use only with --snp)
     ${c.green}--anno_db${c.reset}              snpEff database to use, only when --annotate is specified (default: hg38)

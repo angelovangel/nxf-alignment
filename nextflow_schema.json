@@ -281,6 +281,13 @@
           "default": false,
           "help_text": "Set to true to enable structural variant calling on the aligned reads using sniffles2."
         },
+        "cnv": {
+          "type": "boolean",
+          "description": "Enable copy number variant calling with Spectre",
+          "fa_icon": "fas fa-check-square",
+          "default": false,
+          "help_text": "Set to true to enable copy number variant calling on the aligned reads using Spectre."
+        },
         "annotate": {
           "type": "boolean",
           "description": "Enable variant annotation with snpEff",
