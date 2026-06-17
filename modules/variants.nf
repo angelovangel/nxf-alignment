@@ -145,7 +145,7 @@ process MOSDEPTH {
 
 process VCF_SPECTRE {
     container 'docker.io/ontresearch/spectre:latest'
-    publishDir "${params.outdir}/03-variants/cnv", mode: 'copy', pattern: "*.{vcf,bed,spc.gz}"
+    publishDir "${params.outdir}/03-variants/cnv", mode: 'copy', pattern: "*.{vcf,bed,spc.gz,_karyotype.txt}"
     tag "${sample}"
 
     input:
@@ -155,6 +155,7 @@ process VCF_SPECTRE {
     tuple val(sample), path("${sample}.cnv.vcf")
     path "${sample}.cnv.bed"
     path "${sample}.spc.gz"
+    path "karyotype.txt"
     path "versions.txt", emit: versions
 
     script:
@@ -183,6 +184,11 @@ process VCF_SPECTRE {
     cp output_dir/${sample}.vcf ./${sample}.cnv.vcf
     cp output_dir/${sample}_cnv.bed ./${sample}.cnv.bed
     cp output_dir/${sample}.spc.gz ./${sample}.spc.gz
+    if [ -f output_dir/predicted_karyotype.txt ]; then
+        cp output_dir/predicted_karyotype.txt ./${sample}_karyotype.txt
+    else
+        echo "No karyotype file generated" > ${sample}_karyotype.txt
+    fi
 
     echo "${task.process}: spectre v\$(spectre --version 2>&1 || echo '0.3.x')" > versions.txt
     """

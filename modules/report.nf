@@ -17,6 +17,7 @@ process REPORT {
         path(bedcov_complement) 
         path(flagstat)
         path(variants)
+        path(cnv_bed)
         path(sv_variants)
         path(phase_stats)
         path(as_file)
@@ -38,6 +39,8 @@ process REPORT {
     def asfile_arg = as_file.name.contains('EMPTY') ? '' : "--asfile ${as_file}"
     def readhists_arg = readhists.name.contains('empty_readhists') ? '' : "--readhists ${readhists}"
     def read_ani_arg = ani_stats.name.contains('empty_ani_stats') ? '' : "--anis ${ani_stats}"
+    // cnv_bed will be passed as the `empty_variants` sentinel when not run
+    def cnv_arg = cnv_bed.name.contains('empty_variants') ? '' : "--cnv-bed ${cnv_bed}"
     def pgx_arg = params.pgx ? "--pgx" : ""
     def mods_arg = params.mods ? "--mods" : ""
     """
@@ -52,6 +55,7 @@ process REPORT {
         $flagstat_arg \
         $variants_arg \
         $sv_variants_arg \
+        $cnv_arg \
         $phase_stats_arg \
         $asfile_arg \
         $readhists_arg \

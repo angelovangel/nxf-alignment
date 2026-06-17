@@ -398,6 +398,52 @@ def parse_sv_query(filepath):
         print(f"Error parsing SV query file {filepath}: {e}", file=sys.stderr)
         return None
 
+def parse_cnv_bed(filepath):
+    """Parse a CNV BED produced by Spectre (chr start end type size ratio)
+    Returns a list of dicts with keys: chr,start,end,type,size,ratio
+    """
+    cnvs = []
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('\t')
+                # Expect: chr, start, end, TYPE, size, ratio (some files may omit ratio)
+                if len(parts) < 5:
+                    continue
+                chrom = parts[0]
+                try:
+                    start = int(parts[1])
+                    end = int(parts[2])
+                except ValueError:
+                    continue
+                ctype = parts[3]
+                # size may be provided or computed
+                try:
+                    size = int(parts[4])
+                except Exception:
+                    size = end - start
+                ratio = None
+                if len(parts) >= 6 and parts[5] != '':
+                    try:
+                        ratio = float(parts[5])
+                    except Exception:
+                        ratio = None
+
+                cnvs.append({
+                    'chr': chrom,
+                    'start': start,
+                    'end': end,
+                    'type': ctype,
+                    'size': size,
+                    'ratio': ratio
+                })
+    except Exception as e:
+        print(f"Error parsing CNV bed {filepath}: {e}", file=sys.stderr)
+    return cnvs
+
 def parse_phase_file(filepath):
     """Parse Whatshap phasing stats TSV and return dictionary for 'ALL' chromosome row."""
     try:
@@ -561,6 +607,66 @@ def render_details_block(title, info_list, add_top_border=False):
     """
     return html
 
+def render_cnv_summary_table(cnv_data):
+    """Render a per-sample summary table for CNVs (counts, bases affected, types)."""
+    if not cnv_data:
+        return ""
+
+    html = f"""
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Copy Number Variants (CNVs)</h3>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="cnvSummaryTable">
+            <thead>
+              <tr>
+                {render_th('Sample', 'sample-col sortable', 'sortCNVSummary(0)')}
+                {render_th('Total CNVs', 'sortable', 'sortCNVSummary(1)', 'text-align: right;')}
+                {render_th('Deletions (DEL)', 'sortable', 'sortCNVSummary(2)', 'text-align: right;')}
+                {render_th('Duplications (DUP)', 'sortable', 'sortCNVSummary(3)', 'text-align: right;')}
+                {render_th('Total Bases Affected', 'sortable', 'sortCNVSummary(4)', 'text-align: right;')}
+                {render_th('Mean Ratio', 'sortable', 'sortCNVSummary(5)', 'text-align: right;')}
+                {render_th('Max CNV Size', 'sortable', 'sortCNVSummary(6)', 'text-align: right;')}
+              </tr>
+            </thead>
+            <tbody>
+    """
+
+    for sample_name in sorted(cnv_data.keys(), key=natural_sort_key):
+        cnvs = cnv_data[sample_name]
+        total = len(cnvs)
+        dels = sum(1 for c in cnvs if c.get('type', '').upper().startswith('DEL'))
+        dups = sum(1 for c in cnvs if c.get('type', '').upper().startswith('DUP'))
+        total_bases = sum(c.get('size', 0) for c in cnvs)
+        ratios = [c.get('ratio') for c in cnvs if c.get('ratio') is not None]
+        mean_ratio = (sum(ratios) / len(ratios)) if ratios else None
+        max_size = max((c.get('size', 0) for c in cnvs), default=0)
+
+        mean_ratio_display = f"{mean_ratio:.2f}" if mean_ratio is not None else 'NA'
+
+        html += f"""
+            <tr data-sample="{sample_name.lower()}" data-total="{total}" data-dels="{dels}" data-dups="{dups}" data-bases="{total_bases}" data-meanratio="{mean_ratio}">
+              <td class="sample-col">{sample_name}</td>
+              <td style="text-align: right;">{total:,}</td>
+              <td style="text-align: right;">{dels:,}</td>
+              <td style="text-align: right;">{dups:,}</td>
+              <td style="text-align: right;">{total_bases:,}</td>
+              <td style="text-align: right;">{mean_ratio_display}</td>
+              <td style="text-align: right;">{max_size:,}</td>
+            </tr>
+    """
+
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
 def render_output_section(args):
     """Render a section explaining the output directory structure based on what was run"""
     outputs = []
@@ -589,19 +695,20 @@ def render_output_section(args):
             ('*.bigwig', 'BigWig tracks for visualization in genome browsers (IGV/UCSC).')
         ]))
         
-    if args.vcf_query or args.sv_vcf or args.phasestats:
-        variant_subdirs = []
-        if args.vcf_query:
-            variant_subdirs.append(('snps/', 'Small variant calls (SNPs and Indels): *.snp.vcf.gz'))
-        if args.sv_vcf:
-            variant_subdirs.append(('sv/', 'Structural variant calls: *.sv.vcf.gz'))
-        if args.phasestats:
-            variant_subdirs.append(('phasing/', 'Phasing results: *.phase.vcf.gz, *.phase.gtf, *.phase.tsv'))
-        if args.vcf_query and args.sv_vcf:
-            variant_subdirs.append(('merged/', 'Merged SNP and SV callsets: *.merged.vcf.gz'))
+    if args.vcf_query or args.sv_vcf or args.phasestats or args.cnv_bed:
+      variant_subdirs = []
+      if args.vcf_query:
+        variant_subdirs.append(('snps/', 'Small variant calls (SNPs and Indels): *.snp.vcf.gz'))
+      if args.sv_vcf:
+        variant_subdirs.append(('sv/', 'Structural variant calls: *.sv.vcf.gz'))
+      if args.cnv_bed:
+        variant_subdirs.append(('cnv/', 'Copy number variant calls: *.cnv.bed'))
+      if args.phasestats:
+        variant_subdirs.append(('phasing/', 'Phasing results: *.phase.vcf.gz, *.phase.gtf, *.phase.tsv'))
+      if args.vcf_query and args.sv_vcf:
+        variant_subdirs.append(('merged/', 'Merged SNP and SV callsets: *.merged.vcf.gz'))
 
-            
-        outputs.append(('03-variants/', 'Variant calling and phasing results.', variant_subdirs))
+      outputs.append(('03-variants/', 'Variant calling and phasing results.', variant_subdirs))
 
     if args.pgx:
         outputs.append(('04-pgx/', 'Pharmacogenomics analysis including clinical interpretation and drug recommendations.', [
@@ -1027,6 +1134,59 @@ def render_phasing_table(phasing_data):
             </tr>
         """
         
+    html += """
+          </tbody>
+        </table>
+      </div>
+    </details>
+    """
+    return html
+
+def render_cnv_table(cnv_data):
+    """Render the CNV table from parsed cnv bed files."""
+    if not cnv_data:
+        return ""
+
+    html = f"""
+      <details class="collapsible-section" open>
+        <summary>
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 style="margin: 0; font-size: 0.9em; color: inherit;">Copy Number Variants (CNVs)</h3>
+            <button class="export-btn" onclick="event.preventDefault(); event.stopPropagation(); exportCNVToCSV()">Export CSV</button>
+          </div>
+        </summary>
+        <div class="table-container" style="margin-bottom: 30px; position: relative;">
+          <table id="cnvTable">
+            <thead>
+              <tr>
+                {render_th("Sample", "sample-col sortable", "sortCNVTable(0)")}
+                {render_th("Chr", "sortable", "sortCNVTable(1)")}
+                {render_th("Start", "sortable", "sortCNVTable(2)", "text-align: right;")}
+                {render_th("End", "sortable", "sortCNVTable(3)", "text-align: right;")}
+                {render_th("Size", "sortable", "sortCNVTable(4)", "text-align: right;")}
+                {render_th("Type", "sortable", "sortCNVTable(5)")}
+                {render_th("Ratio", "sortable", "sortCNVTable(6)", "text-align: right;")}
+              </tr>
+            </thead>
+            <tbody>
+    """
+
+    for sample_name in sorted(cnv_data.keys(), key=natural_sort_key):
+        cnvs = cnv_data[sample_name]
+        for c in cnvs:
+            ratio_display = f"{c['ratio']:.2f}" if (c.get('ratio') is not None) else 'NA'
+            html += f"""
+            <tr data-sample="{sample_name.lower()}" data-chr="{c['chr'].lower()}" data-start="{c['start']}" data-end="{c['end']}" data-size="{c['size']}" data-type="{c['type']}" data-ratio="{c.get('ratio')}">
+              <td class="sample-col">{sample_name}</td>
+              <td>{c['chr']}</td>
+              <td style="text-align: right;">{c['start']:,}</td>
+              <td style="text-align: right;">{c['end']:,}</td>
+              <td style="text-align: right;">{c['size']:,}</td>
+              <td>{c['type']}</td>
+              <td style="text-align: right;">{ratio_display}</td>
+            </tr>
+    """
+
     html += """
           </tbody>
         </table>
@@ -1522,6 +1682,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     variants_table = render_variants_table(variants_data)
     phasing_table = render_phasing_table(phasing_data)
     sv_table = render_sv_table(sv_data)
+    cnv_summary = render_cnv_summary_table(args.cnv_data if hasattr(args, 'cnv_data') else {})
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     read_hists_block = render_read_hists_section(samples_readhists)
@@ -1578,6 +1739,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
       {variants_table}
       {phasing_table}
       {sv_table}
+      {cnv_summary}
       {output_structure_block}
     </div>
   </div>
@@ -1604,6 +1766,7 @@ def main():
     parser.add_argument('--flagstat', nargs='*', default=[], help='One or more .flagstat.json files')
     parser.add_argument('--vcf-query', nargs='*', default=[], help='One or more .query files from bcftools query')
     parser.add_argument('--sv-vcf', nargs='*', default=[], help='One or more structural variant VCF files')
+    parser.add_argument('--cnv-bed', nargs='*', default=[], help='One or more CNV bed files')
     parser.add_argument('--phasestats', nargs='*', default=[], help='One or more phasing stats TSV files')
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('--readhists', nargs='*', default=[], help='One or more read histogram .hist files')
@@ -1745,6 +1908,22 @@ def main():
         result = parse_sv_query(vcf_file)
         if result is not None:
             sv_data[sample_name] = result
+    
+    # CNV BED files (e.g., output from spectre: sample.cnv.bed)
+    cnv_data = {}
+    for f in args.cnv_bed:
+      path = Path(f)
+      name = path.name
+      for suffix in ['.cnv.bed', '.cnv.bed.gz', '.bed']:
+        if name.endswith(suffix):
+          name = name[:-len(suffix)]
+          break
+      sample_name = strip_extensions(name)
+      print(f"Processing CNV bed {f} (Sample: {sample_name})...")
+      result = parse_cnv_bed(f)
+      if result is not None:
+        cnv_data[sample_name] = result
+    args.cnv_data = cnv_data
             
     for phase_file in args.phasestats:
         path = Path(phase_file)
