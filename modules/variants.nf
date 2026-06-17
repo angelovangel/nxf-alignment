@@ -139,13 +139,13 @@ process MOSDEPTH {
     """
     mosdepth -t ${task.cpus} -Q 20 -b 1000 ${sample} ${bam}
 
-    echo "${task.process}: mosdepth v\$(mosdepth --version 2>&1 || echo '0.3.8')" > versions.txt
+    echo "${task.process}: \$(mosdepth --version 2>&1 || echo '0.3.8')" > versions.txt
     """
 }
 
 process VCF_SPECTRE {
     container 'docker.io/ontresearch/spectre:latest'
-    publishDir "${params.outdir}/03-variants/cnv", mode: 'copy', pattern: "*.{vcf,bed,spc.gz,_karyotype.txt}"
+    publishDir "${params.outdir}/03-variants/cnv", mode: 'copy', pattern: "*.{vcf,bed,spc.gz,karyotype.txt}"
     tag "${sample}"
 
     input:
@@ -155,7 +155,7 @@ process VCF_SPECTRE {
     tuple val(sample), path("${sample}.cnv.vcf")
     path "${sample}.cnv.bed"
     path "${sample}.spc.gz"
-    path "${sample}_karyotype.txt"
+    path "${sample}.karyotype.txt"
     path "versions.txt", emit: versions
 
     script:
@@ -185,9 +185,9 @@ process VCF_SPECTRE {
     cp output_dir/${sample}_cnv.bed ./${sample}.cnv.bed
     cp output_dir/${sample}.spc.gz ./${sample}.spc.gz
     if [ -f output_dir/predicted_karyotype.txt ]; then
-        cp output_dir/predicted_karyotype.txt ./${sample}_karyotype.txt
+        cp output_dir/predicted_karyotype.txt ./${sample}.karyotype.txt
     else
-        echo "No karyotype file generated" > ${sample}_karyotype.txt
+        touch ${sample}.karyotype.txt
     fi
 
     echo "${task.process}: spectre v\$(spectre --version 2>&1 || echo '0.3.x')" > versions.txt

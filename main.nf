@@ -381,6 +381,7 @@ workflow {
         ch_spectre_input | VCF_SPECTRE
         ch_cnv = VCF_SPECTRE.out[0]
         ch_cnv_bed = VCF_SPECTRE.out[1]
+        ch_cnv_karyo = VCF_SPECTRE.out[3]
         ch_versions = ch_versions.mix(VCF_SPECTRE.out.versions.first())
     }
     // CNV end
@@ -461,6 +462,7 @@ workflow {
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
         params.snp ? VCF_STATS_SNP.out[0].collect() : Channel.fromPath(empty_variants),
         params.cnv ? ch_cnv_bed.collect() : Channel.fromPath(empty_variants),
+        params.cnv ? ch_cnv_karyo.collect() : Channel.fromPath(empty_variants),
         params.sv ? VCF_STATS_SV.out[0].collect() : Channel.fromPath(empty_sv_variants),
         params.phase ? ch_phase_stats : Channel.fromPath(empty_phase_stats),
         ch_asfile,

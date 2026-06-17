@@ -18,6 +18,7 @@ process REPORT {
         path(flagstat)
         path(variants)
         path(cnv_bed)
+        path(cnv_karyo)
         path(sv_variants)
         path(phase_stats)
         path(as_file)
@@ -41,6 +42,7 @@ process REPORT {
     def read_ani_arg = ani_stats.name.contains('empty_ani_stats') ? '' : "--anis ${ani_stats}"
     // cnv_bed will be passed as the `empty_variants` sentinel when not run
     def cnv_arg = cnv_bed.name.contains('empty_variants') ? '' : "--cnv-bed ${cnv_bed}"
+    def cnv_karyo_arg = cnv_karyo.name.contains('empty_variants') ? '' : "--cnv-karyo ${cnv_karyo}"
     def pgx_arg = params.pgx ? "--pgx" : ""
     def mods_arg = params.mods ? "--mods" : ""
     """
@@ -56,6 +58,7 @@ process REPORT {
         $variants_arg \
         $sv_variants_arg \
         $cnv_arg \
+        $cnv_karyo_arg \
         $phase_stats_arg \
         $asfile_arg \
         $readhists_arg \

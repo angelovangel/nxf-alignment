@@ -607,7 +607,7 @@ def render_details_block(title, info_list, add_top_border=False):
     """
     return html
 
-def render_cnv_summary_table(cnv_data):
+def render_cnv_summary_table(cnv_data, cnv_karyo=None):
     """Render a per-sample summary table for CNVs (counts, bases affected, types)."""
     if not cnv_data:
         return ""
@@ -623,14 +623,15 @@ def render_cnv_summary_table(cnv_data):
           <table id="cnvSummaryTable">
             <thead>
               <tr>
-                {render_th('Sample', 'sample-col sortable', 'sortCNVSummary(0)')}
-                {render_th('Total CNVs', 'sortable', 'sortCNVSummary(1)', 'text-align: right;')}
-                {render_th('Deletions (DEL)', 'sortable', 'sortCNVSummary(2)', 'text-align: right;')}
-                {render_th('Duplications (DUP)', 'sortable', 'sortCNVSummary(3)', 'text-align: right;')}
-                {render_th('Total Bases Affected', 'sortable', 'sortCNVSummary(4)', 'text-align: right;')}
-                {render_th('Mean Ratio', 'sortable', 'sortCNVSummary(5)', 'text-align: right;')}
-                {render_th('Max CNV Size', 'sortable', 'sortCNVSummary(6)', 'text-align: right;')}
-              </tr>
+                  {render_th('Sample', 'sample-col sortable', 'sortCNVSummary(0)')}
+                  {render_th('Karyotype', 'sortable', 'sortCNVSummary(1)')}
+                  {render_th('Total CNVs', 'sortable', 'sortCNVSummary(2)', 'text-align: right;')}
+                  {render_th('Deletions (DEL)', 'sortable', 'sortCNVSummary(3)', 'text-align: right;')}
+                  {render_th('Duplications (DUP)', 'sortable', 'sortCNVSummary(4)', 'text-align: right;')}
+                  {render_th('Total Bases Affected', 'sortable', 'sortCNVSummary(5)', 'text-align: right;')}
+                  {render_th('Mean Ratio', 'sortable', 'sortCNVSummary(6)', 'text-align: right;')}
+                  {render_th('Max CNV Size', 'sortable', 'sortCNVSummary(7)', 'text-align: right;')}
+                </tr>
             </thead>
             <tbody>
     """
@@ -647,9 +648,14 @@ def render_cnv_summary_table(cnv_data):
 
         mean_ratio_display = f"{mean_ratio:.2f}" if mean_ratio is not None else 'NA'
 
+        karyo = ''
+        if cnv_karyo and sample_name in cnv_karyo:
+            karyo = cnv_karyo.get(sample_name, '')
+
         html += f"""
             <tr data-sample="{sample_name.lower()}" data-total="{total}" data-dels="{dels}" data-dups="{dups}" data-bases="{total_bases}" data-meanratio="{mean_ratio}">
               <td class="sample-col">{sample_name}</td>
+              <td>{karyo}</td>
               <td style="text-align: right;">{total:,}</td>
               <td style="text-align: right;">{dels:,}</td>
               <td style="text-align: right;">{dups:,}</td>
@@ -1682,7 +1688,7 @@ def generate_html_report(samples_data, readstats_data, run_info, wf_info, ref_st
     variants_table = render_variants_table(variants_data)
     phasing_table = render_phasing_table(phasing_data)
     sv_table = render_sv_table(sv_data)
-    cnv_summary = render_cnv_summary_table(args.cnv_data if hasattr(args, 'cnv_data') else {})
+    cnv_summary = render_cnv_summary_table(args.cnv_data if hasattr(args, 'cnv_data') else {}, args.cnv_karyo_data if hasattr(args, 'cnv_karyo_data') else {})
     coverage_table = render_coverage_table(samples_data, genes)
     bed_coverage_table = render_bed_coverage_table(bed_coverage_data)
     read_hists_block = render_read_hists_section(samples_readhists)
@@ -1767,6 +1773,7 @@ def main():
     parser.add_argument('--vcf-query', nargs='*', default=[], help='One or more .query files from bcftools query')
     parser.add_argument('--sv-vcf', nargs='*', default=[], help='One or more structural variant VCF files')
     parser.add_argument('--cnv-bed', nargs='*', default=[], help='One or more CNV bed files')
+    parser.add_argument('--cnv-karyo', nargs='*', default=[], help='One or more CNV karyotype files')
     parser.add_argument('--phasestats', nargs='*', default=[], help='One or more phasing stats TSV files')
     parser.add_argument('--asfile', type=str, help='Optional adaptive sampling decision file', default=None)
     parser.add_argument('--readhists', nargs='*', default=[], help='One or more read histogram .hist files')
@@ -1924,6 +1931,32 @@ def main():
       if result is not None:
         cnv_data[sample_name] = result
     args.cnv_data = cnv_data
+
+    # Parse CNV karyotype files (one-line string per sample)
+    cnv_karyo_data = {}
+    for f in args.cnv_karyo:
+      path = Path(f)
+      name = path.name
+      for suffix in ['_karyotype.txt', '.karyotype.txt', '.karyo.txt', '.txt']:
+        if name.endswith(suffix):
+          name = name[:-len(suffix)]
+          break
+      sample_name = strip_extensions(name)
+      try:
+        with open(f, 'r') as fh:
+          # read first non-empty line
+          k = None
+          for line in fh:
+            sline = line.strip()
+            if sline:
+              k = sline
+              break
+          if k is None:
+            k = 'NA'
+          cnv_karyo_data[sample_name] = k
+      except Exception as e:
+        print(f"Error reading karyotype {f}: {e}", file=sys.stderr)
+    args.cnv_karyo_data = cnv_karyo_data
             
     for phase_file in args.phasestats:
         path = Path(phase_file)
