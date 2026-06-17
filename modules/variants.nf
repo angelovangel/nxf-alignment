@@ -155,7 +155,7 @@ process VCF_SPECTRE {
     tuple val(sample), path("${sample}.cnv.vcf")
     path "${sample}.cnv.bed"
     path "${sample}.spc.gz"
-    path "karyotype.txt"
+    path "${sample}_karyotype.txt"
     path "versions.txt", emit: versions
 
     script:
