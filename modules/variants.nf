@@ -139,7 +139,7 @@ process MOSDEPTH {
     """
     mosdepth -t ${task.cpus} -Q 20 -b 1000 ${sample} ${bam}
 
-    echo "${task.process}: \$(mosdepth --version 2>&1 || echo '0.3.8')" > versions.txt
+    echo "${task.process}: mosdepth v\$(mosdepth --version 2>&1 | sed 's/^mosdepth //')" > versions.txt
     """
 }
 
@@ -190,7 +190,7 @@ process VCF_SPECTRE {
         touch ${sample}.karyotype.txt
     fi
 
-    echo "${task.process}: spectre v\$(spectre --version 2>&1 || echo '0.3.x')" > versions.txt
+    echo "${task.process}: spectre v\$(spectre version 2>&1 | sed 's/^spectre::INFO> Spectre version: //' || echo '0.3.x')" > versions.txt
     """
 }
 
