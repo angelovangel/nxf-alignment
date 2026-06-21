@@ -228,6 +228,9 @@ workflow {
             Channel.fromPath(empty_bedcov_compl),
             Channel.fromPath(empty_flagstat),
             Channel.fromPath(empty_variants),
+            // placeholders for CNV bed and CNV karyo when running report-only
+            Channel.fromPath(empty_variants),
+            Channel.fromPath(empty_variants),
             Channel.fromPath(empty_sv_variants),
             Channel.fromPath(empty_phase_stats),
             ch_asfile,
