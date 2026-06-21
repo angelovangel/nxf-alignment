@@ -63,6 +63,9 @@ def empty_sv_variants = file("${workflow.workDir}/empty_sv_variants")
 def empty_phase_stats = file("${workflow.workDir}/empty_phase_stats")
 def empty_readhists = file("${workflow.workDir}/empty_readhists")
 def empty_ani_stats = file("${workflow.workDir}/empty_ani_stats")
+// distinct placeholders for CNV report inputs to avoid filename collisions
+def empty_cnv_bed = file("${workflow.workDir}/empty_cnv_bed")
+def empty_cnv_karyo = file("${workflow.workDir}/empty_cnv_karyo")
 
 
 // Workflow properties - create CSV content as a string
@@ -229,8 +232,8 @@ workflow {
             Channel.fromPath(empty_flagstat),
             Channel.fromPath(empty_variants),
             // placeholders for CNV bed and CNV karyo when running report-only
-            Channel.fromPath(empty_variants),
-            Channel.fromPath(empty_variants),
+            Channel.fromPath(empty_cnv_bed),
+            Channel.fromPath(empty_cnv_karyo),
             Channel.fromPath(empty_sv_variants),
             Channel.fromPath(empty_phase_stats),
             ch_asfile,
@@ -464,8 +467,8 @@ workflow {
         SAMTOOLS_BEDCOV.out.ch_bedcov_complement.collect(),
         SAMTOOLS_BEDCOV.out.ch_flagstat.collect(),
         params.snp ? VCF_STATS_SNP.out[0].collect() : Channel.fromPath(empty_variants),
-        params.cnv ? ch_cnv_bed.collect() : Channel.fromPath(empty_variants),
-        params.cnv ? ch_cnv_karyo.collect() : Channel.fromPath(empty_variants),
+        params.cnv ? ch_cnv_bed.collect() : Channel.fromPath(empty_cnv_bed),
+        params.cnv ? ch_cnv_karyo.collect() : Channel.fromPath(empty_cnv_karyo),
         params.sv ? VCF_STATS_SV.out[0].collect() : Channel.fromPath(empty_sv_variants),
         params.phase ? ch_phase_stats : Channel.fromPath(empty_phase_stats),
         ch_asfile,
