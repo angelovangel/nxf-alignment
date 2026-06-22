@@ -159,7 +159,8 @@ process VCF_SPECTRE {
     path "versions.txt", emit: versions
 
     script:
-    def snv_opt = snp_vcf.name != "NO_VCF" ? "--snv ${snp_vcf}" : ""
+    // treat any file starting with NO_VCF as the dummy placeholder
+    def snv_opt = !snp_vcf.name.startsWith('NO_VCF') ? "--snv ${snp_vcf}" : ""
     """
 
     # Create coverage directory and link files (required by ONT spectre)

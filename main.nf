@@ -371,16 +371,20 @@ workflow {
                     tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, snp_vcf, snp_tbi)
                 }
         } else {
-            // Create dummy file paths for SNV
-            def dummy_vcf = file("${workflow.workDir}/NO_VCF")
-            if (!dummy_vcf.exists()) {
-                dummy_vcf.text = ""
-            }
+            // Create per-sample dummy file paths for SNV (avoid filename collisions)
             ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
                 .combine(ch_ref.first())
                 .combine(ch_genome.first())
                 .map { sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai ->
-                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, dummy_vcf, dummy_vcf)
+                    def dummy_vcf = file("${workflow.workDir}/NO_VCF.${sample}.vcf")
+                    def dummy_tbi = file("${workflow.workDir}/NO_VCF.${sample}.tbi")
+                    if (!dummy_vcf.exists()) {
+                        dummy_vcf.text = ""
+                    }
+                    if (!dummy_tbi.exists()) {
+                        dummy_tbi.text = ""
+                    }
+                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, dummy_vcf, dummy_tbi)
                 }
         }
 
