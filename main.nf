@@ -361,32 +361,18 @@ workflow {
         ch_aligned_bam | MOSDEPTH
         ch_versions = ch_versions.mix(MOSDEPTH.out.versions.first())
 
-        if (params.snp) {
-            // Join mosdepth coverage with snp VCF
-            ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
-                .join(ch_vcf)                   // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi]
-                .combine(ch_ref.first())        // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref]
-                .combine(ch_genome.first())     // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai]
-                .map { sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai ->
-                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, snp_vcf, snp_tbi)
-                }
-        } else {
-            // Create per-sample dummy file paths for SNV (avoid filename collisions)
-            ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
-                .combine(ch_ref.first())
-                .combine(ch_genome.first())
-                .map { sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai ->
-                    def dummy_vcf = file("${workflow.workDir}/NO_VCF.${sample}.vcf")
-                    def dummy_tbi = file("${workflow.workDir}/NO_VCF.${sample}.tbi")
-                    if (!dummy_vcf.exists()) {
-                        dummy_vcf.text = ""
-                    }
-                    if (!dummy_tbi.exists()) {
-                        dummy_tbi.text = ""
-                    }
-                    tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, dummy_vcf, dummy_tbi)
-                }
+        if (!params.snp) {
+            error "CNV analysis requires SNP variants to be called. Please use --snp."
         }
+
+        // Join mosdepth coverage with snp VCF
+        ch_spectre_input = MOSDEPTH.out[0]  // [sample, cov_bed, cov_tbi, cov_summary]
+            .join(ch_vcf)                   // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi]
+            .combine(ch_ref.first())        // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref]
+            .combine(ch_genome.first())     // [sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai]
+            .map { sample, cov_bed, cov_tbi, cov_summary, snp_vcf, snp_tbi, ref, ref_fai ->
+                tuple(sample, cov_bed, cov_tbi, cov_summary, ref, ref_fai, snp_vcf, snp_tbi)
+            }
 
         ch_spectre_input | VCF_SPECTRE
         ch_cnv = VCF_SPECTRE.out[0]

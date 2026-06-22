@@ -159,8 +159,6 @@ process VCF_SPECTRE {
     path "versions.txt", emit: versions
 
     script:
-    // Always pass the SNV argument (use per-sample dummy VCF when no real VCF)
-    def snv_opt = "--snv ${snp_vcf}"
     """
 
     # Create coverage directory and link files (required by ONT spectre)
@@ -179,7 +177,7 @@ process VCF_SPECTRE {
         --sample-id ${sample} \
         --output-dir output_dir \
         --reference ${ref} \
-        ${snv_opt}
+        --snv ${snp_vcf}
 
     # Prepare outputs
     cp output_dir/${sample}.vcf ./${sample}.cnv.vcf
