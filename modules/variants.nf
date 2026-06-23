@@ -189,7 +189,7 @@ process VCF_SPECTRE {
         touch ${sample}.karyotype.txt
     fi
 
-    echo "${task.process}: spectre v\$(spectre version 2>&1 | sed 's/^spectre::INFO> Spectre version: //' || echo '0.3.x')" > versions.txt
+    echo "${task.process}: spectre v\$(spectre version 2>&1 | grep 'Spectre version' | sed 's/^spectre::INFO> Spectre version: //' || echo '0.3.x')" > versions.txt
     """
 }
 

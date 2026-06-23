@@ -21,10 +21,11 @@ def summary = """
     =========================================
     Start                    : ${workflow.start.format('yyyy-MM-dd HH:mm:ss')}
     Profile                  : ${workflow.profile}
-    Container Engine         : ${workflow.containerEngine ?: 'local'}
+    Container engine         : ${workflow.containerEngine ?: 'local'}
     Workflow version         : ${workflow.manifest.version}
     Workflow script ID       : ${workflow.scriptId.take(10)}
     NXF version              : ${workflow.nextflow.version}
+    Command line             : ${workflow.commandLine}
     -----------------------------------------
     Parameters
     -----------------------------------------
